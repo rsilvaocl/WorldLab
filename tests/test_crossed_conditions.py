@@ -181,3 +181,49 @@ def test_phase_has_own_effect():
         if eff[(r, "A", 0)] != eff[(r, "A", 1)]
     ]
     assert len(resources_with_phase_effect) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Expulsión de regiones bloqueadas (crítica de Opus: nadie puede vivir B-oscura)
+# ---------------------------------------------------------------------------
+
+def test_expulsion_when_phase_changes():
+    """Un agente en B al llegar la fase oscura es expulsado a la celda libre
+    más cercana en región no bloqueada — NO puede vivir la celda retenida."""
+    w = make_crossed_world()
+    w.entities["a0"].x = 15   # dentro de B
+    # avanza ticks hasta entrar en fase oscura (phase_ticks=5)
+    for _ in range(5):
+        w.advance_tick()
+    assert w.phase() == 1
+    # a0 ya no está en B
+    assert w.region(w.entities["a0"].x, w.entities["a0"].y) == "A"
+    # quedó registrado el evento expelled
+    expelled = [e for e in w.events if e.action == "expelled"]
+    assert len(expelled) >= 1
+
+
+def test_no_heldout_consumption_after_expulsion():
+    """Red de detección: tras la expulsión, NINGÚN consume ok ocurre en la
+    celda retenida (B-oscura) durante la simulación."""
+    w = make_crossed_world()
+    # colocar al agente en B y simular varios ciclos completos de fase
+    w.entities["a0"].x = 15
+    w.agents["a0"].inventory["S1"] = 50.0
+    for _ in range(30):
+        # consumir cuando tenga hambre (siempre: energía baja)
+        if w.agents["a0"].energy < 30:
+            w.consume("a0", "S1", amount=1.0)
+        w.advance_tick()
+    assert w.no_heldout_consumption() is True
+
+
+def test_heldout_detector_catches_manual_violation():
+    """La red de detección FALLA si alguien fuerza un consume en B-oscura
+    (por ejemplo, bypass manual) — el test de composición estaría contaminado."""
+    w = make_crossed_world()
+    w.tick = 5   # fase oscura
+    w.entities["a0"].x = 15  # B
+    w.agents["a0"].inventory["S1"] = 5.0
+    w.consume("a0", "S1", amount=1.0)   # forzado: vive la celda retenida
+    assert w.no_heldout_consumption() is False

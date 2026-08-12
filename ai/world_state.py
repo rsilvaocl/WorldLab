@@ -93,7 +93,7 @@ class WorldConfig:
                                      # (rkind, región, fase) -> energía ganada; override
     # --- comunicación simbólica (D-008: canal simbólico, decisión Comandante) --
     symbol_alphabet: List[str] = field(
-        default_factory=lambda: [f"k{i}" for i in range(1, 10)])
+        default_factory=lambda: [f"k{i}" for i in range(1, 5)])
     hear_radius: int = 6             # radio en el que otros agentes oyen talk()
     seed: int = 1
 
@@ -455,7 +455,8 @@ class WorldState:
 
     # -- ciclo de tiempo -------------------------------------------------
     def advance_tick(self) -> None:
-        """Avanza un tick: costo metabólico de todos los agentes."""
+        """Avanza un tick: costo metabólico de todos los agentes + expulsión
+        de regiones bloqueadas por la fase (D-011)."""
         for aid, agent in self.agents.items():
             agent.energy -= self.config.energy_per_tick
             if agent.energy <= 0:
@@ -464,6 +465,55 @@ class WorldState:
         if self.tick >= self.config.ticks_per_day:
             self.tick = 0
             self.day += 1
+        self._expel_agents_from_blocked_regions()
+
+    def _expel_agents_from_blocked_regions(self) -> None:
+        """Expulsa agentes que quedaron en una región bloqueada por la fase actual.
+
+        Crítica de Opus: si un agente se queda en B cuando llega la fase oscura,
+        VIVE la celda retenida (B-oscura) y el test de composición se cae sin
+        hacer ruido. La barrera impide entrar; la expulsión garantiza que nadie
+        permanezca: se mueve a la celda libre más cercana en región no bloqueada."""
+        phase = self.phase()
+        for aid, agent in list(self.agents.items()):
+            ent = agent.entity
+            if self._region_blocked(self.region(ent.x, ent.y), phase):
+                target = self._nearest_free_unblocked_cell(ent.x, ent.y, phase)
+                if target is not None:
+                    from_pos = (ent.x, ent.y)
+                    ent.x, ent.y = target
+                    self._event(aid, "expelled", "ok",
+                                {"from": from_pos, "to": target, "phase": phase})
+
+    def _nearest_free_unblocked_cell(self, x: int, y: int, phase: int):
+        """Búsqueda en espiral: celda libre en región NO bloqueada más cercana."""
+        limit = max(self.config.width, self.config.height)
+        for radius in range(1, limit + 1):
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    if abs(dx) + abs(dy) != radius:
+                        continue
+                    nx, ny = x + dx, y + dy
+                    if not self.in_bounds(nx, ny):
+                        continue
+                    if self._region_blocked(self.region(nx, ny), phase):
+                        continue
+                    if not self.entities_at(nx, ny):
+                        return nx, ny
+        return None
+
+    def no_heldout_consumption(self) -> bool:
+        """RED DE DETECCIÓN (Opus): ningún consume ok en una celda bloqueada.
+        Si ocurre, la expulsión falló por alguna vía y la celda retenida se
+        contaminó — el test de composición dejó de significar nada."""
+        blocked = {(phase, region) for (phase, region), blocked
+                   in self.config.phase_barriers.items() if blocked}
+        for ev in self.events:
+            if ev.action == "consume" and ev.outcome == "ok":
+                key = (ev.detail.get("phase"), ev.detail.get("region"))
+                if key in blocked:
+                    return False
+        return True
 
     # -- determinismo ----------------------------------------------------
     def state_hash(self) -> str:

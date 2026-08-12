@@ -201,7 +201,7 @@ class LLMAgent:
             "- drop/pickup/give funcionan solo en tu celda o casilla adyacente.\n"
             "- build construye una estructura en una casilla adyacente libre, consumiendo los materiales de su receta (definida en el mundo; tú solo eliges structure, x, y).\n"
             "- Solo percibes lo que está cerca (radio de visión limitado); lo que no ves, no sabes que existe.\n"
-            "- La comunicación es SIMBÓLICA: talk emite símbolos del alfabeto del mundo (k1..k9), sin significado asignado. Costan energía; hablar solo cuando aporte. Lo que otros dicen llega a tu percepción como 'heard' si están cerca.\n"
+            "- La comunicación es SIMBÓLICA: talk emite símbolos del alfabeto del mundo (k1..k4), sin significado asignado. Costan energía; hablar solo cuando aporte. Lo que otros dicen llega a tu percepción como 'heard' si están cerca.\n"
             "Acciones disponibles (JSON): move{dx,dy}, gather{target_eid,amount}, "
             "consume{rkind,amount}, drop{rkind,amount}, pickup{target_eid}, "
             "give{target_eid,rkind,amount}, build{structure,x,y}, talk{message}, rest.\n"

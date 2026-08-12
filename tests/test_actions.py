@@ -206,11 +206,11 @@ def test_build_cell_occupied():
 def test_talk_ok_and_costs_energy():
     w = make_econ_world()
     before = w.agents["a0"].energy
-    ev = w.talk("a0", "k7 k2 k9")
+    ev = w.talk("a0", "k1 k2 k4")
     assert ev.outcome == "ok"
     assert w.agents["a0"].energy == before - 1.0
-    assert ev.detail["message"] == "k7 k2 k9"
-    assert ev.detail["symbols"] == ["k7", "k2", "k9"]
+    assert ev.detail["message"] == "k1 k2 k4"
+    assert ev.detail["symbols"] == ["k1", "k2", "k4"]
 
 
 def test_talk_empty_rejected():

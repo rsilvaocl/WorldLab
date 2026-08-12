@@ -61,6 +61,21 @@ Formato: fecha · decisión · quién la tomó · estado
   (0=pérdida grande ... 5=ganancia grande); el azar cae a ~17%.
 - Se registran predicted_level, truth_level, level_correct + sign_correct (secundaria).
 
+## D-011 · 2026-08-11 · Expulsión de regiones bloqueadas + integridad del held-out (Opus) · Aprobada
+- Al entrar la fase oscura, los agentes en B son EXPULSADOS a la celda libre más
+  cercana en región no bloqueada (búsqueda en espiral) — nadie puede vivir B-oscura.
+- Red de detección permanente: `no_heldout_consumption()` — ningún consume ok en
+  celda bloqueada. Test falla si se contamina el held-out por cualquier vía.
+- Alfabeto simbólico reducido a 4 (`k1..k4`): el estimador de MI está sesgado al
+  alza con alfabeto grande y pocos datos.
+- Emergencia de señalización se mide con MI contra NULO POR PERMUTACIÓN (no contra cero).
+
+## D-012 · 2026-08-11 · hear_radius > radio de visión: decisión escrita (Opus) · Aprobada
+- `hear_radius` (6) > radio de visión (4): un agente puede OÍR a quien no ve.
+- Decisión consciente y documentada, no accidente: crea situaciones interesantes
+  (oír sin ver) y es parte del diseño del mundo.
+
+
 ## D-007 · 2026-08-11 · Orden de operaciones (Opus) · Aprobada
 - Pre-registro DESPUÉS del piloto, no antes. El N sale de σ entre mundos (cálculo de potencia).
 - Baseline determinista parametrizado y OPTIMIZADO (re-optimizado tras fixes de mecánica: D-001).
