@@ -29,9 +29,11 @@ def main() -> None:
                                                       exploration=0.15))
     # mundo de desarrollo: densidad de recursos generosa (12% del grid) para
     # que la demo muestre comportamiento; el mundo reservado usará la densidad
-    # definida por el pre-registro (Opus)
+    # definida por el pre-registro (Opus). Recursos con nombres legibles para
+    # el visor (ontología real de Opus reemplazará esto).
     sim = Simulator(cfg, policy, DEMO_DIR, f"demo_d{days}_s{seed}", log_interval=12,
-                    resource_density=0.12)
+                    resource_density=0.12,
+                    resource_kinds=["food", "wood", "stone", "water"])
     res = sim.run(agents, seed=seed)
     print("Demo generada:", res.events_path)
     print(res.to_dict())

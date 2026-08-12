@@ -115,9 +115,12 @@ class WorldState:
         if ent.kind == "agent":
             self.agents[ent.eid] = AgentState(entity=ent, energy=100.0)
 
-    def scatter_resources(self, count: int, kind: str = "resource") -> None:
+    def scatter_resources(self, count: int, kind: str = "resource",
+                          resource_kinds: Optional[List[str]] = None) -> None:
         """Coloca `count` recursos en celdas libres, usando el RNG sembrado.
-        Misma seed => misma distribución. Recursos pueden coexistir en una celda."""
+        Misma seed => misma distribución. Recursos pueden coexistir en una celda.
+        `resource_kinds` (p.ej. ["food","wood","stone"]) asigna tipo de recurso;
+        si es None, queda sin tipo (ontología por definir)."""
         placed = 0
         attempts = 0
         max_attempts = count * 20 + 100
@@ -126,8 +129,13 @@ class WorldState:
             x = self.rng.randrange(self.config.width)
             y = self.rng.randrange(self.config.height)
             rid = f"r_{kind}_{placed}"
-            self.entities[rid] = Entity(eid=rid, kind=kind, x=x, y=y,
-                                        attrs={"amount": 10.0})
+            rkind = None
+            if resource_kinds:
+                rkind = resource_kinds[self.rng.randrange(len(resource_kinds))]
+            attrs = {"amount": 10.0}
+            if rkind:
+                attrs["kind"] = rkind
+            self.entities[rid] = Entity(eid=rid, kind=kind, x=x, y=y, attrs=attrs)
             placed += 1
         if placed < count:
             raise RuntimeError(f"Solo se pudieron colocar {placed}/{count} recursos")

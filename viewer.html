@@ -13,12 +13,17 @@
   #main { flex:1; display:flex; min-height:0; }
   #left { flex:1; display:flex; flex-direction:column; min-width:0; }
   #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; background:#0b0d11; padding:12px; }
-  canvas { background:#12151b; border:1px solid var(--border); border-radius:6px; image-rendering:pixelated; }
+  canvas { background:#12151b; border:1px solid var(--border); border-radius:6px; }
+  #legend { display:flex; gap:14px; padding:6px 16px; font-size:11px; color:var(--dim); border-top:1px solid var(--border); background:var(--bg); flex-wrap:wrap; }
+  .lg { display:flex; align-items:center; gap:5px; }
+  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .sw.circ { border-radius:50%; }
   #controls { padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:13px; }
   #controls button { background:var(--panel); color:var(--txt); border:1px solid var(--border); border-radius:5px; padding:5px 12px; cursor:pointer; }
   #controls button:hover { border-color:var(--acc); }
+  #controls button.active { border-color:var(--acc); color:var(--acc); }
   #scrub { flex:1; min-width:180px; }
-  #right { width:300px; border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  #right { width:320px; border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
   #agentsPanel { flex:1; overflow-y:auto; padding:10px; border-bottom:1px solid var(--border); }
   #logPanel { flex:1; overflow-y:auto; padding:10px; font-size:12px; }
   h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin-bottom:8px; }
@@ -28,29 +33,40 @@
   .agentRow .bar > div { height:100%; background:var(--acc); }
   .agentRow .inv { color:var(--dim); font-size:11px; margin-top:4px; word-break:break-word; }
   .logLine { padding:2px 0; border-bottom:1px solid #1c212b; color:#b8c0cc; }
-  .logLine .badge { display:inline-block; background:#232936; border-radius:3px; padding:0 5px; font-size:10px; margin-right:6px; }
+  .logLine .badge { display:inline-block; background:#232936; border-radius:3px; padding:0 5px; font-size:10px; margin-right:6px; color:var(--dim); }
   .logLine.ok .badge { background:#1d4d2e; color:#6fe39a; }
   .logLine.impossible .badge { background:#4d2b1d; color:#e39a6f; }
   #drop { position:fixed; inset:0; background:rgba(77,163,255,.12); border:3px dashed var(--acc); display:none; align-items:center; justify-content:center; font-size:20px; z-index:9; }
   #fileInput { display:none; }
+  .tip { color:var(--dim); font-size:11px; }
 </style>
 </head>
 <body>
 <div id="drop">Suelte el archivo .jsonl aquí</div>
 <header>
   <h1>🦞 WorldLab — Visor</h1>
-  <span class="dim" id="fileInfo">sin archivo cargado</span>
+  <span class="dim" id="fileInfo">sin archivo cargado — arrastre un .jsonl o Cargar</span>
   <button onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
   <input type="file" id="fileInput" accept=".jsonl">
 </header>
 <div id="main">
   <div id="left">
     <div id="canvasWrap"><canvas id="cv" width="600" height="600"></canvas></div>
+    <div id="legend">
+      <span class="lg"><span class="sw circ" style="background:#4da3ff"></span> agente</span>
+      <span class="lg"><span class="sw" style="background:#58c26a"></span> comida</span>
+      <span class="lg"><span class="sw" style="background:#c2a358"></span> madera</span>
+      <span class="lg"><span class="sw" style="background:#8fa3b8"></span> piedra</span>
+      <span class="lg"><span class="sw" style="background:#4da3ff"></span> agua</span>
+      <span class="lg"><span class="sw" style="background:#7a8699"></span> construcción</span>
+      <span class="lg tip">El número en cada recurso es la cantidad disponible</span>
+    </div>
     <div id="controls">
       <button id="btnPlay" onclick="togglePlay()">▶</button>
       <span id="timeLabel" class="dim">—</span>
       <input type="range" id="scrub" min="0" max="1" step="1" value="0" oninput="goTo(parseInt(this.value))">
-      <label class="dim">velocidad <input type="range" id="speed" min="0.2" max="5" step="0.1" value="1" style="width:80px;vertical-align:middle"></label>
+      <label class="dim">velocidad <input type="range" id="speed" min="0.1" max="3" step="0.1" value="0.6" style="width:80px;vertical-align:middle"></label>
+      <button id="btnOkOnly" onclick="toggleOkOnly()">solo exitosas: ON</button>
     </div>
   </div>
   <div id="right">
@@ -61,11 +77,25 @@
 <script>
 // ------------------------------------------------------------------
 // WorldLab viewer — lee JSONL de eventos/snapshots y reproduce la simulación.
-// Cero dependencias: canvas + archivo local (drag & drop o selector).
+// Cero dependencias. Mejoras de legibilidad: leyenda, casas con techo,
+// log en español, colores por tipo de recurso, toggle solo-exitosas.
 // ------------------------------------------------------------------
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null;
+let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null, okOnly = true;
 const CELL = 22;
+
+const RES_NAMES = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
+const RES_COLORS = { food:'#58c26a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
+const ACTION_VERBS = {
+  move:    ['se movió', 'intentó moverse'],
+  gather:  ['recolectó', 'intentó recolectar'],
+  consume: ['consumió', 'intentó consumir'],
+  drop:    ['soltó', 'intentó soltar'],
+  pickup:  ['tomó', 'intentó tomar'],
+  give:    ['entregó', 'intentó entregar'],
+  build:   ['construyó', 'intentó construir'],
+  talk:    ['dijo', 'intentó hablar'],
+};
 
 function parseFile(text) {
   const lines = text.split('\n').filter(l => l.trim());
@@ -95,11 +125,17 @@ function goTo(i) { frame = Math.max(0, Math.min(snapshots.length-1, i)); render(
 function togglePlay() {
   playing = !playing;
   document.getElementById('btnPlay').textContent = playing ? '⏸' : '▶';
-  if (playing) { timer = setInterval(() => { if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1); }, 300 / parseFloat(document.getElementById('speed').value)); }
+  if (playing) { timer = setInterval(() => { if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1); }, 400 / parseFloat(document.getElementById('speed').value)); }
   else clearInterval(timer);
 }
 
-function currentKey(s) { return s.day * 100000 + s.tick; }
+function toggleOkOnly() {
+  okOnly = !okOnly;
+  const btn = document.getElementById('btnOkOnly');
+  btn.textContent = 'solo exitosas: ' + (okOnly ? 'ON' : 'OFF');
+  btn.classList.toggle('active', okOnly);
+  updatePanels();
+}
 
 function render() {
   const s = snapshots[frame];
@@ -107,7 +143,6 @@ function render() {
   cv.width = w * CELL; cv.height = h * CELL;
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.fillStyle = '#12151b'; ctx.fillRect(0, 0, cv.width, cv.height);
-  // grid
   ctx.strokeStyle = '#1d222c'; ctx.lineWidth = 1;
   for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
   for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
@@ -115,15 +150,24 @@ function render() {
   for (const e of ent) {
     const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
     if (e.kind === 'resource') {
-      ctx.fillStyle = e.attrs?.kind === 'food' ? '#58c26a' : '#c2a358';
+      const rk = e.attrs?.kind || 'generic';
+      ctx.fillStyle = RES_COLORS[rk] || RES_COLORS.generic;
       ctx.fillRect(e.x*CELL+4, e.y*CELL+4, CELL-8, CELL-8);
-      ctx.fillStyle = '#0b0d11'; ctx.font = '9px system-ui'; ctx.textAlign='center';
+      ctx.fillStyle = '#0b0d11'; ctx.font = 'bold 9px system-ui'; ctx.textAlign='center';
       const amt = Math.round(e.attrs?.amount ?? 0);
       ctx.fillText(amt > 0 ? amt : '', px, py+3);
     } else if (e.kind === 'object') {
+      // casa: cuerpo + techo
       ctx.fillStyle = '#7a8699';
-      ctx.fillRect(e.x*CELL+2, e.y*CELL+2, CELL-4, CELL-4);
-      ctx.fillStyle = '#0b0d11'; ctx.fillRect(e.x*CELL+CELL/2-3, e.y*CELL+3, 6, CELL-6);
+      ctx.fillRect(e.x*CELL+3, e.y*CELL+7, CELL-6, CELL-9);
+      ctx.fillStyle = '#a06a4a'; // techo
+      ctx.beginPath();
+      ctx.moveTo(e.x*CELL+1, e.y*CELL+8);
+      ctx.lineTo(px, e.y*CELL+1);
+      ctx.lineTo((e.x+1)*CELL-1, e.y*CELL+8);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#2a2f3a'; // puerta
+      ctx.fillRect(px-3, (e.y+1)*CELL-6, 6, 6);
     } else if (e.kind === 'agent') {
       const idx = ent.filter(x=>x.kind==='agent').indexOf(e);
       const hue = (idx*137.5)%360;
@@ -146,23 +190,33 @@ function updatePanels() {
     const info = s.agents?.[a.eid] || { energy: 0, inventory: {} };
     const hue = (agents.indexOf(a)*137.5)%360;
     const row = document.createElement('div'); row.className = 'agentRow';
-    const inv = Object.entries(info.inventory||{}).map(([k,v]) => `${k}:${Math.round(v)}`).join(' · ') || 'vacío';
+    const inv = Object.entries(info.inventory||{})
+      .map(([k,v]) => `${RES_NAMES[k]||k}:${Math.round(v)}`).join(' · ') || 'vacío';
     row.innerHTML = `
       <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}</div>
       <div class="bar"><div style="width:${Math.min(100,info.energy)}%"></div></div>
       <div class="inv">energía ${Math.round(info.energy)} · ${inv}</div>`;
     agentsList.appendChild(row);
   }
-  // eventos hasta este frame
-  const key = currentKey(s);
+  const key = s.day*100000 + s.tick;
   const logList = document.getElementById('logList');
   logList.innerHTML = '';
-  const relevant = events.filter(e => (e.day*100000+e.tick) <= key).slice(-40);
-  for (const e of relevant) {
+  let relevant = events.filter(e => (e.day*100000+e.tick) <= key);
+  if (okOnly) relevant = relevant.filter(e => e.outcome === 'ok');
+  for (const e of relevant.slice(-40)) {
     const div = document.createElement('div');
     div.className = 'logLine ' + (e.outcome === 'ok' ? 'ok' : 'impossible');
-    const extra = e.outcome === 'ok' ? (e.detail?.resource ? ` ${e.detail.resource}:${e.detail.amount ?? ''}` : '') : ` (${e.detail?.reason ?? 'invalid'})`;
-    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${e.eid}</b> ${e.action}${extra}`;
+    const [verbOk, verbFail] = ACTION_VERBS[e.action] || [e.action, e.action + ' (fallido)'];
+    const verb = e.outcome === 'ok' ? verbOk : verbFail;
+    let extra = '';
+    if (e.outcome === 'ok') {
+      if (e.detail?.resource) extra = ` ${RES_NAMES[e.detail.resource]||e.detail.resource}${e.detail.amount ? ' ×'+Math.round(e.detail.amount) : ''}`;
+      if (e.detail?.structure) extra = ` ${e.detail.structure}`;
+    } else {
+      const reasons = { blocked:'camino bloqueado', out_of_bounds:'fuera del mapa', no_energy:'sin energía', not_adjacent:'demasiado lejos', depleted:'recurso agotado', not_enough:'no tiene suficiente', cell_occupied:'lugar ocupado', missing_material:'le faltan materiales', not_a_resource:'no es un recurso', no_such_entity:'no existe', no_such_agent:'no existe' };
+      extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'inválido');
+    }
+    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${e.eid}</b> ${verb}${extra}`;
     logList.appendChild(div);
   }
   logList.scrollTop = logList.scrollHeight;
