@@ -26,3 +26,17 @@ Objetivo: **banco de pruebas para distinguir comportamiento emergente de comport
 .venv/bin/pip install pytest
 .venv/bin/python -m pytest tests/ -v
 ```
+
+## Ver el acuario (visor)
+
+```bash
+# 1. generar una demo (o usar la ya generada en data/bronze/)
+.venv/bin/python -m ai.run_demo 15 1
+
+# 2. abrir el visor
+open viewer.html
+
+# 3. arrastrar el archivo data/bronze/demo_d15_s1_seed1.jsonl dentro del navegador
+# (o Cargar .jsonl). Play ▶, scrubber temporal, velocidad ajustable,
+# panel de agentes (energía + inventario) y log de eventos.
+```

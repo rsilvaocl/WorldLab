@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>WorldLab — Visor</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --border:#2a2f3a; --txt:#d7dce3; --dim:#8a93a3; --acc:#4da3ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; height:100vh; display:flex; flex-direction:column; }
+  header { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { font-size:16px; font-weight:600; }
+  header .dim { color:var(--dim); font-size:12px; }
+  #main { flex:1; display:flex; min-height:0; }
+  #left { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; background:#0b0d11; padding:12px; }
+  canvas { background:#12151b; border:1px solid var(--border); border-radius:6px; image-rendering:pixelated; }
+  #controls { padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:13px; }
+  #controls button { background:var(--panel); color:var(--txt); border:1px solid var(--border); border-radius:5px; padding:5px 12px; cursor:pointer; }
+  #controls button:hover { border-color:var(--acc); }
+  #scrub { flex:1; min-width:180px; }
+  #right { width:300px; border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  #agentsPanel { flex:1; overflow-y:auto; padding:10px; border-bottom:1px solid var(--border); }
+  #logPanel { flex:1; overflow-y:auto; padding:10px; font-size:12px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin-bottom:8px; }
+  .agentRow { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:8px; margin-bottom:8px; }
+  .agentRow .name { font-weight:600; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .agentRow .bar { height:5px; background:#232936; border-radius:3px; margin-top:6px; overflow:hidden; }
+  .agentRow .bar > div { height:100%; background:var(--acc); }
+  .agentRow .inv { color:var(--dim); font-size:11px; margin-top:4px; word-break:break-word; }
+  .logLine { padding:2px 0; border-bottom:1px solid #1c212b; color:#b8c0cc; }
+  .logLine .badge { display:inline-block; background:#232936; border-radius:3px; padding:0 5px; font-size:10px; margin-right:6px; }
+  .logLine.ok .badge { background:#1d4d2e; color:#6fe39a; }
+  .logLine.impossible .badge { background:#4d2b1d; color:#e39a6f; }
+  #drop { position:fixed; inset:0; background:rgba(77,163,255,.12); border:3px dashed var(--acc); display:none; align-items:center; justify-content:center; font-size:20px; z-index:9; }
+  #fileInput { display:none; }
+</style>
+</head>
+<body>
+<div id="drop">Suelte el archivo .jsonl aquí</div>
+<header>
+  <h1>🦞 WorldLab — Visor</h1>
+  <span class="dim" id="fileInfo">sin archivo cargado</span>
+  <button onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
+  <input type="file" id="fileInput" accept=".jsonl">
+</header>
+<div id="main">
+  <div id="left">
+    <div id="canvasWrap"><canvas id="cv" width="600" height="600"></canvas></div>
+    <div id="controls">
+      <button id="btnPlay" onclick="togglePlay()">▶</button>
+      <span id="timeLabel" class="dim">—</span>
+      <input type="range" id="scrub" min="0" max="1" step="1" value="0" oninput="goTo(parseInt(this.value))">
+      <label class="dim">velocidad <input type="range" id="speed" min="0.2" max="5" step="0.1" value="1" style="width:80px;vertical-align:middle"></label>
+    </div>
+  </div>
+  <div id="right">
+    <div id="agentsPanel"><h2>Agentes</h2><div id="agentsList"></div></div>
+    <div id="logPanel"><h2>Eventos</h2><div id="logList"></div></div>
+  </div>
+</div>
+<script>
+// ------------------------------------------------------------------
+// WorldLab viewer — lee JSONL de eventos/snapshots y reproduce la simulación.
+// Cero dependencias: canvas + archivo local (drag & drop o selector).
+// ------------------------------------------------------------------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null;
+const CELL = 22;
+
+function parseFile(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  const data = { snapshots: [], events: [] };
+  for (const line of lines) {
+    const obj = JSON.parse(line);
+    if (obj.type === 'meta') data.meta = obj;
+    else if (obj.type === 'snapshot') data.snapshots.push(obj);
+    else if (obj.type === 'event') data.events.push(obj);
+  }
+  return data;
+}
+
+function loadFromText(text, name) {
+  const d = parseFile(text);
+  if (!d.snapshots.length) { alert('Sin snapshots en el archivo'); return; }
+  meta = d.meta; snapshots = d.snapshots; events = d.events;
+  snapshots.sort((a,b) => (a.day*100000+a.tick) - (b.day*100000+b.tick));
+  document.getElementById('fileInfo').textContent = name + ' · ' + snapshots.length + ' frames · ' + events.length + ' eventos';
+  const scr = document.getElementById('scrub');
+  scr.max = snapshots.length - 1; scr.min = 0; scr.value = 0;
+  frame = 0; render(); updatePanels();
+}
+
+function goTo(i) { frame = Math.max(0, Math.min(snapshots.length-1, i)); render(); updatePanels(); }
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('btnPlay').textContent = playing ? '⏸' : '▶';
+  if (playing) { timer = setInterval(() => { if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1); }, 300 / parseFloat(document.getElementById('speed').value)); }
+  else clearInterval(timer);
+}
+
+function currentKey(s) { return s.day * 100000 + s.tick; }
+
+function render() {
+  const s = snapshots[frame];
+  const w = (meta?.width || 30), h = (meta?.height || 30);
+  cv.width = w * CELL; cv.height = h * CELL;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = '#12151b'; ctx.fillRect(0, 0, cv.width, cv.height);
+  // grid
+  ctx.strokeStyle = '#1d222c'; ctx.lineWidth = 1;
+  for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
+  for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
+  const ent = s.entities || [];
+  for (const e of ent) {
+    const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
+    if (e.kind === 'resource') {
+      ctx.fillStyle = e.attrs?.kind === 'food' ? '#58c26a' : '#c2a358';
+      ctx.fillRect(e.x*CELL+4, e.y*CELL+4, CELL-8, CELL-8);
+      ctx.fillStyle = '#0b0d11'; ctx.font = '9px system-ui'; ctx.textAlign='center';
+      const amt = Math.round(e.attrs?.amount ?? 0);
+      ctx.fillText(amt > 0 ? amt : '', px, py+3);
+    } else if (e.kind === 'object') {
+      ctx.fillStyle = '#7a8699';
+      ctx.fillRect(e.x*CELL+2, e.y*CELL+2, CELL-4, CELL-4);
+      ctx.fillStyle = '#0b0d11'; ctx.fillRect(e.x*CELL+CELL/2-3, e.y*CELL+3, 6, CELL-6);
+    } else if (e.kind === 'agent') {
+      const idx = ent.filter(x=>x.kind==='agent').indexOf(e);
+      const hue = (idx*137.5)%360;
+      ctx.fillStyle = `hsl(${hue} 70% 55%)`;
+      ctx.beginPath(); ctx.arc(px, py, CELL*0.38, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center';
+      ctx.fillText(e.eid.replace(/[^0-9]/g,''), px, py+3);
+    }
+  }
+  document.getElementById('timeLabel').textContent = `día ${s.day} · tick ${s.tick} · frame ${frame+1}/${snapshots.length}`;
+}
+
+function updatePanels() {
+  const s = snapshots[frame];
+  const agentsList = document.getElementById('agentsList');
+  agentsList.innerHTML = '';
+  const ents = s.entities || [];
+  const agents = ents.filter(e => e.kind === 'agent');
+  for (const a of agents) {
+    const info = s.agents?.[a.eid] || { energy: 0, inventory: {} };
+    const hue = (agents.indexOf(a)*137.5)%360;
+    const row = document.createElement('div'); row.className = 'agentRow';
+    const inv = Object.entries(info.inventory||{}).map(([k,v]) => `${k}:${Math.round(v)}`).join(' · ') || 'vacío';
+    row.innerHTML = `
+      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}</div>
+      <div class="bar"><div style="width:${Math.min(100,info.energy)}%"></div></div>
+      <div class="inv">energía ${Math.round(info.energy)} · ${inv}</div>`;
+    agentsList.appendChild(row);
+  }
+  // eventos hasta este frame
+  const key = currentKey(s);
+  const logList = document.getElementById('logList');
+  logList.innerHTML = '';
+  const relevant = events.filter(e => (e.day*100000+e.tick) <= key).slice(-40);
+  for (const e of relevant) {
+    const div = document.createElement('div');
+    div.className = 'logLine ' + (e.outcome === 'ok' ? 'ok' : 'impossible');
+    const extra = e.outcome === 'ok' ? (e.detail?.resource ? ` ${e.detail.resource}:${e.detail.amount ?? ''}` : '') : ` (${e.detail?.reason ?? 'invalid'})`;
+    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${e.eid}</b> ${e.action}${extra}`;
+    logList.appendChild(div);
+  }
+  logList.scrollTop = logList.scrollHeight;
+}
+
+// drag & drop
+const drop = document.getElementById('drop');
+document.addEventListener('dragover', e => { e.preventDefault(); drop.style.display='flex'; });
+document.addEventListener('dragleave', () => drop.style.display='none');
+document.addEventListener('drop', e => {
+  e.preventDefault(); drop.style.display='none';
+  const f = e.dataTransfer.files[0];
+  if (f) f.text().then(t => loadFromText(t, f.name));
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) f.text().then(t => loadFromText(t, f.name));
+});
+</script>
+</body>
+</html>
