@@ -86,6 +86,22 @@ const CELL = 22;
 
 const RES_NAMES = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
 const RES_COLORS = { food:'#58c26a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
+// En el mundo experimental los IDs son opacos (S1..S4). Los nombres y colores
+// bonitos vienen del meta del JSONL (resource_names) — SOLO para el visor.
+function rName(rk) {
+  if (meta?.resource_names && meta.resource_names[rk]) return meta.resource_names[rk];
+  return RES_NAMES[rk] || rk;
+}
+function rColor(rk) {
+  if (RES_COLORS[rk]) return RES_COLORS[rk];
+  if (meta?.resource_names && meta.resource_names[rk]) {
+    // color estable por hash del id opaco
+    let h = 0;
+    for (const c of rk) h = (h * 31 + c.charCodeAt(0)) % 360;
+    return `hsl(${h} 55% 55%)`;
+  }
+  return RES_COLORS.generic;
+}
 const ACTION_VERBS = {
   move:    ['se movió', 'intentó moverse'],
   gather:  ['recolectó', 'intentó recolectar'],
@@ -154,7 +170,7 @@ function render() {
     const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
     if (e.kind === 'resource') {
       const rk = e.attrs?.kind || 'generic';
-      ctx.fillStyle = RES_COLORS[rk] || RES_COLORS.generic;
+      ctx.fillStyle = rColor(rk);
       ctx.fillRect(e.x*CELL+4, e.y*CELL+4, CELL-8, CELL-8);
       ctx.fillStyle = '#0b0d11'; ctx.font = 'bold 9px system-ui'; ctx.textAlign='center';
       const amt = Math.round(e.attrs?.amount ?? 0);
@@ -200,7 +216,7 @@ function updatePanels() {
     const hue = (agents.indexOf(a)*137.5)%360;
     const row = document.createElement('div'); row.className = 'agentRow';
     const inv = Object.entries(info.inventory||{})
-      .map(([k,v]) => `${RES_NAMES[k]||k}:${Math.round(v)}`).join(' · ') || 'vacío';
+      .map(([k,v]) => `${rName(k)}:${Math.round(v)}`).join(' · ') || 'vacío';
     row.innerHTML = `
       <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}</div>
       <div class="bar"><div style="width:${Math.min(100,info.energy)}%"></div></div>

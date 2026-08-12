@@ -83,6 +83,14 @@ class WorldConfig:
     energy_per_unit: Dict[str, float] = field(default_factory=dict)  # conversión recurso->energía
     recipes: Dict[str, Dict[str, float]] = field(
         default_factory=lambda: {"hut": {"wood": 2.0, "stone": 1.0}})
+    # --- condiciones cruzadas (diseño Opus: ¿una condición o dos?) --------
+    phase_ticks: int = 0             # duración de cada fase en ticks; 0 = sin ciclo
+    n_phases: int = 2                # p.ej. clara(0) / oscura(1)
+    region_split: float = 0.5        # fracción del ancho: x < split => región A, resto B
+    phase_barriers: Dict[Tuple[int, str], bool] = field(default_factory=dict)
+                                     # (fase, región) -> bloqueada (no se puede ENTRAR)
+    consume_effects: Dict[Tuple[str, str, int], float] = field(default_factory=dict)
+                                     # (rkind, región, fase) -> energía ganada; override
     seed: int = 1
 
 
@@ -149,6 +157,20 @@ class WorldState:
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.config.width and 0 <= y < self.config.height
 
+    # -- condiciones cruzadas: fase + región (para world modeling) ---------
+    def phase(self) -> int:
+        """Fase actual (0=clara, 1=oscura...). Sin ciclo => siempre 0."""
+        if self.config.phase_ticks <= 0:
+            return 0
+        return (self.tick // self.config.phase_ticks) % self.config.n_phases
+
+    def region(self, x: int, y: int) -> str:
+        """Región de una celda: A (izquierda) o B (derecha)."""
+        return "A" if x < int(self.config.width * self.config.region_split) else "B"
+
+    def _region_blocked(self, region: str, phase: int) -> bool:
+        return bool(self.config.phase_barriers.get((phase, region), False))
+
     # -- acciones validables --------------------------------------------
     def can_move(self, eid: str, dx: int, dy: int) -> Tuple[bool, str]:
         ent = self.entities.get(eid)
@@ -159,6 +181,12 @@ class WorldState:
         nx, ny = ent.x + dx, ent.y + dy
         if not self.in_bounds(nx, ny):
             return False, "out_of_bounds"
+        # barrera de fase: bloquea CRUZAR hacia una región bloqueada en la fase
+        # actual. Si ya estás dentro (p.ej. B al cambiar la fase), puedes
+        # moverte dentro y salir — la barrera impide entrar, no congelar.
+        if self._region_blocked(self.region(nx, ny), self.phase()):
+            if self.region(ent.x, ent.y) != self.region(nx, ny):
+                return False, "blocked_by_phase"
         blockers = [e for e in self.entities_at(nx, ny) if e.kind != "resource"]
         if blockers:
             return False, "blocked"
@@ -226,12 +254,19 @@ class WorldState:
         if have < amount:
             return self._event(eid, "consume", "impossible",
                                {"reason": "not_enough", "have": have, "need": amount})
-        # conversión genérica: 1 unidad de recurso -> energía (config por ontología después)
-        energy_gain = self.config.energy_per_unit.get(rkind, 5.0) * amount
+        # conversión recurso -> energía. Si hay efecto cruzado (rkind, región, fase)
+        # definido, lo usa; si no, la tabla plana energy_per_unit.
+        ent = agent.entity
+        key = (rkind, self.region(ent.x, ent.y), self.phase())
+        if key in self.config.consume_effects:
+            energy_gain = self.config.consume_effects[key] * amount
+        else:
+            energy_gain = self.config.energy_per_unit.get(rkind, 5.0) * amount
         agent.inventory[rkind] = have - amount
         agent.energy = min(agent.energy + energy_gain, 100.0)
         return self._event(eid, "consume", "ok",
-                           {"resource": rkind, "amount": amount, "energy_gain": energy_gain})
+                           {"resource": rkind, "amount": amount, "energy_gain": energy_gain,
+                            "region": self.region(ent.x, ent.y), "phase": self.phase()})
 
     def drop(self, eid: str, rkind: str, amount: float) -> Event:
         """Suelta recurso del inventario en la celda actual (deja entidad en el suelo)."""
@@ -386,4 +421,7 @@ class WorldState:
                     info["structure"] = other.attrs.get("structure", "unknown")
                 seen.append(info)
         return {"day": self.day, "tick": self.tick,
-                "position": [ent.x, ent.y], "visible": seen}
+                "position": [ent.x, ent.y],
+                "region": self.region(ent.x, ent.y),
+                "phase": self.phase(),
+                "visible": seen}

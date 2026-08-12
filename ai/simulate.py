@@ -60,7 +60,8 @@ class Simulator:
     def __init__(self, config: WorldConfig, policy: Callable, output_dir: str,
                  experiment_id: str, log_interval: int = 48,
                  death_energy: float = 0.0, resource_density: float = 0.05,
-                 resource_kinds: Optional[List[str]] = None):
+                 resource_kinds: Optional[List[str]] = None,
+                 resource_names: Optional[Dict[str, str]] = None):
         self.config = config
         self.policy = policy          # policy(world, tick) -> (action, kwargs) por agente
         self.output_dir = output_dir
@@ -69,6 +70,7 @@ class Simulator:
         self.death_energy = death_energy
         self.resource_density = resource_density
         self.resource_kinds = resource_kinds
+        self.resource_names = resource_names or {}
 
     def _build_world(self, agents: List[Entity], seed: int) -> WorldState:
         world = WorldState(self.config, agents, seed=seed)
@@ -88,6 +90,7 @@ class Simulator:
             "ticks_per_day": self.config.ticks_per_day,
             "width": self.config.width,
             "height": self.config.height,
+            "resource_names": self.resource_names,   # mapeo ID opaco -> nombre (solo visor)
         })
         trace_logger = JsonlLogger(trace_path, meta={"experiment": self.experiment_id,
                                                      "seed": seed, "kind": "agent_trace"})

@@ -38,6 +38,19 @@ class DeterministicAgent:
         self.params = params
         self.rng = __import__("random").Random(rng_seed)
 
+    def _best_energy_resource(self, world: WorldState):
+        """El recurso del inventario que más energía da (no hardcodea nombres)."""
+        cfg = world.config
+        agent = world.agents[self.eid]
+        best, best_val = None, -1.0
+        for rkind, amt in agent.inventory.items():
+            if amt <= 0:
+                continue
+            val = cfg.energy_per_unit.get(rkind, 0.0)
+            if val > best_val:
+                best, best_val = rkind, val
+        return best
+
     def decide(self, world: WorldState) -> Tuple[str, dict]:
         """Retorna (acción, kwargs). El motor valida; si es imposible, el
         agente no insiste (sigue con la siguiente regla en el próximo tick)."""
@@ -46,10 +59,11 @@ class DeterministicAgent:
         energy = agent.energy
         p = self.params
 
-        # 1. urgencia: comer si hay comida y la energía está bajo el umbral
-        food = agent.inventory.get("food", 0.0)
-        if food > 0 and energy < p.eat_threshold:
-            return "consume", {"rkind": "food", "amount": 1.0}
+        # 1. urgencia: comer el recurso más energético del inventario
+        if energy < p.eat_threshold:
+            best_food = self._best_energy_resource(world)
+            if best_food is not None:
+                return "consume", {"rkind": best_food, "amount": 1.0}
 
         # 2. recolectar el recurso adyacente más valioso (greedy)
         best = self._best_adjacent_resource(world)
@@ -80,13 +94,18 @@ class DeterministicAgent:
 
     # ------------------------------------------------------------------
     def _best_adjacent_resource(self, world: WorldState):
+        """Recurso adyacente más valioso: valora por energía que otorga
+        (config), no por cantidad ni por nombre semántico."""
         ent = world.entities[self.eid]
+        cfg = world.config
         best, best_val = None, 0.0   # 0.0: solo recursos con amount > 0
         for other in world.entities.values():
             if other.kind != "resource":
                 continue
             if abs(other.x - ent.x) + abs(other.y - ent.y) == 1:
-                val = float(other.attrs.get("amount", 0.0))
+                amount = float(other.attrs.get("amount", 0.0))
+                rkind = other.attrs.get("kind", "generic")
+                val = amount * (cfg.energy_per_unit.get(rkind, 1.0) + 1e-9)
                 if val > best_val:
                     best, best_val = other, val
         return best

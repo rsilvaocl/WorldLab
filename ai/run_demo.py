@@ -20,8 +20,12 @@ def main() -> None:
     seed = int(sys.argv[2]) if len(sys.argv) > 2 else 1
     cfg = WorldConfig(width=30, height=30, days=days, ticks_per_day=24,
                       energy_per_tick=0.25)
-    cfg.energy_per_unit["food"] = 8.0
-    cfg.energy_per_unit["water"] = 5.0
+    # IDs OPACOS (crítica de Opus): el mundo experimental usa S1..S4, sin
+    # semántica; los nombres bonitos viven SOLO en el visor vía resource_names.
+    cfg.energy_per_unit["S1"] = 8.0   # comida (para el visor)
+    cfg.energy_per_unit["S2"] = 5.0   # agua
+    cfg.energy_per_unit["S3"] = 3.0   # madera
+    cfg.energy_per_unit["S4"] = 1.0   # piedra
 
     agents = [Entity(eid=f"a{i}", kind="agent", x=5 + i * 2, y=5) for i in range(5)]
     policy = make_deterministic_policy(BaselineParams(eat_threshold=35.0,
@@ -33,7 +37,9 @@ def main() -> None:
     # el visor (ontología real de Opus reemplazará esto).
     sim = Simulator(cfg, policy, DEMO_DIR, f"demo_d{days}_s{seed}", log_interval=12,
                     resource_density=0.12,
-                    resource_kinds=["food", "wood", "stone", "water"])
+                    resource_kinds=["S1", "S2", "S3", "S4"],
+                    resource_names={"S1": "comida", "S2": "agua",
+                                    "S3": "madera", "S4": "piedra"})
     res = sim.run(agents, seed=seed)
     print("Demo generada:", res.events_path)
     print(res.to_dict())
