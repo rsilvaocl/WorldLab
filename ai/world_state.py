@@ -80,6 +80,7 @@ class WorldConfig:
     ticks_per_day: int = 48          # ~30 min por tick en escala simulada
     energy_per_tick: float = 0.5     # costo metabólico base por tick
     move_energy: float = 1.0
+    energy_per_unit: Dict[str, float] = field(default_factory=dict)  # conversión recurso->energía
     seed: int = 1
 
 
@@ -172,6 +173,145 @@ class WorldState:
                    action=action, outcome=outcome, detail=detail)
         self.events.append(ev)
         return ev
+
+    # -- economía: recolectar / consumir / construir / comunicar ---------
+    # Primitivas intencionalmente FÍSICAS, no semánticas (crítica #2 de Claude):
+    # NO existe trade(). Existen gather, drop, pickup, give. Si emerge
+    # intercambio condicionado a valor, eso es lo que observamos.
+
+    def _adjacent(self, eid: str, target_eid: str) -> bool:
+        ent, other = self.entities.get(eid), self.entities.get(target_eid)
+        if ent is None or other is None:
+            return False
+        return abs(ent.x - other.x) + abs(ent.y - other.y) == 1
+
+    def gather(self, eid: str, target_eid: str, amount: float = 1.0) -> Event:
+        """Recolecta de un recurso adyacente. Reduce el recurso, llena inventario."""
+        ent, res = self.entities.get(eid), self.entities.get(target_eid)
+        if ent is None or res is None:
+            return self._event(eid, "gather", "impossible", {"reason": "no_such_entity"})
+        if res.kind != "resource":
+            return self._event(eid, "gather", "impossible", {"reason": "not_a_resource"})
+        if not self._adjacent(eid, target_eid):
+            return self._event(eid, "gather", "impossible", {"reason": "not_adjacent"})
+        avail = float(res.attrs.get("amount", 0.0))
+        if avail <= 0:
+            return self._event(eid, "gather", "impossible", {"reason": "depleted"})
+        got = min(amount, avail)
+        agent = self.agents[eid]
+        rkind = res.attrs.get("kind", "generic")
+        agent.inventory[rkind] = agent.inventory.get(rkind, 0.0) + got
+        res.attrs["amount"] = avail - got
+        return self._event(eid, "gather", "ok",
+                           {"resource": rkind, "amount": got, "from": target_eid})
+
+    def consume(self, eid: str, rkind: str, amount: float = 1.0) -> Event:
+        """Come/bebe del inventario: recurso -> energía."""
+        agent = self.agents.get(eid)
+        if agent is None:
+            return self._event(eid, "consume", "impossible", {"reason": "no_such_entity"})
+        have = agent.inventory.get(rkind, 0.0)
+        if have < amount:
+            return self._event(eid, "consume", "impossible",
+                               {"reason": "not_enough", "have": have, "need": amount})
+        # conversión genérica: 1 unidad de recurso -> energía (config por ontología después)
+        energy_gain = self.config.energy_per_unit.get(rkind, 5.0) * amount
+        agent.inventory[rkind] = have - amount
+        agent.energy = min(agent.energy + energy_gain, 100.0)
+        return self._event(eid, "consume", "ok",
+                           {"resource": rkind, "amount": amount, "energy_gain": energy_gain})
+
+    def drop(self, eid: str, rkind: str, amount: float) -> Event:
+        """Suelta recurso del inventario en la celda actual (deja entidad en el suelo)."""
+        agent = self.agents.get(eid)
+        if agent is None:
+            return self._event(eid, "drop", "impossible", {"reason": "no_such_entity"})
+        have = agent.inventory.get(rkind, 0.0)
+        if have < amount or amount <= 0:
+            return self._event(eid, "drop", "impossible",
+                               {"reason": "not_enough", "have": have})
+        agent.inventory[rkind] = have - amount
+        ent = agent.entity
+        dropped = Entity(eid=f"d_{rkind}_{self.tick}_{eid}", kind="resource",
+                         x=ent.x, y=ent.y, attrs={"amount": amount, "kind": rkind,
+                                                  "owner_dropped": eid})
+        self.entities[dropped.eid] = dropped
+        return self._event(eid, "drop", "ok", {"resource": rkind, "amount": amount})
+
+    def pickup(self, eid: str, target_eid: str, amount: float | None = None) -> Event:
+        """Toma recurso del suelo en la celda actual o adyacente."""
+        ent, res = self.entities.get(eid), self.entities.get(target_eid)
+        if ent is None or res is None:
+            return self._event(eid, "pickup", "impossible", {"reason": "no_such_entity"})
+        if res.kind != "resource" or "kind" not in res.attrs:
+            return self._event(eid, "pickup", "impossible", {"reason": "not_dropped_resource"})
+        if abs(ent.x - res.x) + abs(ent.y - res.y) > 1:
+            return self._event(eid, "pickup", "impossible", {"reason": "not_adjacent"})
+        avail = float(res.attrs["amount"])
+        take = avail if amount is None else min(amount, avail)
+        agent = self.agents[eid]
+        rkind = res.attrs["kind"]
+        agent.inventory[rkind] = agent.inventory.get(rkind, 0.0) + take
+        res.attrs["amount"] = avail - take
+        if res.attrs["amount"] <= 0:
+            del self.entities[target_eid]
+        return self._event(eid, "pickup", "ok", {"resource": rkind, "amount": take})
+
+    def give(self, eid: str, target_eid: str, rkind: str, amount: float) -> Event:
+        """Transfiere recurso a un agente adyacente. Primitiva física, no económica."""
+        giver, receiver = self.agents.get(eid), self.agents.get(target_eid)
+        if giver is None or receiver is None:
+            return self._event(eid, "give", "impossible", {"reason": "no_such_agent"})
+        if not self._adjacent(eid, target_eid):
+            return self._event(eid, "give", "impossible", {"reason": "not_adjacent"})
+        have = giver.inventory.get(rkind, 0.0)
+        if have < amount or amount <= 0:
+            return self._event(eid, "give", "impossible",
+                               {"reason": "not_enough", "have": have})
+        giver.inventory[rkind] = have - amount
+        receiver.inventory[rkind] = receiver.inventory.get(rkind, 0.0) + amount
+        return self._event(eid, "give", "ok",
+                           {"resource": rkind, "amount": amount, "to": target_eid})
+
+    def build(self, eid: str, structure: str, x: int, y: int,
+              materials: Dict[str, float]) -> Event:
+        """Construye una estructura en (x,y) adyacente, consumiendo materiales
+        del inventario. La receta (qué estructura requiere qué materiales) es
+        config de ontología; aquí solo la mecánica."""
+        agent = self.agents.get(eid)
+        if agent is None:
+            return self._event(eid, "build", "impossible", {"reason": "no_such_entity"})
+        ent = agent.entity
+        if abs(ent.x - x) + abs(ent.y - y) != 1:
+            return self._event(eid, "build", "impossible", {"reason": "not_adjacent"})
+        if not self.in_bounds(x, y):
+            return self._event(eid, "build", "impossible", {"reason": "out_of_bounds"})
+        if self.entities_at(x, y):
+            return self._event(eid, "build", "impossible", {"reason": "cell_occupied"})
+        for rkind, need in materials.items():
+            if agent.inventory.get(rkind, 0.0) < need:
+                return self._event(eid, "build", "impossible",
+                                   {"reason": "missing_material", "resource": rkind})
+        for rkind, need in materials.items():
+            agent.inventory[rkind] -= need
+        obj = Entity(eid=f"b_{structure}_{self.tick}_{eid}", kind="object",
+                     x=x, y=y, attrs={"structure": structure})
+        self.entities[obj.eid] = obj
+        return self._event(eid, "build", "ok",
+                           {"structure": structure, "at": [x, y], "materials": materials})
+
+    def talk(self, eid: str, message: str, cost: float = 1.0) -> Event:
+        """Comunicación con costo energético (crítica de Zod: si hablar es gratis,
+        el discurso es ruido; debe ser una decisión económica)."""
+        agent = self.agents.get(eid)
+        if agent is None:
+            return self._event(eid, "talk", "impossible", {"reason": "no_such_entity"})
+        if len(message) == 0:
+            return self._event(eid, "talk", "impossible", {"reason": "empty"})
+        if agent.energy < cost:
+            return self._event(eid, "talk", "impossible", {"reason": "no_energy"})
+        agent.energy -= cost
+        return self._event(eid, "talk", "ok", {"message": message, "cost": cost})
 
     # -- ciclo de tiempo -------------------------------------------------
     def advance_tick(self) -> None:
