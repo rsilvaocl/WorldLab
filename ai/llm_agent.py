@@ -84,8 +84,7 @@ class LLMAgent:
             return "rest", {}, None, None
 
         observation = self._build_observation(world)
-        prediction = self._make_prediction(world)
-        action, kwargs, raw = self._ask_model(observation, prediction)
+        action, kwargs, raw = self._ask_model(observation)
 
         # D-018: el agente elige su propio horizonte de despertar (en ticks)
         horizonte = self._parse_horizonte(raw)
@@ -94,7 +93,6 @@ class LLMAgent:
             "observation": observation,
             "reason": reason,
             "goal": self.goal,
-            "prediction": prediction,
             "proposed_action": {"action": action, "args": kwargs},
             "sleep_ticks": horizonte,
             "model": self.model_name,
@@ -139,32 +137,17 @@ class LLMAgent:
         return obs
 
     def _make_prediction(self, world: WorldState) -> Dict[str, Any]:
-        """World model v0: predicción simple de consecuencias inmediatas
-        (se comparará contra el resultado real en el análisis)."""
-        agent = world.agents[self.eid]
-        ent = agent.entity
-        # predecir qué pasaría si se mueve hacia cada recurso visible
-        options = []
-        for v in world.visible_to(self.eid, radius=self.radius).get("visible", []):
-            if v["kind"] == "resource":
-                options.append({
-                    "target": v["eid"],
-                    "kind": v["kind"],
-                    "dist": abs(v["dx"]) + abs(v["dy"]),
-                    "expected_energy_gain": 5.0 if v["kind"] == "food" else 1.0,
-                })
-        return {
-            "options": sorted(options, key=lambda o: o["dist"])[:3],
-            "risk_note": "sin world model entrenado (fase 2 básica)",
-        }
+        """ELIMINADO del flujo de decisión (crítica #5 y #12 de Opus/Claude).
 
-    def _ask_model(self, observation: Dict[str, Any],
-                   prediction: Dict[str, Any]) -> Tuple[str, Dict[str, Any], str]:
+        El world model NO se presta: si le damos predicciones nuestras, después
+        no podemos preguntarnos si lo construyó él. Donde se mide su predicción
+        es en predict_effect() — pregunta sin decir nada (forced-choice)."""
+        return {"risk_note": "world model NO prestado (el agente no recibe predicciones)"}
+
+    def _ask_model(self, observation: Dict[str, Any]) -> Tuple[str, Dict[str, Any], str]:
         system = self._system_prompt()
         user = (
             "Estado actual:\n" + json.dumps(observation, ensure_ascii=False) +
-            "\n\nPredicciones disponibles (no vinculantes):\n" +
-            json.dumps(prediction, ensure_ascii=False) +
             "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}, \"sleep_ticks\": N}\n"
             "donde sleep_ticks (1..96) = en cuántos ticks quieres volver a decidir. "
             "Si no hay nada urgente, pide dormir más (ahorras energía y costos)."

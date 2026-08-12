@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .world_state import WorldConfig, WorldState, Entity
-from .baseline import BaselineParams, DeterministicAgent
+from .baseline import BaselineParams, DeterministicAgent, EmpiricalAgent
 from .logger import JsonlLogger
 
 
@@ -186,14 +186,24 @@ class Simulator:
             trace_path=trace_path,
             elapsed_s=time.time() - t0,
         )
+        self.last_world = world   # expuesto para verificación posterior (probes, red)
         return result
 
 
 def make_deterministic_policy(params: BaselineParams):
-    """Crea la política determinista estándar (1 agente por eid)."""
+    """Crea la política determinista INFORMADA (techo: conoce consume_effects).
+    NO es el baseline de comparación — usar make_empirical_policy para eso."""
     def policy(world: WorldState, aid: str, tick: int, rng: random.Random):
         agent = DeterministicAgent(aid, params, rng_seed=tick)
         return agent.decide(world)
+    return policy
+
+
+def make_empirical_policy(agents: Dict[str, Any]):
+    """Crea la política del baseline EMPÍRICO (comparación): agentes persistentes
+    que aprenden de sus propios consumos vía record_outcome (hooks)."""
+    def policy(world: WorldState, aid: str, tick: int, rng: random.Random):
+        return agents[aid].decide(world)
     return policy
 
 
@@ -236,13 +246,19 @@ def optimize_baseline(config: WorldConfig, agents: List[Entity],
 
     best_params, best_score = {}, -1e9
     results: List[Dict[str, Any]] = []
+    eids = [e.eid for e in agents]
     for p in param_grid:
         params = BaselineParams(**p)
-        policy = make_deterministic_policy(params)
+        # baseline EMPÍRICO (el de comparación): agentes persistentes que
+        # aprenden de sus propios consumos (hook). El informado (techo) se usa
+        # aparte — optimizarlo aquí repetiría el sesgo de oráculo encubierto.
         scores = []
         for s in range(1, n_seeds + 1):
+            emp = {eid: EmpiricalAgent(eid, params, rng_seed=s) for eid in eids}
+            policy = make_empirical_policy(emp)
             sim = Simulator(config, policy, output_dir,
-                            f"{experiment_id}_p{len(results)}", log_interval=9999)
+                            f"{experiment_id}_p{len(results)}", log_interval=9999,
+                            agent_hooks=emp)
             res = sim.run(agents, seed=s)
             scores.append(score_fn(res))
         avg = sum(scores) / len(scores)

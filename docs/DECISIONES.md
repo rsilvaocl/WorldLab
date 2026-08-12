@@ -99,6 +99,33 @@ Formato: fecha · decisión · quién la tomó · estado
   (un agente que entendió el ciclo debería despertar antes de que cierre la frontera).
 - Registrado en el trace como sleep_ticks.
 
+## D-019 · 2026-08-11 · Baseline EMPÍRICO (corrección de Opus: oráculo encubierto) · Aprobada
+- El baseline de COMPARACIÓN es EmpiricalAgent: tabla de efecto promedio
+  OBSERVADO por (símbolo, región, fase), poblada por sus propios consumos
+  (hook record_outcome, misma vía que el LLM). Sin datos: default 0.0 —
+  se envenena las primeras veces, como el LLM. NO lee cfg.consume_effects.
+- DeterministicAgent queda como techo INFORMADO (oráculo determinista):
+  informativo (si el LLM no le gana a un greedy con reglas perfectas, eso
+  dice algo), pero no es el baseline de la condición 3 de emergencia.
+- Params óptimos empírico (grid search, ontología v1): eat 30, build 4,
+  explore 0.15, score 112.0 (vs 114.7 del informado: para sobrevivir casi
+  empatan; la diferencia real aparece en el probe retenido — el greedy no compone).
+
+## D-020 · 2026-08-11 · World model NO prestado al agente (corrección de Opus) · Aprobada
+- _make_prediction SALIÓ del prompt y del trace: si le damos predicciones
+  nuestras, después no podemos preguntarnos si lo construyó él (crítica #5/#12).
+- Donde se mide su predicción es en predict_effect() (forced-choice: preguntar
+  sin decir) — esa asimetría es lo que hace que el probe signifique algo.
+- Bug confirmado en el bloque eliminado: v["kind"] es "resource" (categoría de
+  entidad), nunca "food" — el expected_energy_gain era un número inventado.
+
+## D-021 · 2026-08-11 · Recetas dinámicas en el baseline (corrección de Opus) · Aprobada
+- El baseline construía "hut" hardcodeado (baseline.py:85); la receta es
+  "struct_a". Ahora itera sobre world.config.recipes — cualquier receta del
+  mundo participa. Efecto medido: la demo pasó de 0 a 8 estructuras.
+
+
+
 
 ## D-007 · 2026-08-11 · Orden de operaciones (Opus) · Aprobada
 - Pre-registro DESPUÉS del piloto, no antes. El N sale de σ entre mundos (cálculo de potencia).

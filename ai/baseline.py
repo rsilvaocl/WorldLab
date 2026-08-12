@@ -1,4 +1,4 @@
-"""WorldLab — baseline determinista (fase 0/1).
+"""WorldLab — baselines deterministas (fase 0/1).
 
 Política greedy paramétrica SIN LLM. Exigencia de Opus: no es "la mejor
 política simple posible" aspiracional, sino una clase paramétrica fija cuyos
@@ -10,14 +10,23 @@ Parámetros (k = 3):
   build_min:      materiales mínimos para construir una estructura
   exploration:    probabilidad de movimiento no-greedy (explorar)
 
-La política es DETERMINISTA dado (seed, parámetros): misma entrada => misma
-secuencia de acciones. Eso permite comparar contra agentes LLM sin confound.
+DOS variantes (corrección de Opus):
+- DeterministicAgent  = "determinista INFORMADO" (techo determinista). Lee
+  cfg.consume_effects (la tabla de verdad). NO es el baseline de comparación:
+  es un ORÁCULO con otra ropa — si el LLM no le gana, no aprendemos nada.
+  Se conserva porque es informativo: si el oráculo LLM no le gana a un greedy
+  que conoce las reglas, eso dice algo importante.
+- EmpiricalAgent       = baseline de COMPARACIÓN (condición 3 de emergencia:
+  "supera a un baseline reactivo determinista"). Mantiene una tabla de efecto
+  promedio OBSERVADO por (símbolo, región, fase), poblada por sus propios
+  consumos (record_outcome del motor). Se envenena las primeras veces, como
+  el LLM — es la mejor política simple posible con la MISMA información.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .world_state import WorldState
 
@@ -30,8 +39,8 @@ class BaselineParams:
 
 
 class DeterministicAgent:
-    """Agente determinista: decide acciones a partir de la percepción visible.
-    Sin memoria, sin modelo, sin LLM. Decide CADA TICK (barato)."""
+    """Agente determinista INFORMADO (techo): conoce cfg.consume_effects.
+    Decide CADA TICK (barato). NO es el baseline de comparación — ver módulo."""
 
     def __init__(self, eid: str, params: BaselineParams, rng_seed: int = 0):
         self.eid = eid
@@ -40,9 +49,7 @@ class DeterministicAgent:
 
     def _expected_value(self, world: WorldState, rkind: str) -> float:
         """Valor esperado de consumir `rkind` en la región/fase actual del agente.
-        Usa consume_effects (las reglas del mundo) si existen; el baseline las
-        conoce de la config — como el LLM las conoce del prompt. Sin esto, el
-        baseline come S2 en A creyéndolo bueno (-2) y muere: hombre de paja."""
+        Lee la TABLA DE VERDAD (cfg.consume_effects) — es el techo informado."""
         cfg = world.config
         ent = world.entities[self.eid]
         key = (rkind, world.region(ent.x, ent.y), world.phase())
@@ -81,12 +88,13 @@ class DeterministicAgent:
         if best is not None:
             return "gather", {"target_eid": best.eid, "amount": 1.0}
 
-        # 3. construir si el inventario cubre la receta definida en el mundo
-        recipe = world.config.recipes.get("hut")
-        if recipe and all(agent.inventory.get(r, 0.0) >= need for r, need in recipe.items()):
-            bx, by = self._free_adjacent_cell(world)
-            if bx is not None:
-                return "build", {"structure": "hut", "x": bx, "y": by}
+        # 3. construir si el inventario cubre ALGUNA receta del mundo (dinámico)
+        for recipe_name, recipe in world.config.recipes.items():
+            if all(agent.inventory.get(r, 0.0) >= need for r, need in recipe.items()):
+                bx, by = self._free_adjacent_cell(world)
+                if bx is not None:
+                    return "build", {"structure": recipe_name, "x": bx, "y": by}
+                break  # hay receta pagable pero no celda libre; no probar otras
 
         # 4. moverse hacia el recurso visible más cercano (greedy)
         step = self._step_toward_resource(world)
@@ -157,3 +165,52 @@ class DeterministicAgent:
         if abs(best.x - ent.x) >= abs(best.y - ent.y):
             return {"dx": dx, "dy": 0}
         return {"dx": 0, "dy": dy}
+
+
+class EmpiricalAgent(DeterministicAgent):
+    """Baseline de COMPARACIÓN (corrección de Opus): la mejor política simple
+    posible con la MISMA información que el LLM.
+
+    Mantiene una tabla de efecto promedio OBSERVADO por (símbolo, región, fase),
+    poblada por sus propios consumos (el motor le entrega el resultado real vía
+    record_outcome, igual que al LLM). Sin observaciones previas, el valor por
+    defecto es 0.0 — se envenena las primeras veces (come S2 en A creyéndolo
+    bueno), igual que el LLM, y va corrigiendo con la experiencia.
+
+    No lee cfg.consume_effects: esa tabla es el oráculo, no un baseline.
+    """
+
+    def __init__(self, eid: str, params: BaselineParams, rng_seed: int = 0,
+                 default_value: float = 0.0):
+        super().__init__(eid, params, rng_seed)
+        self.default_value = default_value
+        # (rkind, región, fase) -> lista de energy_gain observados
+        self._observed: Dict[Tuple[str, str, int], List[float]] = {}
+
+    def record_outcome(self, ev) -> None:
+        """El motor le entrega el resultado real de su consumo (mismo hook que el LLM)."""
+        if ev.action != "consume" or ev.outcome != "ok":
+            return
+        key = (ev.detail.get("resource"), ev.detail.get("region"),
+               ev.detail.get("phase"))
+        self._observed.setdefault(key, []).append(float(ev.detail.get("energy_gain", 0.0)))
+
+    def _expected_value(self, world: WorldState, rkind: str) -> float:
+        """Efecto PROMEDIO OBSERVADO en la región/fase actual; sin datos, 0.0
+        (neutro — prueba y aprende, como el LLM)."""
+        ent = world.entities[self.eid]
+        key = (rkind, world.region(ent.x, ent.y), world.phase())
+        obs = self._observed.get(key, [])
+        if not obs:
+            return self.default_value
+        return sum(obs) / len(obs)
+
+    def predict_effect(self, rkind: str, region: str, phase: int) -> Optional[float]:
+        """Forced-choice probe para el baseline empírico: devuelve el promedio
+        observado en esa celda, o None si nunca la vivió. Nota: el greedy
+        empírico NO compone — sin dato de B-oscura, no tiene de dónde sacarlo.
+        Ese contraste con el LLM es exactamente lo que mide el experimento."""
+        obs = self._observed.get((rkind, region, phase), [])
+        if not obs:
+            return None
+        return sum(obs) / len(obs)

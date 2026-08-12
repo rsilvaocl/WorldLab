@@ -8,8 +8,8 @@ import sys
 import os
 
 from .world_state import WorldConfig, Entity, build_separable_effects
-from .baseline import BaselineParams
-from .simulate import Simulator, make_deterministic_policy
+from .baseline import BaselineParams, EmpiricalAgent
+from .simulate import Simulator, make_empirical_policy
 
 DEMO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "data", "bronze")
@@ -35,15 +35,21 @@ def main() -> None:
     cfg.recipes = {"struct_a": {"S3": 2.0, "S4": 1.0}}
 
     agents = [Entity(eid=f"a{i}", kind="agent", x=3 + i * 3, y=15) for i in range(5)]
-    policy = make_deterministic_policy(BaselineParams(eat_threshold=20.0,
-                                                      build_min=4.0,
-                                                      exploration=0.3))
+    # baseline EMPÍRICO (comparación): aprende de sus propios consumos,
+    # se envenena y corrige — como el LLM. El informado (techo) no se demuestra.
+    emp = {e.eid: EmpiricalAgent(e.eid,
+                                 BaselineParams(eat_threshold=30.0,
+                                                build_min=4.0,
+                                                exploration=0.15))
+           for e in agents}
+    policy = make_empirical_policy(emp)
     # nombres bonitos SOLO para el visor; el mundo es opaco (S1..S4)
     sim = Simulator(cfg, policy, DEMO_DIR, f"demo_ont_v1_d{days}_s{seed}", log_interval=12,
                     resource_density=0.12,
                     resource_kinds=["S1", "S2", "S3", "S4"],
                     resource_names={"S1": "comida", "S2": "energía", "S3": "madera",
-                                    "S4": "piedra"})
+                                    "S4": "piedra"},
+                    agent_hooks=emp)
     res = sim.run(agents, seed=seed)
     print("Demo generada:", res.events_path)
     print(res.to_dict())
