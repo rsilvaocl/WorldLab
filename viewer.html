@@ -8,7 +8,8 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; height:100vh; display:flex; flex-direction:column; }
   header { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-  header h1 { font-size:16px; font-weight:600; }
+  header h1 { font-size:16px; font-weight:600; display:flex; align-items:center; gap:10px; }
+  header .logo { width:34px; height:34px; border-radius:50%; object-fit:cover; box-shadow:0 0 10px rgba(77,163,255,.35); }
   header .dim { color:var(--dim); font-size:12px; }
   #main { flex:1; display:flex; min-height:0; }
   #left { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -44,7 +45,7 @@
 <body>
 <div id="drop">Suelte el archivo .jsonl aquí</div>
 <header>
-  <h1>🦞 WorldLab — Visor</h1>
+  <h1><img class="logo" src="assets/logo.jpg" alt="WorldLab"> WorldLab — Visor</h1>
   <span class="dim" id="fileInfo">sin archivo cargado — arrastre un .jsonl o Cargar</span>
   <button onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
   <input type="file" id="fileInput" accept=".jsonl">
