@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .world_state import WorldConfig, WorldState, Entity
+from .world_state import WorldConfig, WorldState, Entity, Event
 from .baseline import BaselineParams, DeterministicAgent, EmpiricalAgent
 from .logger import JsonlLogger
 
@@ -152,7 +152,16 @@ class Simulator:
                     method = getattr(world, action, None)
                     if method is None:
                         continue
-                    ev = method(aid, **kwargs)
+                    try:
+                        ev = method(aid, **kwargs)
+                    except TypeError as exc:
+                        # DEFENSA EN PROFUNDIDAD (piloto 12/08): una acción
+                        # malformada (p.ej. gather sin target_eid — el LLM a
+                        # veces la omite) NUNCA puede tumbar el experimento.
+                        # Se registra como impossible y el mundo sigue.
+                        ev = Event(day=world.day, tick=world.tick, eid=aid,
+                                   action=action, outcome="impossible",
+                                   detail={"reason": f"malformed: {exc}"})
                     logger.log_event(ev)
                     # entregar el resultado real a la memoria del agente (si tiene)
                     hook = self.agent_hooks.get(aid)
