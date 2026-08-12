@@ -147,7 +147,10 @@ function render() {
   for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
   for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
   const ent = s.entities || [];
+  const agents = ent.filter(e => e.kind === 'agent');
+  // capa 1: recursos y objetos
   for (const e of ent) {
+    if (e.kind === 'agent') continue;
     const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
     if (e.kind === 'resource') {
       const rk = e.attrs?.kind || 'generic';
@@ -168,14 +171,20 @@ function render() {
       ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#2a2f3a'; // puerta
       ctx.fillRect(px-3, (e.y+1)*CELL-6, 6, 6);
-    } else if (e.kind === 'agent') {
-      const idx = ent.filter(x=>x.kind==='agent').indexOf(e);
-      const hue = (idx*137.5)%360;
-      ctx.fillStyle = `hsl(${hue} 70% 55%)`;
-      ctx.beginPath(); ctx.arc(px, py, CELL*0.38, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center';
-      ctx.fillText(e.eid.replace(/[^0-9]/g,''), px, py+3);
     }
+  }
+  // capa 2 (SIEMPRE encima): agentes, para que no queden tapados por recursos
+  for (const e of agents) {
+    const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
+    const idx = agents.indexOf(e);
+    const hue = (idx*137.5)%360;
+    ctx.fillStyle = `hsl(${hue} 70% 55%)`;
+    ctx.beginPath(); ctx.arc(px, py, CELL*0.38, 0, Math.PI*2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#0b0d11'; ctx.stroke(); // borde para contraste
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center';
+    ctx.strokeStyle = '#0b0d11'; ctx.lineWidth = 3;
+    ctx.strokeText(e.eid.replace(/[^0-9]/g,''), px, py+3);
+    ctx.fillText(e.eid.replace(/[^0-9]/g,''), px, py+3);
   }
   document.getElementById('timeLabel').textContent = `día ${s.day} · tick ${s.tick} · frame ${frame+1}/${snapshots.length}`;
 }
