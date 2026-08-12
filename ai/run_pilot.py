@@ -139,8 +139,11 @@ def run_world(condition: str, density: float, seed: int, days: int,
     # red de detección: ¿alguien vivió la celda retenida? (usa el mundo real)
     heldout_ok = sim.last_world.no_heldout_consumption()
 
-    tokens = sum(ag.total_prompt_tokens + ag.total_completion_tokens for ag in agents.values())
-    calls = sum(ag.total_calls for ag in agents.values())
+    # tokens: los baselines deterministas (EmpiricalAgent/DeterministicAgent)
+    # no gastan LLM — no tienen contadores. getattr protege el sum.
+    tokens = sum(getattr(ag, "total_prompt_tokens", 0) + getattr(ag, "total_completion_tokens", 0)
+                 for ag in agents.values())
+    calls = sum(getattr(ag, "total_calls", 0) for ag in agents.values())
 
     return {
         "condition": condition,
