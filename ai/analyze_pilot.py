@@ -50,6 +50,66 @@ def probe_rates(out_dir: Path, condition: str, density: float, seed: int) -> Dic
     }
 
 
+# Corte de Opus: < 3 consumos en alguna celda vivida => sub-expuesto
+MIN_EXPOSURE = 3
+
+
+def exposure_per_cell(events_path: Path, eid: str) -> Dict[Any, int]:
+    """Consumos OK del agente en cada celda vivida (A-clara, A-oscura, B-clara).
+    Sale del JSONL post-hoc — los eventos consume ya registran region y phase."""
+    counts: Dict[Any, int] = {("A", 0): 0, ("A", 1): 0, ("B", 0): 0}
+    if not events_path.exists():
+        return counts
+    with open(events_path) as f:
+        for line in f:
+            if not line.strip():
+                continue
+            obj = json.loads(line)
+            if obj.get("type") != "event" or obj.get("eid") != eid:
+                continue
+            if obj.get("action") != "consume" or obj.get("outcome") != "ok":
+                continue
+            key = (obj["detail"].get("region"), obj["detail"].get("phase"))
+            if key in counts:
+                counts[key] += 1
+    return counts
+
+
+def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, Any]:
+    """¿Cuántos agentes estuvieron SUB-EXPONENTES (<3 consumos) en alguna celda
+    vivida? Su probe retenido no dice nada sobre modelado: dice que les faltaban
+    datos (Opus: la diferencia entre 'no compuso' y 'no tenía qué componer')."""
+    subexposed = []
+    total_agents = 0
+    for r in results:
+        # el Simulator nombra los eventos: {exp_id}_seed{seed}.jsonl
+        events_path = out_dir / (f"piloto_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
+                                 f"_seed{r['seed']}.jsonl")
+        # exponer: los probes de este mundo ya corrieron; reconstruimos por eid
+        prefix = f"piloto_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
+        probes_path = out_dir / f"{prefix}_probes.jsonl"
+        if not probes_path.exists():
+            continue
+        eids = set()
+        with open(probes_path) as f:
+            for line in f:
+                if line.strip():
+                    eids.add(json.loads(line)["eid"])
+        for eid in sorted(eids):
+            total_agents += 1
+            cells = exposure_per_cell(events_path, eid)
+            low = {f"{reg}-{phase}": n for (reg, phase), n in cells.items() if n < MIN_EXPOSURE}
+            if low:
+                subexposed.append({
+                    "condition": r["condition"], "density": r["density"],
+                    "seed": r["seed"], "eid": eid,
+                    "exposure": cells, "low_cells": low,
+                })
+    frac = len(subexposed) / total_agents if total_agents else 0.0
+    return {"total_agents": total_agents, "subexposed": subexposed,
+            "frac_subexposed": round(frac, 3)}
+
+
 def main() -> None:
     out_dir = Path("data/silver/piloto")
     results = load_results(out_dir)
@@ -97,6 +157,26 @@ def main() -> None:
         print(f"  {cond:11s} d={dens:.0%} | vividas: {lr*100:5.1f}% | retenida: {rr*100:5.1f}% "
               f"({n_retained_ok}/{n_retained_total})")
 
+    # 2b. EXPOSICIÓN por celda (Opus): si un agente no vivió una celda, su
+    # fallo en el probe retenido es "no tenía qué componer", no "no compuso".
+    print("\n2b) EXPOSICIÓN POR CELDA (consumos OK por agente en A-clara/A-oscura/B-clara)")
+    expo = exposure_summary(results, out_dir)
+    if expo["total_agents"] == 0:
+        print("  (sin probes todavía)")
+    else:
+        print(f"  agentes: {expo['total_agents']} | sub-expuestos (<{MIN_EXPOSURE} "
+              f"consumos en alguna celda vivida): {len(expo['subexposed'])} "
+              f"({expo['frac_subexposed']*100:.0f}%)")
+        for se in expo["subexposed"][:15]:
+            low_txt = ", ".join(f"{k}={v}" for k, v in se["low_cells"].items())
+            print(f"    {se['condition']:12s} d={se['density']:.0%} s={se['seed']} "
+                  f"{se['eid']} — celdas bajas: {low_txt}")
+        if len(expo["subexposed"]) > 15:
+            print(f"    ... y {len(expo['subexposed'])-15} más (detalle en piloto_analysis.json)")
+        if expo["frac_subexposed"] > 0.5:
+            print("  ⚠️ MAYORÍA SUB-EXPONENTE: el hallazgo del piloto no es sobre "
+                  "modelado — es que 30 días no alcanzan para recorrer el mundo.")
+
     # 4. costo real
     print("\n4) COSTO")
     for (cond, dens), rs in sorted(groups.items()):
@@ -124,6 +204,11 @@ def main() -> None:
         "sigma_energia": {f"{k[0]}_{k[1]}": round(statistics.stdev([r['avg_energy'] for r in rs]), 2)
                           for k, rs in groups.items() if len(rs) > 1},
         "mundos_contaminados": len(dirty),
+        "exposicion": {
+            "total_agentes": expo["total_agents"],
+            "subexpuestos": expo["subexposed"],
+            "fraccion_subexpuestos": expo["frac_subexposed"],
+        },
     }
     (out_dir / "piloto_analysis.json").write_text(json.dumps(report, indent=2, ensure_ascii=False))
     print("\nAnálisis guardado: data/silver/piloto/piloto_analysis.json")

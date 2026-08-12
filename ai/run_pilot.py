@@ -173,7 +173,8 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=30, help="días simulados por mundo")
     ap.add_argument("--model", default="qwen2.5:7b", help="modelo Ollama/API")
     ap.add_argument("--density", default="all", choices=["all", "12", "7", "4"])
-    ap.add_argument("--conditions", default="all", choices=["all", "sin_memoria", "memoria", "oraculo"])
+    ap.add_argument("--conditions", default="all", choices=["all", "sin_memoria", "memoria", "oraculo", "baseline_empirico"])
+    ap.add_argument("--seeds", default="", help="lista de seeds específica, p.ej. '1,2,3' (override --worlds)")
     ap.add_argument("--smoke", action="store_true", help="prueba de humo: 1 mundo × densidad justa")
     args = ap.parse_args()
 
@@ -192,7 +193,10 @@ def main() -> None:
         densities = [float(d) / 100 for d in ("12", "7", "4")] if args.density == "all" \
             else [float(args.density) / 100]
         conditions = CONDITIONS if args.conditions == "all" else [args.conditions]
-        worlds = list(range(1, args.worlds + 1))
+        if args.seeds:
+            worlds = [int(s) for s in args.seeds.split(",") if s.strip()]
+        else:
+            worlds = list(range(1, args.worlds + 1))
         days = args.days
 
     results = []
