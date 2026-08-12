@@ -157,6 +157,39 @@ class LLMAgent:
         kwargs = {k: v for k, v in args.items() if k in allowed}
         return action, kwargs, json.dumps(raw, ensure_ascii=False)
 
+    def predict_effect(self, rkind: str, region: str, phase: int) -> Optional[float]:
+        """FORCED-CHOICE PROBE (crítica #11 de Claude): pregunta al agente qué
+        cree que pasaría si consumiera `rkind` en (region, phase), SIN ejecutar
+        nada. Para la situación retenida (nunca vivida) solo puede acertar
+        componiendo reglas aprendidas. Devuelve el cambio de energía predicho."""
+        system = (
+            "Eres un agente autónomo en un mundo 2D. "
+            "Responde SOLO con JSON: {\"energy_change\": <número con signo>, \"reason\": \"...\"}"
+        )
+        user = (
+            f"PREGUNTA HIPOTÉTICA (no es una acción, solo responde):\n"
+            f"Si consumieras 1 unidad del recurso '{rkind}' estando en la región "
+            f"{region} durante la fase {'oscura' if phase == 1 else 'clara'}, "
+            f"¿cuánto cambiaría tu energía? Da el número con signo (+ sube, - baja, 0 nada)."
+        )
+        try:
+            raw = self.client.chat_json([
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ])
+        except Exception as e:
+            return None
+        self.total_calls += 1
+        self.total_prompt_tokens += self.client.last_usage.get("prompt_tokens", 0)
+        self.total_completion_tokens += self.client.last_usage.get("completion_tokens", 0)
+        val = raw.get("energy_change")
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
     def _system_prompt(self) -> str:
         base = self.system_rules or (
             "Eres un agente autónomo en un mundo 2D.\n"

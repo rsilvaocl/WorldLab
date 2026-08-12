@@ -171,6 +171,15 @@ class WorldState:
     def _region_blocked(self, region: str, phase: int) -> bool:
         return bool(self.config.phase_barriers.get((phase, region), False))
 
+    def ground_truth_effect(self, rkind: str, region: str, phase: int) -> float:
+        """Efecto REAL de consumir `rkind` en (region, phase) según la config.
+        Es la respuesta correcta objetiva del motor, usada por el probe de
+        composición para comparar contra la predicción del agente."""
+        key = (rkind, region, phase)
+        if key in self.config.consume_effects:
+            return self.config.consume_effects[key]
+        return self.config.energy_per_unit.get(rkind, 5.0)
+
     # -- acciones validables --------------------------------------------
     def can_move(self, eid: str, dx: int, dy: int) -> Tuple[bool, str]:
         ent = self.entities.get(eid)
