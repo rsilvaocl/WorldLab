@@ -7,14 +7,18 @@ cd /Users/ruben/Proyectos/worldlab || exit 1
 
 SUMMARY=data/silver/piloto/piloto_summary.json
 WAITED=0
-# esperar hasta 72 h a que el piloto principal termine (proceso ausente + summary)
-# — ETA real medido ~40 min/mundo → ~47 h para 72 mundos LLM
+# esperar hasta 72 h a que el piloto principal esté COMPLETO (96 mundos en el
+# summary — el piloto ahora corre en ciclos recurrentes con checkpoint)
 while :; do
-  if [ -f "$SUMMARY" ] && ! pgrep -f "ai.run_pilot --worlds 8" >/dev/null 2>&1; then
+  N=$(python3 -c "
+import json, os
+p='$SUMMARY'
+print(len(json.load(open(p))) if os.path.exists(p) else 0)" 2>/dev/null || echo 0)
+  if [ "$N" -ge 96 ]; then
     break
   fi
   if [ "$WAITED" -ge 4320 ]; then
-    echo "TIMEOUT: el piloto principal no terminó en 72 h — aborto extensión."
+    echo "TIMEOUT: el piloto principal no completó 96 mundos en 72 h — aborto extensión."
     exit 1
   fi
   sleep 60

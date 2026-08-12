@@ -176,6 +176,8 @@ def main() -> None:
     ap.add_argument("--conditions", default="all", choices=["all", "sin_memoria", "memoria", "oraculo", "baseline_empirico"])
     ap.add_argument("--seeds", default="", help="lista de seeds específica, p.ej. '1,2,3' (override --worlds)")
     ap.add_argument("--smoke", action="store_true", help="prueba de humo: 1 mundo × densidad justa")
+    ap.add_argument("--resume", action="store_true",
+                    help="retomar: salta mundos ya completados (checkpoint por mundo)")
     args = ap.parse_args()
 
     out_dir = Path("data/silver/piloto")
@@ -201,6 +203,19 @@ def main() -> None:
 
     results = []
     t_start = time.time()
+
+    # checkpoint: si ya hay summary, cargar lo completado (resume)
+    summary_path = out_dir / "piloto_summary.json"
+    done: set = set()
+    if args.resume and summary_path.exists():
+        try:
+            prev = json.loads(summary_path.read_text())
+            results = prev
+            done = {(r["condition"], r["density"], r["seed"]) for r in prev}
+            print(f"RESUME: {len(prev)} mundos ya completados — continúo desde ahí", flush=True)
+        except json.JSONDecodeError:
+            print("summary corrupto — empiezo de cero", flush=True)
+
     # INTERCALADO (exigencia de Opus): mundo por mundo, rotando condición en
     # CADA mundo (nunca dos mundos seguidos de la misma condición), densidad
     # rotando en bloque. Un diseño por bloques convertiría la deriva temporal
@@ -211,22 +226,22 @@ def main() -> None:
         for k in range(n_cond * n_dens):
             condition = conditions[(k + seed) % n_cond]
             density = densities[(k // n_cond + seed) % n_dens]
+            if (condition, density, seed) in done:
+                continue  # ya completado en una corrida previa
             t0 = time.time()
             r = run_world(condition, density, seed, days, model_name, client, out_dir)
             dt = time.time() - t0
             r["elapsed_s"] = round(dt, 1)
+            r["estado"] = "desarrollo_no_confirmatorio"
             results.append(r)
+            # CHECKPOINT: escribir el summary tras CADA mundo — si el proceso
+            # muere (p.ej. el scheduler), el progreso no se pierde
+            summary_path.write_text(json.dumps(results, ensure_ascii=False, indent=2))
             print(f"[{condition:16s} | d={density:.0%} | seed={seed}] "
                   f"superv={r['survivors']} en {dt:.0f}s "
                   f"tokens={r['tokens']} heldout={r['heldout_clean']}",
                   flush=True)
 
-    # marcar el piloto como NO confirmatorio (dato de desarrollo)
-    for r in results:
-        r["estado"] = "desarrollo_no_confirmatorio"
-
-    summary_path = out_dir / "piloto_summary.json"
-    summary_path.write_text(json.dumps(results, ensure_ascii=False, indent=2))
     print(f"\nResumen guardado: {summary_path}")
     print(f"Total: {len(results)} mundos en {(time.time()-t_start)/60:.1f} min")
 
