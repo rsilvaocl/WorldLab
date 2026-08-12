@@ -2,6 +2,14 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-022 · 2026-08-12 · Piloto completo (96 mundos, ~70 h) · Comandante · ACTIVA
+Se mantiene el piloto a 100 días con las 3 densidades (12/7/4%) × 4 condiciones
+× 8 seeds. Sin límite de tiempo: la Mac queda dedicada al experimento (no se
+apagará ni se usará para trabajos pesados). Los mundos baseline_empirico (24)
+son instantáneos; los 72 LLM a qwen2.5:7b local ~58 min/mundo. El proceso corre
+como huérfano (PPID 1) con checkpoint por mundo + job recurrente cada 2 h como
+respaldo.
+
 ## D-001 · 2026-08-11 · Ontología abstracta (crítica #1 de Claude) · Aprobada
 - Recursos con IDs opacos (S1..S4 en el mundo experimental; nombres bonitos solo en el visor).
 - Recetas de crafting arbitrarias, definidas en `WorldConfig.recipes` y validadas en el motor.
