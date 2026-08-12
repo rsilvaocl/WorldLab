@@ -45,6 +45,7 @@ class AgentState:
     entity: Entity
     energy: float
     inventory: Dict[str, float] = field(default_factory=dict)
+    starvation_ticks: int = 0        # ticks consecutivos con energía en 0
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +83,7 @@ class WorldConfig:
     move_energy: float = 1.0
     energy_per_unit: Dict[str, float] = field(default_factory=dict)  # conversión recurso->energía
     recipes: Dict[str, Dict[str, float]] = field(
-        default_factory=lambda: {"hut": {"wood": 2.0, "stone": 1.0}})
+        default_factory=lambda: {"struct_a": {"S3": 2.0, "S4": 1.0}})
     # --- condiciones cruzadas (diseño Opus: ¿una condición o dos?) --------
     phase_ticks: int = 0             # duración de cada fase en ticks; 0 = sin ciclo
     n_phases: int = 2                # p.ej. clara(0) / oscura(1)
@@ -91,6 +92,16 @@ class WorldConfig:
                                      # (fase, región) -> bloqueada (no se puede ENTRAR)
     consume_effects: Dict[Tuple[str, str, int], float] = field(default_factory=dict)
                                      # (rkind, región, fase) -> energía ganada; override
+    # --- ontología aprobada (spec 2026-08-11, §8) ---------------------------
+    clusters_n: int = 0              # 8 cúmulos; 0 = sin cúmulos (scatter plano)
+    clusters_radius: int = 3
+    clusters_per_region: int = 4
+    regen_per_day: float = 0.0       # regeneración por recurso, tope = carga inicial
+    starvation_ticks: int = 48       # ticks consecutivos en energía 0 => muerte
+    struct_effects: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+                                     # p.ej. {"struct_a": {"metabolism_factor": 0.5, "phase": 1, "range": 1}}
+    max_message_symbols: int = 3     # longitud máx del mensaje simbólico
+    vision_radius: int = 4           # radio de percepción (hear_radius 6 > visión: D-012)
     # --- comunicación simbólica (D-008: canal simbólico, decisión Comandante) --
     symbol_alphabet: List[str] = field(
         default_factory=lambda: [f"k{i}" for i in range(1, 5)])
@@ -159,8 +170,12 @@ class WorldState:
         self.events: List[Event] = []
         self._drop_seq = 0  # contador para eids opacos de recursos soltados
         self.inbox: Dict[str, List[Dict[str, Any]]] = {}  # mensajes oídos por agente
+        # CLONAR entidades iniciales: el motor nunca muta objetos del llamador.
+        # Sin esto, reusar la misma lista entre simulaciones (p.ej. en el grid
+        # search del baseline) contamina posiciones y colisiona.
         for ent in initial_entities:
-            self._place(ent)
+            self._place(Entity(eid=ent.eid, kind=ent.kind, x=ent.x, y=ent.y,
+                               attrs=dict(ent.attrs)))
 
     # -- colocación con validación --------------------------------------
     def _place(self, ent: Entity) -> None:
@@ -198,6 +213,87 @@ class WorldState:
             placed += 1
         if placed < count:
             raise RuntimeError(f"Solo se pudieron colocar {placed}/{count} recursos")
+
+    def seed_clusters(self, resource_kinds: List[str], density: float = 0.12) -> None:
+        """Siembra en cúmulos (spec §3.2, requisito crítico de Opus).
+
+        - clusters_n cúmulos, radio clusters_radius, per_region por región.
+        - Cada cúmulo es de UN solo símbolo; los símbolos se reparten para que
+          TODOS existan en AMBAS regiones (si S1 solo está en A, el agente nunca
+          puede probarlo en B y no hay experimento).
+        - Número total de recursos = density × celdas, repartidos entre cúmulos.
+        - Posiciones sorteadas por seed (reproducibilidad).
+        """
+        cfg = self.config
+        if cfg.clusters_n <= 0:
+            self.scatter_resources(int(cfg.width * cfg.height * density),
+                                   kind="resource", resource_kinds=resource_kinds)
+            return
+        n_clusters = cfg.clusters_n
+        per_region = cfg.clusters_per_region
+        radius = cfg.clusters_radius
+        split = int(cfg.width * cfg.region_split)
+
+        # asignar símbolo a cada cúmulo: per_region símbolos distintos por región
+        # (con n=8, per_region=4, symbols=4 => cada región tiene los 4)
+        cluster_symbols: List[Tuple[str, str]] = []  # (region, symbol)
+        for region in ("A", "B"):
+            for sym in resource_kinds:
+                cluster_symbols.append((region, sym))
+
+        # centros: sorteados por seed dentro de la región, con margen para el radio
+        centers: List[Tuple[int, int]] = []
+        for region, sym in cluster_symbols:
+            if region == "A":
+                x0, x1 = radius, split - radius - 1
+            else:
+                x0, x1 = split + radius, cfg.width - radius - 1
+            if x1 <= x0:
+                x0, x1 = 0, cfg.width - 1
+            cx = self.rng.randint(x0, x1)
+            cy = self.rng.randint(radius, cfg.height - radius - 1)
+            centers.append((cx, cy))
+
+        # repartir el total de recursos entre cúmulos
+        total = int(cfg.width * cfg.height * density)
+        per_cluster = max(1, total // n_clusters)
+        remainder = total - per_cluster * n_clusters
+
+        idx = 0
+        for (region, sym), (cx, cy) in zip(cluster_symbols, centers):
+            n_res = per_cluster + (1 if idx < remainder else 0)
+            # colocar n_res recursos dentro del radio (Chebyshev), una por celda
+            placed_in_cluster = 0
+            attempts = 0
+            while placed_in_cluster < n_res and attempts < n_res * 30 + 50:
+                attempts += 1
+                dx = self.rng.randint(-radius, radius)
+                dy = self.rng.randint(-radius, radius)
+                x, y = cx + dx, cy + dy
+                if not self.in_bounds(x, y):
+                    continue
+                if self.entities_at(x, y):
+                    continue
+                rid = f"r_{sym}_{idx}_{placed_in_cluster}"
+                amount = 10.0
+                self.entities[rid] = Entity(eid=rid, kind="resource", x=x, y=y,
+                                            attrs={"kind": sym, "amount": amount,
+                                                   "initial_amount": amount,
+                                                   "cluster": idx})
+                placed_in_cluster += 1
+            idx += 1
+
+    def symbols_present_in_all_regions(self) -> bool:
+        """Requisito crítico (spec §3.2): los 4 símbolos existen en ambas regiones."""
+        per_region: Dict[str, set] = {"A": set(), "B": set()}
+        for e in self.entities.values():
+            if e.kind == "resource" and "kind" in e.attrs:
+                per_region[self.region(e.x, e.y)].add(e.attrs["kind"])
+        all_syms = set()
+        for region in ("A", "B"):
+            all_syms |= per_region[region]
+        return all(len(all_syms & per_region[r]) == len(all_syms) and len(all_syms) > 0
+                   for r in ("A", "B"))
 
     def entities_at(self, x: int, y: int) -> List[Entity]:
         return [e for e in self.entities.values() if e.x == x and e.y == y]
@@ -455,17 +551,83 @@ class WorldState:
 
     # -- ciclo de tiempo -------------------------------------------------
     def advance_tick(self) -> None:
-        """Avanza un tick: costo metabólico de todos los agentes + expulsión
-        de regiones bloqueadas por la fase (D-011)."""
-        for aid, agent in self.agents.items():
-            agent.energy -= self.config.energy_per_tick
+        """Avanza un tick: metabolismo (con efecto de struct en fase oscura),
+        contador de inanición (muerte a los starvation_ticks consecutivos),
+        regeneración al cambiar de día, y expulsión de regiones bloqueadas."""
+        phase = self.phase()
+        for aid in list(self.agents.keys()):
+            agent = self.agents.get(aid)
+            if agent is None:
+                continue  # murió durante la iteración previa
+            # metabolismo con posible reducción por struct adyacente (fase oscura)
+            factor = self._metabolism_factor(agent, phase)
+            agent.energy -= self.config.energy_per_tick * factor
             if agent.energy <= 0:
-                agent.energy = 0.0  # estado de inanición; muerte gestionada por regla de mundo
+                agent.energy = 0.0
+                agent.starvation_ticks = getattr(agent, "starvation_ticks", 0) + 1
+                if agent.starvation_ticks >= self.config.starvation_ticks:
+                    self._kill_agent(aid)
+            else:
+                agent.starvation_ticks = 0
+        # limpiar agentes muertos del dict (ya removidos por _kill_agent)
         self.tick += 1
         if self.tick >= self.config.ticks_per_day:
             self.tick = 0
             self.day += 1
+            self._regen_resources()
         self._expel_agents_from_blocked_regions()
+
+    def _metabolism_factor(self, agent: AgentState, phase: int) -> float:
+        """Factor metabólico por estructuras adyacentes (spec §3.6):
+        struct_a reduce el metabolismo ×0.5 SOLO en fase oscura."""
+        factor = 1.0
+        ent = agent.entity
+        for other in self.entities.values():
+            if other.kind != "object":
+                continue
+            effect = self.config.struct_effects.get(other.attrs.get("structure", ""))
+            if effect is None:
+                continue
+            if effect.get("phase") is not None and phase != effect["phase"]:
+                continue
+            rng = effect.get("range", 1)
+            if abs(other.x - ent.x) + abs(other.y - ent.y) <= rng:
+                factor *= float(effect.get("metabolism_factor", 1.0))
+        return factor
+
+    def _kill_agent(self, aid: str) -> None:
+        """Muerte por inanición sostenida (spec §3.5): el agente sale del mundo
+        y su inventario cae al suelo en su última celda."""
+        agent = self.agents.get(aid)
+        if agent is None:
+            return
+        ent = agent.entity
+        self._event(aid, "death", "ok", {"reason": "starvation",
+                                         "at": [ent.x, ent.y],
+                                         "energy": round(agent.energy, 1)})
+        for rkind, amt in agent.inventory.items():
+            if amt <= 0:
+                continue
+            self._drop_seq += 1
+            self.entities[f"e_{self._drop_seq:04d}"] = Entity(
+                eid=f"e_{self._drop_seq:04d}", kind="resource",
+                x=ent.x, y=ent.y, attrs={"amount": amt, "kind": rkind,
+                                         "owner_dropped": aid})
+        del self.entities[aid]
+        del self.agents[aid]
+
+    def _regen_resources(self) -> None:
+        """Regeneración (spec §3.4): cada recurso recupera regen_per_day por día,
+        con tope en su carga inicial (initial_amount). El mundo alcanza estado
+        estable; la presión la fija la densidad, no el reloj."""
+        regen = self.config.regen_per_day
+        if regen <= 0:
+            return
+        for e in self.entities.values():
+            if e.kind != "resource":
+                continue
+            cap = float(e.attrs.get("initial_amount", e.attrs.get("amount", 0.0)))
+            e.attrs["amount"] = min(cap, float(e.attrs.get("amount", 0.0)) + regen)
 
     def _expel_agents_from_blocked_regions(self) -> None:
         """Expulsa agentes que quedaron en una región bloqueada por la fase actual.

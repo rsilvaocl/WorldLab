@@ -61,9 +61,11 @@ class Simulator:
                  experiment_id: str, log_interval: int = 48,
                  death_energy: float = 0.0, resource_density: float = 0.05,
                  resource_kinds: Optional[List[str]] = None,
-                 resource_names: Optional[Dict[str, str]] = None):
+                 resource_names: Optional[Dict[str, str]] = None,
+                 wake_emergency_energy: float = 15.0,
+                 agent_hooks: Optional[Dict[str, Any]] = None):
         self.config = config
-        self.policy = policy          # policy(world, tick) -> (action, kwargs) por agente
+        self.policy = policy          # policy(world, tick) -> (action, kwargs[, trace[, horizonte]])
         self.output_dir = output_dir
         self.experiment_id = experiment_id
         self.log_interval = log_interval
@@ -71,11 +73,18 @@ class Simulator:
         self.resource_density = resource_density
         self.resource_kinds = resource_kinds
         self.resource_names = resource_names or {}
+        self.wake_emergency_energy = wake_emergency_energy
+        self.agent_hooks = agent_hooks or {}   # eid -> objeto con record_outcome(ev)
 
     def _build_world(self, agents: List[Entity], seed: int) -> WorldState:
         world = WorldState(self.config, agents, seed=seed)
-        count = int(self.config.width * self.config.height * self.resource_density)
-        world.scatter_resources(count, kind="resource", resource_kinds=self.resource_kinds)
+        if self.config.clusters_n > 0:
+            world.seed_clusters(self.resource_kinds or ["S1", "S2", "S3", "S4"],
+                                density=self.resource_density)
+        else:
+            count = int(self.config.width * self.config.height * self.resource_density)
+            world.scatter_resources(count, kind="resource",
+                                    resource_kinds=self.resource_kinds)
         return world
 
     def run(self, agents: List[Entity], seed: int) -> SimResult:
@@ -104,6 +113,7 @@ class Simulator:
         # órdenes distintos es experimento aparte (crítica de Opus)
         agent_ids = sorted(world.agents.keys())
         rng_turn = random.Random(seed)
+        next_think: Dict[str, int] = {}   # D-018: horizonte de despertar elegido
 
         for _ in range(self.config.days):
             for _tick in range(self.config.ticks_per_day):
@@ -114,9 +124,20 @@ class Simulator:
                     if agent.energy <= self.death_energy:
                         # muerte: el agente deja de actuar (sigue en el mundo como cadáver)
                         continue
+                    # D-018: respetar el sueño elegido; solo despierta antes por emergencia
+                    if world.tick < next_think.get(aid, 0) \
+                       and agent.energy > self.wake_emergency_energy:
+                        continue
                     result = self.policy(world, aid, world.tick, rng_turn)
-                    # policy puede devolver (action, kwargs) o (action, kwargs, trace)
-                    if isinstance(result, tuple) and len(result) == 3:
+                    # policy puede devolver (action, kwargs) | +trace | +trace+horizonte
+                    if isinstance(result, tuple) and len(result) == 4:
+                        action, kwargs, trace, horizonte = result
+                        if trace:
+                            trace_logger.log_trace(day=world.day, tick=world.tick,
+                                                   eid=aid, trace=trace)
+                        if horizonte is not None:
+                            next_think[aid] = world.tick + max(1, int(horizonte))
+                    elif isinstance(result, tuple) and len(result) == 3:
                         action, kwargs, trace = result
                         if trace:
                             trace_logger.log_trace(day=world.day, tick=world.tick,
@@ -130,6 +151,10 @@ class Simulator:
                         continue
                     ev = method(aid, **kwargs)
                     logger.log_event(ev)
+                    # entregar el resultado real a la memoria del agente (si tiene)
+                    hook = self.agent_hooks.get(aid)
+                    if hook is not None and hasattr(hook, "record_outcome"):
+                        hook.record_outcome(ev)
                     if ev.outcome == "ok":
                         stats["ok"] += 1
                         if action == "gather":

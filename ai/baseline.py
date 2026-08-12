@@ -38,15 +38,26 @@ class DeterministicAgent:
         self.params = params
         self.rng = __import__("random").Random(rng_seed)
 
-    def _best_energy_resource(self, world: WorldState):
-        """El recurso del inventario que más energía da (no hardcodea nombres)."""
+    def _expected_value(self, world: WorldState, rkind: str) -> float:
+        """Valor esperado de consumir `rkind` en la región/fase actual del agente.
+        Usa consume_effects (las reglas del mundo) si existen; el baseline las
+        conoce de la config — como el LLM las conoce del prompt. Sin esto, el
+        baseline come S2 en A creyéndolo bueno (-2) y muere: hombre de paja."""
         cfg = world.config
+        ent = world.entities[self.eid]
+        key = (rkind, world.region(ent.x, ent.y), world.phase())
+        if key in cfg.consume_effects:
+            return cfg.consume_effects[key]
+        return cfg.energy_per_unit.get(rkind, 0.0)
+
+    def _best_energy_resource(self, world: WorldState):
+        """El recurso del inventario con mayor valor esperado en la celda actual."""
         agent = world.agents[self.eid]
         best, best_val = None, -1.0
         for rkind, amt in agent.inventory.items():
             if amt <= 0:
                 continue
-            val = cfg.energy_per_unit.get(rkind, 0.0)
+            val = self._expected_value(world, rkind)
             if val > best_val:
                 best, best_val = rkind, val
         return best
@@ -94,18 +105,19 @@ class DeterministicAgent:
 
     # ------------------------------------------------------------------
     def _best_adjacent_resource(self, world: WorldState):
-        """Recurso adyacente más valioso: valora por energía que otorga
-        (config), no por cantidad ni por nombre semántico."""
+        """Recurso adyacente con mayor valor esperado en la celda actual
+        (usa consume_effects, no cantidad ni nombre semántico)."""
         ent = world.entities[self.eid]
-        cfg = world.config
-        best, best_val = None, 0.0   # 0.0: solo recursos con amount > 0
+        best, best_val = None, 0.0   # 0.0: solo recursos con amount > 0 y valor > 0
         for other in world.entities.values():
             if other.kind != "resource":
                 continue
             if abs(other.x - ent.x) + abs(other.y - ent.y) == 1:
                 amount = float(other.attrs.get("amount", 0.0))
+                if amount <= 0:
+                    continue
                 rkind = other.attrs.get("kind", "generic")
-                val = amount * (cfg.energy_per_unit.get(rkind, 1.0) + 1e-9)
+                val = amount * (self._expected_value(world, rkind) + 1e-9)
                 if val > best_val:
                     best, best_val = other, val
         return best
@@ -119,15 +131,24 @@ class DeterministicAgent:
         return None, None
 
     def _step_toward_resource(self, world: WorldState):
+        """Moverse una celda hacia el recurso visible de MAYOR valor esperado
+        en la celda actual (no el más cercano — eso lo atasca en cúmulos de
+        bajo valor y muere de hambre junto a la comida)."""
         ent = world.entities[self.eid]
         radius = 5
-        best, best_dist = None, 10**9
+        best, best_val = None, -1.0
         for other in world.entities.values():
             if other.kind != "resource":
                 continue
             d = abs(other.x - ent.x) + abs(other.y - ent.y)
-            if 0 < d <= radius and d < best_dist:
-                best, best_dist = other, d
+            if 0 < d <= radius:
+                amount = float(other.attrs.get("amount", 0.0))
+                if amount <= 0:
+                    continue
+                rkind = other.attrs.get("kind", "generic")
+                val = self._expected_value(world, rkind) + 1e-9
+                if val > best_val:
+                    best, best_val = other, val
         if best is None:
             return None
         dx = 0 if best.x == ent.x else (1 if best.x > ent.x else -1)

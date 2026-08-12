@@ -61,7 +61,30 @@ Formato: fecha · decisión · quién la tomó · estado
   (0=pérdida grande ... 5=ganancia grande); el azar cae a ~17%.
 - Se registran predicted_level, truth_level, level_correct + sign_correct (secundaria).
 
-## D-011 · 2026-08-11 · Expulsión de regiones bloqueadas + integridad del held-out (Opus) · Aprobada
+## D-011 · 2026-08-11 · Forma del mundo: escasez espacial (cúmulos) · Comandante
+- Los recursos vienen en cúmulos (8, radio 3, 4 por región); la densidad es la
+  única variable de presión barrida (12/7/4%).
+- El agrupamiento es CONSTANTE ESTRUCTURAL, no una variable (corrección de Opus).
+
+## D-012 · 2026-08-11 · Percepción: identidad visible, propiedades ocultas · Comandante
+- El agente distingue el tipo de recurso a distancia (rkind opaco); no ve cantidades exactas.
+- eids siempre opacos; hear_radius (6) > visión (4): un agente oye a quien no ve.
+
+## D-013 · 2026-08-11 · Regla del mundo: propiedades condicionadas por contexto · Comandante
+- El efecto de consumo depende de (símbolo, región, fase), no de recetas ni aniquilación.
+
+## D-014 · 2026-08-11 · Dos condiciones ortogonales con cruce retenido · Comandante
+- Región × fase = 4 celdas; el agente vive 3; B-oscura solo se responde componiendo.
+
+## D-015 · 2026-08-11 · Ontología concreta (4 símbolos, separables, 8 cúmulos) · Opus + Comandante
+- S1(+8,-11,-4), S2(-2,+9,+3), S3(0,0,0), S4(+1,0,-1); efectos generados con
+  build_separable_effects; invariante permanente. Spec: docs/superpowers/specs/.
+
+## D-016 · 2026-08-11 · Agentes con utilidad idéntica (sobrevivir) · Opus + Comandante
+- Sin perfiles diferenciados: cualquier asimetría dictada por config sería una
+  explicación alternativa de lo observado. La heterogeneidad viene de la geografía.
+
+## D-017 · 2026-08-11 · Expulsión de B al comenzar la fase oscura + invariante · Opus + Comandante
 - Al entrar la fase oscura, los agentes en B son EXPULSADOS a la celda libre más
   cercana en región no bloqueada (búsqueda en espiral) — nadie puede vivir B-oscura.
 - Red de detección permanente: `no_heldout_consumption()` — ningún consume ok en
@@ -70,10 +93,11 @@ Formato: fecha · decisión · quién la tomó · estado
   alza con alfabeto grande y pocos datos.
 - Emergencia de señalización se mide con MI contra NULO POR PERMUTACIÓN (no contra cero).
 
-## D-012 · 2026-08-11 · hear_radius > radio de visión: decisión escrita (Opus) · Aprobada
-- `hear_radius` (6) > radio de visión (4): un agente puede OÍR a quien no ve.
-- Decisión consciente y documentada, no accidente: crea situaciones interesantes
-  (oír sin ver) y es parte del diseño del mundo.
+## D-018 · 2026-08-11 · El agente elige su propio horizonte de despertar · Opus + Comandante
+- Junto con su acción declara sleep_ticks; el motor lo respeta salvo emergencia (hambre).
+- Ataca la crítica #13 (el trigger de evento ES la decisión); el horizonte es métrica
+  (un agente que entendió el ciclo debería despertar antes de que cierre la frontera).
+- Registrado en el trace como sleep_ticks.
 
 
 ## D-007 · 2026-08-11 · Orden de operaciones (Opus) · Aprobada

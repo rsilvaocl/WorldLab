@@ -147,21 +147,21 @@ def test_give_not_enough():
 
 def test_build_consumes_materials():
     w = make_econ_world()
-    w.agents["a0"].inventory["wood"] = 4.0
-    w.agents["a0"].inventory["stone"] = 2.0
-    # receta hut por defecto: wood 2 + stone 1 (vive en config, no en el llamador)
-    ev = w.build("a0", "hut", x=1, y=2)
+    w.agents["a0"].inventory["S3"] = 4.0
+    w.agents["a0"].inventory["S4"] = 2.0
+    # receta struct_a por defecto: S3 2 + S4 1 (vive en config, no en el llamador)
+    ev = w.build("a0", "struct_a", x=1, y=2)
     assert ev.outcome == "ok"
-    assert w.agents["a0"].inventory["wood"] == 2.0
-    assert w.agents["a0"].inventory["stone"] == 1.0
-    huts = [e for e in w.entities.values() if e.attrs.get("structure") == "hut"]
+    assert w.agents["a0"].inventory["S3"] == 2.0
+    assert w.agents["a0"].inventory["S4"] == 1.0
+    huts = [e for e in w.entities.values() if e.attrs.get("structure") == "struct_a"]
     assert len(huts) == 1
 
 
 def test_build_missing_material():
     w = make_econ_world()
-    w.agents["a0"].inventory["wood"] = 1.0
-    ev = w.build("a0", "hut", x=1, y=2)
+    w.agents["a0"].inventory["S3"] = 1.0
+    ev = w.build("a0", "struct_a", x=1, y=2)
     assert ev.outcome == "impossible"
     assert ev.detail["reason"] == "missing_material"
 
@@ -173,7 +173,7 @@ def test_build_cannot_declare_own_materials():
     w.agents["a0"].inventory.clear()
     # build() ya no acepta materials como argumento; sin inventario, imposible
     try:
-        ev = w.build("a0", "hut", x=1, y=2)
+        ev = w.build("a0", "struct_a", x=1, y=2)
         assert ev.outcome == "impossible"
         assert ev.detail["reason"] == "missing_material"
     except TypeError:
@@ -183,7 +183,7 @@ def test_build_cannot_declare_own_materials():
 
 def test_build_unknown_recipe():
     w = make_econ_world()
-    w.agents["a0"].inventory["wood"] = 5.0
+    w.agents["a0"].inventory["S3"] = 5.0
     ev = w.build("a0", "castle", x=1, y=2)
     assert ev.outcome == "impossible"
     assert ev.detail["reason"] == "unknown_recipe"
@@ -191,10 +191,10 @@ def test_build_unknown_recipe():
 
 def test_build_cell_occupied():
     w = make_econ_world()
-    w.agents["a0"].inventory["wood"] = 5.0
-    w.agents["a0"].inventory["stone"] = 2.0
+    w.agents["a0"].inventory["S3"] = 5.0
+    w.agents["a0"].inventory["S4"] = 2.0
     w._place(Entity(eid="obj", kind="object", x=1, y=2))
-    ev = w.build("a0", "hut", x=1, y=2)
+    ev = w.build("a0", "struct_a", x=1, y=2)
     assert ev.outcome == "impossible"
     assert ev.detail["reason"] == "cell_occupied"
 

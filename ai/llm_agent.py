@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .model_adapter import LLMClient
 from .world_state import WorldState
+from .memory import LiteralMemory
 
 # Acciones válidas -> kwargs esperados por el motor
 VALID_ACTIONS = {
@@ -36,7 +37,8 @@ class LLMAgent:
     def __init__(self, eid: str, client: LLMClient, goal: str,
                  system_rules: str = "", think_every: int = 12,
                  hunger_threshold: float = 30.0, radius: int = 6,
-                 model_name: str = "", near_trigger_radius: int = 0):
+                 model_name: str = "", near_trigger_radius: int = 0,
+                 memory: Optional[LiteralMemory] = None):
         self.eid = eid
         self.client = client
         self.goal = goal
@@ -46,9 +48,15 @@ class LLMAgent:
         self.radius = radius
         self.model_name = model_name or client.describe()
         self.near_trigger_radius = near_trigger_radius  # 0 = trigger desactivado
+        self.memory = memory                  # registro literal de eventos propios (o corrupto)
         self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
+
+    def record_outcome(self, ev) -> None:
+        """El motor le entrega el resultado real de su acción para la memoria."""
+        if self.memory is not None:
+            self.memory.record(ev)
 
     # ------------------------------------------------------------------
     def _should_think(self, world: WorldState) -> Tuple[bool, str]:
@@ -69,15 +77,18 @@ class LLMAgent:
             return True, "respaldo_cada_tick"
         return False, ""
 
-    def decide(self, world: WorldState) -> Tuple[str, Dict[str, Any], Optional[Dict[str, Any]]]:
-        """Devuelve (action, kwargs, trace). Si no piensa, (rest, {}, None)."""
+    def decide(self, world: WorldState):
+        """Devuelve (action, kwargs, trace, horizonte). Si no piensa, rest."""
         think, reason = self._should_think(world)
         if not think:
-            return "rest", {}, None
+            return "rest", {}, None, None
 
         observation = self._build_observation(world)
         prediction = self._make_prediction(world)
         action, kwargs, raw = self._ask_model(observation, prediction)
+
+        # D-018: el agente elige su propio horizonte de despertar (en ticks)
+        horizonte = self._parse_horizonte(raw)
 
         trace = {
             "observation": observation,
@@ -85,24 +96,47 @@ class LLMAgent:
             "goal": self.goal,
             "prediction": prediction,
             "proposed_action": {"action": action, "args": kwargs},
+            "sleep_ticks": horizonte,
             "model": self.model_name,
             "raw_response": raw,
         }
-        return action, kwargs, trace
+        return action, kwargs, trace, horizonte
+
+    @staticmethod
+    def _parse_horizonte(raw) -> Optional[int]:
+        """sleep_ticks válido: entero 1..96; inválido => 1 (despertar pronto)."""
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except json.JSONDecodeError:
+                return 1
+        if not isinstance(raw, dict):
+            return 1
+        try:
+            h = int(raw.get("sleep_ticks", 1))
+            return max(1, min(96, h))
+        except (TypeError, ValueError):
+            return 1
 
     # ------------------------------------------------------------------
     def _build_observation(self, world: WorldState) -> Dict[str, Any]:
         agent = world.agents[self.eid]
         vis = world.visible_to(self.eid, radius=self.radius)
-        # inventario y energía
-        return {
+        obs = {
             "day": world.day,
             "tick": world.tick,
             "energy": round(agent.energy, 1),
             "inventory": {k: round(v, 1) for k, v in agent.inventory.items()},
             "position": vis.get("position", [0, 0]),
+            "region": vis.get("region", ""),
+            "phase": vis.get("phase", 0),
             "visible": vis.get("visible", []),
+            "heard": vis.get("heard", []),
         }
+        # memoria literal: registro de eventos propios (o corruptos, condición aparte)
+        if self.memory is not None:
+            obs["memory"] = self.memory.render()
+        return obs
 
     def _make_prediction(self, world: WorldState) -> Dict[str, Any]:
         """World model v0: predicción simple de consecuencias inmediatas
@@ -131,7 +165,9 @@ class LLMAgent:
             "Estado actual:\n" + json.dumps(observation, ensure_ascii=False) +
             "\n\nPredicciones disponibles (no vinculantes):\n" +
             json.dumps(prediction, ensure_ascii=False) +
-            "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}}"
+            "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}, \"sleep_ticks\": N}\n"
+            "donde sleep_ticks (1..96) = en cuántos ticks quieres volver a decidir. "
+            "Si no hay nada urgente, pide dormir más (ahorras energía y costos)."
         )
         try:
             raw = self.client.chat_json([

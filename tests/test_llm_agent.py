@@ -77,7 +77,7 @@ def test_llm_agent_decides_valid_action():
     client = FakeClient()
     agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
     world = make_world()
-    action, kwargs, trace = agent.decide(world)
+    action, kwargs, trace, horizonte = agent.decide(world)
     assert action == "gather"
     assert kwargs["target_eid"] == "res_food"
     assert trace is not None
@@ -88,7 +88,7 @@ def test_llm_agent_rejects_invalid_action():
     client = FakeClient(response={"action": "fly", "args": {}})
     agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
     world = make_world()
-    action, kwargs, trace = agent.decide(world)
+    action, kwargs, trace, horizonte = agent.decide(world)
     assert action == "rest"  # acción inválida -> descansa
 
 
@@ -97,11 +97,11 @@ def test_llm_agent_only_thinks_when_triggered():
     agent = LLMAgent("a0", client, goal="sobrevivir", think_every=999, hunger_threshold=0)
     world = make_world()
     # sin hambre, sin agente cerca, tick 0 no es múltiplo de 999... tick 0 % 999 == 0 => piensa
-    action, kwargs, trace = agent.decide(world)
+    action, kwargs, trace, horizonte = agent.decide(world)
     assert trace is not None
     # mover a tick 1 con energía alta -> no piensa
     world.tick = 1
-    action2, kwargs2, trace2 = agent.decide(world)
+    action2, kwargs2, trace2, h2 = agent.decide(world)
     assert action2 == "rest"
     assert trace2 is None
 
@@ -111,9 +111,27 @@ def test_llm_agent_hunger_trigger():
     agent = LLMAgent("a0", client, goal="sobrevivir", think_every=999, hunger_threshold=50)
     world = make_world()
     world.agents["a0"].energy = 10.0  # hambre
-    action, kwargs, trace = agent.decide(world)
+    action, kwargs, trace, horizonte = agent.decide(world)
     assert trace is not None
     assert trace["reason"] == "hambre"
+
+
+def test_llm_agent_horizonte_parsed():
+    """D-018: el agente declara sleep_ticks; se registra en el trace y el motor lo respeta."""
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 24})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
+    world = make_world()
+    action, kwargs, trace, horizonte = agent.decide(world)
+    assert horizonte == 24
+    assert trace["sleep_ticks"] == 24
+
+
+def test_llm_agent_horizonte_invalid_clamped():
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 500})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
+    world = make_world()
+    action, kwargs, trace, horizonte = agent.decide(world)
+    assert horizonte == 96  # clamp
 
 
 # ---------------------------------------------------------------------------
