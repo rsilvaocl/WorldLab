@@ -1,0 +1,3 @@
+# runtime: sin dependencias externas (stdlib)
+# dev:
+pytest>=8
