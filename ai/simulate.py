@@ -111,7 +111,15 @@ class Simulator:
                     if agent.energy <= self.death_energy:
                         # muerte: el agente deja de actuar (sigue en el mundo como cadáver)
                         continue
-                    action, kwargs = self.policy(world, aid, world.tick, rng_turn)
+                    result = self.policy(world, aid, world.tick, rng_turn)
+                    # policy puede devolver (action, kwargs) o (action, kwargs, trace)
+                    if isinstance(result, tuple) and len(result) == 3:
+                        action, kwargs, trace = result
+                        if trace:
+                            trace_logger.log_trace(day=world.day, tick=world.tick,
+                                                   eid=aid, trace=trace)
+                    else:
+                        action, kwargs = result
                     if action == "rest":
                         continue
                     method = getattr(world, action, None)
@@ -158,6 +166,16 @@ def make_deterministic_policy(params: BaselineParams):
     def policy(world: WorldState, aid: str, tick: int, rng: random.Random):
         agent = DeterministicAgent(aid, params, rng_seed=tick)
         return agent.decide(world)
+    return policy
+
+
+def make_llm_policy(agents: Dict[str, Any]):
+    """Crea la política LLM: dict eid -> LLMAgent. Devuelve (action, kwargs, trace)."""
+    def policy(world: WorldState, aid: str, tick: int, rng: random.Random):
+        llm = agents.get(aid)
+        if llm is None:
+            return "rest", {}
+        return llm.decide(world)
     return policy
 
 
