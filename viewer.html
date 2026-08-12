@@ -59,6 +59,8 @@
       <span class="lg"><span class="sw" style="background:#8fa3b8"></span> piedra</span>
       <span class="lg"><span class="sw" style="background:#4da3ff"></span> agua</span>
       <span class="lg"><span class="sw" style="background:#7a8699"></span> construcción</span>
+      <span class="lg">☀️ fase clara / 🌙 fase oscura</span>
+      <span class="lg">A/B regiones — 🔒 B bloqueada de noche</span>
       <span class="lg tip">El número en cada recurso es la cantidad disponible</span>
     </div>
     <div id="controls">
@@ -111,7 +113,23 @@ const ACTION_VERBS = {
   give:    ['entregó', 'intentó entregar'],
   build:   ['construyó', 'intentó construir'],
   talk:    ['dijo', 'intentó hablar'],
+  expelled:['fue expulsado', 'expulsión fallida'],
+  death:   ['murió', 'muerte fallida'],
 };
+
+// Fase del snapshot: la trae el logger nuevo; si el archivo es viejo, la
+// deriva del meta (phase_ticks, n_phases). Sin información: null.
+function phaseOf(s) {
+  if (typeof s.phase === 'number') return s.phase;
+  const pt = meta?.phase_ticks, np = meta?.n_phases;
+  if (pt && np) return Math.floor(s.tick / pt) % np;
+  return null;
+}
+function regionOf(x) {
+  const split = meta?.region_split ?? 0.5;
+  const w = meta?.width || 30;
+  return x < w * split ? 'A' : 'B';
+}
 
 function parseFile(text) {
   const lines = text.split('\n').filter(l => l.trim());
@@ -158,10 +176,35 @@ function render() {
   const w = (meta?.width || 30), h = (meta?.height || 30);
   cv.width = w * CELL; cv.height = h * CELL;
   ctx.clearRect(0, 0, cv.width, cv.height);
-  ctx.fillStyle = '#12151b'; ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.strokeStyle = '#1d222c'; ctx.lineWidth = 1;
+  // FONDO según fase (☀️ clara / 🌙 oscura): lectura inmediata del ciclo
+  const phase = phaseOf(s);
+  ctx.fillStyle = phase === 1 ? '#0c0e13' : '#141a26';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = phase === 1 ? '#232838' : '#1d222c'; ctx.lineWidth = 1;
   for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
   for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
+
+  // REGIONES A/B: línea divisoria + etiquetas
+  const splitX = Math.round((meta?.region_split ?? 0.5) * w);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
+  ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(splitX*CELL, 0); ctx.lineTo(splitX*CELL, h*CELL); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.30)';
+  ctx.fillText('A', 8, 16); ctx.fillText('B', (splitX+1)*CELL + 4, 16);
+
+  // BARRERA: en fase oscura, la región B está bloqueada (no se puede entrar)
+  if (phase === 1) {
+    ctx.fillStyle = 'rgba(255,60,60,0.06)';
+    ctx.fillRect(splitX*CELL, 0, (w-splitX)*CELL, h*CELL);
+    ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = 2;
+    ctx.strokeRect(splitX*CELL+1, 1, (w-splitX)*CELL-2, h*CELL-2);
+    ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,90,90,0.65)';
+    ctx.fillText('🔒 BLOQUEADA', splitX*CELL + (w-splitX)*CELL/2, h*CELL-8);
+  }
+
   const ent = s.entities || [];
   const agents = ent.filter(e => e.kind === 'agent');
   // capa 1: recursos y objetos
@@ -202,7 +245,9 @@ function render() {
     ctx.strokeText(e.eid.replace(/[^0-9]/g,''), px, py+3);
     ctx.fillText(e.eid.replace(/[^0-9]/g,''), px, py+3);
   }
-  document.getElementById('timeLabel').textContent = `día ${s.day} · tick ${s.tick} · frame ${frame+1}/${snapshots.length}`;
+  const phaseIcon = phase === 1 ? '🌙' : (phase === 0 ? '☀️' : '');
+  document.getElementById('timeLabel').textContent =
+    `${phaseIcon} día ${s.day} · tick ${s.tick} · frame ${frame+1}/${snapshots.length}`;
 }
 
 function updatePanels() {
@@ -217,9 +262,15 @@ function updatePanels() {
     const row = document.createElement('div'); row.className = 'agentRow';
     const inv = Object.entries(info.inventory||{})
       .map(([k,v]) => `${rName(k)}:${Math.round(v)}`).join(' · ') || 'vacío';
+    const reg = regionOf(a.x);
+    const fz = phaseOf(s);
+    const faseTxt = fz === 1 ? '🌙 oscura' : (fz === 0 ? '☀️ clara' : '');
+    const energyPct = Math.min(100, info.energy);
+    const barColor = info.energy < 20 ? '#e06060' : (info.energy < 45 ? '#e0a050' : 'var(--acc)');
     row.innerHTML = `
-      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}</div>
-      <div class="bar"><div style="width:${Math.min(100,info.energy)}%"></div></div>
+      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}
+        <span class="dim">· región ${reg} · ${faseTxt}</span></div>
+      <div class="bar"><div style="width:${energyPct}%;background:${barColor}"></div></div>
       <div class="inv">energía ${Math.round(info.energy)} · ${inv}</div>`;
     agentsList.appendChild(row);
   }
@@ -235,10 +286,16 @@ function updatePanels() {
     const verb = e.outcome === 'ok' ? verbOk : verbFail;
     let extra = '';
     if (e.outcome === 'ok') {
-      if (e.detail?.resource) extra = ` ${RES_NAMES[e.detail.resource]||e.detail.resource}${e.detail.amount ? ' ×'+Math.round(e.detail.amount) : ''}`;
+      if (e.detail?.resource) extra = ` ${rName(e.detail.resource)}${e.detail.amount ? ' ×'+Math.round(e.detail.amount) : ''}`;
       if (e.detail?.structure) extra = ` ${e.detail.structure}`;
+      if (e.action === 'consume' && e.detail?.energy_gain != null)
+        extra += ` (energía ${e.detail.energy_gain > 0 ? '+' : ''}${e.detail.energy_gain})`;
+      if (e.action === 'expelled' && e.detail?.to)
+        extra = ` a (${e.detail.to[0]},${e.detail.to[1]}) por cierre de B`;
+      if (e.action === 'death' && e.detail?.reason === 'starvation')
+        extra = ' de inanición (48 ticks sin energía)';
     } else {
-      const reasons = { blocked:'camino bloqueado', out_of_bounds:'fuera del mapa', no_energy:'sin energía', not_adjacent:'demasiado lejos', depleted:'recurso agotado', not_enough:'no tiene suficiente', cell_occupied:'lugar ocupado', missing_material:'le faltan materiales', not_a_resource:'no es un recurso', no_such_entity:'no existe', no_such_agent:'no existe' };
+      const reasons = { blocked:'camino bloqueado', out_of_bounds:'fuera del mapa', no_energy:'sin energía', not_adjacent:'demasiado lejos', depleted:'recurso agotado', not_enough:'no tiene suficiente', cell_occupied:'lugar ocupado', missing_material:'le faltan materiales', not_a_resource:'no es un recurso', no_such_entity:'no existe', no_such_agent:'no existe', not_in_alphabet:'símbolos inválidos (solo k1..k4)' };
       extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'inválido');
     }
     div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${e.eid}</b> ${verb}${extra}`;
@@ -260,6 +317,14 @@ document.getElementById('fileInput').addEventListener('change', e => {
   const f = e.target.files[0];
   if (f) f.text().then(t => loadFromText(t, f.name));
 });
+
+// soporte ?file=ruta.jsonl: abre directo (útil para enlazar archivos del repo)
+(function loadFromQuery() {
+  const q = new URLSearchParams(location.search).get('file');
+  if (!q) return;
+  fetch(q).then(r => r.text()).then(t => loadFromText(t, q.split('/').pop()))
+    .catch(err => console.error('No pude cargar ?file=', q, err));
+})();
 </script>
 </body>
 </html>

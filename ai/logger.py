@@ -47,6 +47,7 @@ class JsonlLogger:
             "type": "snapshot",
             "day": day,
             "tick": tick,
+            "phase": state.phase(),          # cosmético para el visor (clara/oscura)
             "entities": [
                 {"eid": e.eid, "kind": e.kind, "x": e.x, "y": e.y, "attrs": e.attrs}
                 for e in state.entities.values()

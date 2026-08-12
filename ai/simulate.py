@@ -99,6 +99,9 @@ class Simulator:
             "ticks_per_day": self.config.ticks_per_day,
             "width": self.config.width,
             "height": self.config.height,
+            "phase_ticks": self.config.phase_ticks,
+            "n_phases": self.config.n_phases,
+            "region_split": self.config.region_split,
             "resource_names": self.resource_names,   # mapeo ID opaco -> nombre (solo visor)
         })
         trace_logger = JsonlLogger(trace_path, meta={"experiment": self.experiment_id,
