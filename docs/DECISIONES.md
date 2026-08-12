@@ -40,6 +40,27 @@ Formato: fecha · decisión · quién la tomó · estado
 - LE = (memoria − sin_memoria) / (oráculo − sin_memoria), medida en mundo de física contrafactual.
 - Adimensional, comparable entre mundos. Pre-especificada, única (sin comparaciones múltiples).
 
+## D-008 · 2026-08-11 · Comunicación: CANAL SIMBÓLICO (decisión del Comandante, opción 1 de Opus) · Aprobada
+- talk() emite SOLO símbolos del alfabeto del mundo (`k1..k9`), sin significado asignado.
+- El lenguaje natural queda PROHIBIDO en el canal (reintroduciría la semántica humana).
+- Los agentes dentro de `hear_radius` reciben el mensaje en su inbox; la percepción
+  incluye `heard` (últimos 5 mensajes oídos).
+- Medición de emergencia: información mutua entre símbolo emitido y estado/acción
+  posterior — sin interpretación humana.
+- El visor puede traducir ("a2 emitió k7 y a4 se movió") SIN que esa lectura entre al experimento.
+
+## D-009 · 2026-08-11 · Efectos SEPARABLES (Opus) · Aprobada
+- `consume_effects` se genera con `build_separable_effects(base, δ_región, δ_fase)`:
+  efecto(r, región, fase) = base(r) + δ_región(r, región) + δ_fase(r, fase).
+- La celda retenida (B-oscura) es DERIVABLE: B-oscura = A-oscura + (B-clara − A-clara).
+- Invariante de separabilidad testeado permanentemente (`separable_invariant_holds`).
+- La fase tiene efecto propio (δ_fase ≠ 0 en ≥2 recursos) — si no, B-oscura == B-clara.
+
+## D-010 · 2026-08-11 · Probe con MAGNITUD (Opus) · Aprobada
+- El probe pide el cambio de energía y evalúa en 6 niveles de magnitud
+  (0=pérdida grande ... 5=ganancia grande); el azar cae a ~17%.
+- Se registran predicted_level, truth_level, level_correct + sign_correct (secundaria).
+
 ## D-007 · 2026-08-11 · Orden de operaciones (Opus) · Aprobada
 - Pre-registro DESPUÉS del piloto, no antes. El N sale de σ entre mundos (cálculo de potencia).
 - Baseline determinista parametrizado y OPTIMIZADO (re-optimizado tras fixes de mecánica: D-001).

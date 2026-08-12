@@ -16,7 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ai.world_state import WorldConfig, WorldState, Entity
+from ai.world_state import WorldConfig, WorldState, Entity, \
+    build_separable_effects, separable_invariant_holds
 
 
 def make_crossed_world(phase_ticks: int = 5) -> WorldState:
@@ -127,3 +128,56 @@ def test_perception_includes_region_and_phase():
     vis = w.visible_to("a0", radius=4)
     assert "region" in vis and vis["region"] == "A"
     assert "phase" in vis and vis["phase"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Separabilidad (exigencia de Opus: la celda retenida debe ser derivable)
+# ---------------------------------------------------------------------------
+
+def make_separable_config():
+    cfg = WorldConfig(width=20, height=10, phase_ticks=5, n_phases=2, region_split=0.5)
+    cfg.consume_effects = build_separable_effects(
+        base={"S1": 5.0, "S2": 3.0},
+        delta_region={"S1": {"B": -8.0}, "S2": {"B": 2.0}},
+        delta_phase={"S1": {1: -3.0}, "S2": {1: 4.0}},
+    )
+    cfg.phase_barriers[(1, "B")] = True
+    return cfg
+
+
+def test_separable_effects_generate_all_cells():
+    cfg = make_separable_config()
+    eff = cfg.consume_effects
+    # S1: base 5; A-clara = 5; A-oscura = 5-3 = 2; B-clara = 5-8 = -3; B-oscura = 5-8-3 = -6
+    assert eff[("S1", "A", 0)] == 5.0
+    assert eff[("S1", "A", 1)] == 2.0
+    assert eff[("S1", "B", 0)] == -3.0
+    assert eff[("S1", "B", 1)] == -6.0
+    # B-oscura derivable: A-oscura + (B-clara − A-clara) = 2 + (-3 - 5) = -6
+    assert eff[("S1", "B", 1)] == eff[("S1", "A", 1)] + (eff[("S1", "B", 0)] - eff[("S1", "A", 0)])
+
+
+def test_separable_invariant_holds():
+    cfg = make_separable_config()
+    assert separable_invariant_holds(cfg.consume_effects) is True
+
+
+def test_separable_invariant_detects_hand_tuned_break():
+    """Si alguien edita UNA celda a mano (p.ej. B-oscura = +12), el invariante
+    se rompe y el test de composición deja de significar nada."""
+    cfg = make_separable_config()
+    cfg.consume_effects[("S1", "B", 1)] = 12.0   # hecho suelto, no componible
+    assert separable_invariant_holds(cfg.consume_effects) is False
+
+
+def test_phase_has_own_effect():
+    """La fase necesita efecto propio (δ_fase ≠ 0) en al menos dos recursos;
+    si la fase solo controla la barrera, B-oscura == B-clara y no hay segunda
+    regla que componer."""
+    cfg = make_separable_config()
+    eff = cfg.consume_effects
+    resources_with_phase_effect = [
+        r for r in ("S1", "S2")
+        if eff[(r, "A", 0)] != eff[(r, "A", 1)]
+    ]
+    assert len(resources_with_phase_effect) >= 2

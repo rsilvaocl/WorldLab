@@ -206,10 +206,11 @@ def test_build_cell_occupied():
 def test_talk_ok_and_costs_energy():
     w = make_econ_world()
     before = w.agents["a0"].energy
-    ev = w.talk("a0", "hierro al norte")
+    ev = w.talk("a0", "k7 k2 k9")
     assert ev.outcome == "ok"
     assert w.agents["a0"].energy == before - 1.0
-    assert ev.detail["message"] == "hierro al norte"
+    assert ev.detail["message"] == "k7 k2 k9"
+    assert ev.detail["symbols"] == ["k7", "k2", "k9"]
 
 
 def test_talk_empty_rejected():
@@ -221,6 +222,37 @@ def test_talk_empty_rejected():
 def test_talk_no_energy():
     w = make_econ_world()
     w.agents["a0"].energy = 0.5
-    ev = w.talk("a0", "hola")
+    ev = w.talk("a0", "k1")
     assert ev.outcome == "impossible"
     assert ev.detail["reason"] == "no_energy"
+
+
+def test_talk_natural_language_rejected():
+    """Canal simbólico (D-008): el lenguaje natural queda PROHIBIDO — reintroduce
+    la semántica humana que la ontología opaca eliminó."""
+    w = make_econ_world()
+    ev = w.talk("a0", "tengo mucha comida, dame piedra")
+    assert ev.outcome == "impossible"
+    assert ev.detail["reason"] == "not_in_alphabet"
+
+
+def test_talk_inbox_delivery():
+    """Los agentes dentro del radio de audición reciben el mensaje en su inbox."""
+    w = make_econ_world()
+    # a0 (1,1) y a1 (3,1): distancia 2 <= hear_radius 6
+    ev = w.talk("a0", "k3")
+    assert ev.outcome == "ok"
+    heard = w.inbox.get("a1", [])
+    assert len(heard) == 1
+    assert heard[0]["from"] == "a0"
+    assert heard[0]["symbols"] == ["k3"]
+
+
+def test_talk_outside_hearing_radius():
+    """Agente fuera del radio no oye nada."""
+    w = make_econ_world()
+    w.config.hear_radius = 1
+    w.entities["a1"].x = 5  # a1 a distancia 4 de a0
+    ev = w.talk("a0", "k1")
+    assert ev.outcome == "ok"
+    assert w.inbox.get("a1", []) == []

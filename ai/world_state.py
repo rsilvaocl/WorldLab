@@ -91,7 +91,54 @@ class WorldConfig:
                                      # (fase, región) -> bloqueada (no se puede ENTRAR)
     consume_effects: Dict[Tuple[str, str, int], float] = field(default_factory=dict)
                                      # (rkind, región, fase) -> energía ganada; override
+    # --- comunicación simbólica (D-008: canal simbólico, decisión Comandante) --
+    symbol_alphabet: List[str] = field(
+        default_factory=lambda: [f"k{i}" for i in range(1, 10)])
+    hear_radius: int = 6             # radio en el que otros agentes oyen talk()
     seed: int = 1
+
+
+def build_separable_effects(
+    base: Dict[str, float],
+    delta_region: Dict[str, Dict[str, float]],
+    delta_phase: Dict[str, Dict[int, float]],
+) -> Dict[Tuple[str, str, int], float]:
+    """Genera consume_effects a partir de una REGLA SEPARABLE (exigencia de Opus):
+
+        efecto(r, región, fase) = base(r) + δ_región(r, región) + δ_fase(r, fase)
+
+    Por qué: si los 4 valores de la tabla se eligen a mano, la celda retenida
+    (B-oscura) es un hecho suelto imposible de componer — el test mediría suerte,
+    no modelado. Con forma separable, las 3 celdas vividas determinan
+    matemáticamente la cuarta:  B-oscura = A-oscura + (B-clara − A-clara).
+    Quien compone las dos reglas acierta; quien solo memoriza, no tiene de dónde.
+    """
+    out: Dict[Tuple[str, str, int], float] = {}
+    for r in base:
+        for region in ("A", "B"):
+            for phase in (0, 1):
+                out[(r, region, phase)] = (
+                    base[r]
+                    + delta_region.get(r, {}).get(region, 0.0)
+                    + delta_phase.get(r, {}).get(phase, 0.0)
+                )
+    return out
+
+
+def separable_invariant_holds(effects: Dict[Tuple[str, str, int], float]) -> bool:
+    """Invariante de separabilidad: para todo recurso,
+    efecto(B,oscura) − efecto(B,clara) == efecto(A,oscura) − efecto(A,clara).
+    Si se rompe, el mundo dejó de ser aprendible y el test de composición
+    dejó de significar nada (test permanente en test_crossed_conditions.py)."""
+    for key in effects:
+        r = key[0]
+        if (r, "B", 0) not in effects or (r, "B", 1) not in effects \
+           or (r, "A", 0) not in effects or (r, "A", 1) not in effects:
+            continue
+        if (effects[(r, "B", 1)] - effects[(r, "B", 0)]) != \
+           (effects[(r, "A", 1)] - effects[(r, "A", 0)]):
+            return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +158,7 @@ class WorldState:
         self.tick = 0
         self.events: List[Event] = []
         self._drop_seq = 0  # contador para eids opacos de recursos soltados
+        self.inbox: Dict[str, List[Dict[str, Any]]] = {}  # mensajes oídos por agente
         for ent in initial_entities:
             self._place(ent)
 
@@ -364,8 +412,17 @@ class WorldState:
                             "materials": dict(recipe)})
 
     def talk(self, eid: str, message: str, cost: float = 1.0) -> Event:
-        """Comunicación con costo energético (crítica de Zod: si hablar es gratis,
-        el discurso es ruido; debe ser una decisión económica)."""
+        """Comunicación SIMBÓLICA con costo energético (D-008).
+
+        El mensaje debe ser una secuencia de símbolos del alfabeto del mundo
+        (p.ej. "k7 k2 k9") SIN significado asignado. El lenguaje natural queda
+        PROHIBIDO en el canal: reintroduciría la semántica humana que la
+        ontología opaca eliminó (crítica #1 de Opus: "k7 k2 k9" no significa
+        nada; si un símbolo correlaciona con un estado, eso es emergencia de
+        señalización medible con información mutua).
+
+        Los agentes dentro de hear_radius reciben el mensaje en su inbox.
+        """
         agent = self.agents.get(eid)
         if agent is None:
             return self._event(eid, "talk", "impossible", {"reason": "no_such_entity"})
@@ -373,8 +430,28 @@ class WorldState:
             return self._event(eid, "talk", "impossible", {"reason": "empty"})
         if agent.energy < cost:
             return self._event(eid, "talk", "impossible", {"reason": "no_energy"})
+        symbols = message.split()
+        if not symbols:
+            return self._event(eid, "talk", "impossible", {"reason": "empty"})
+        alphabet = set(self.config.symbol_alphabet)
+        for s in symbols:
+            if s not in alphabet:
+                return self._event(eid, "talk", "impossible",
+                                   {"reason": "not_in_alphabet", "symbol": s})
         agent.energy -= cost
-        return self._event(eid, "talk", "ok", {"message": message, "cost": cost})
+        ent = agent.entity
+        # repartir en inbox a los agentes que oyen (radio de audición)
+        for other in self.agents.values():
+            if other.entity.eid == eid:
+                continue
+            dist = abs(other.entity.x - ent.x) + abs(other.entity.y - ent.y)
+            if dist <= self.config.hear_radius:
+                self.inbox.setdefault(other.entity.eid, []).append({
+                    "tick": self.tick, "day": self.day,
+                    "from": eid, "symbols": symbols, "distance": dist,
+                })
+        return self._event(eid, "talk", "ok", {"message": message, "cost": cost,
+                                               "symbols": symbols})
 
     # -- ciclo de tiempo -------------------------------------------------
     def advance_tick(self) -> None:
@@ -433,4 +510,5 @@ class WorldState:
                 "position": [ent.x, ent.y],
                 "region": self.region(ent.x, ent.y),
                 "phase": self.phase(),
+                "heard": list(self.inbox.get(eid, [])[-5:]),   # últimos 5 mensajes oídos
                 "visible": seen}

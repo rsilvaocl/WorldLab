@@ -73,7 +73,11 @@ def test_probe_set_records_all_cells(tmp_path):
 
     # el agente (que "compuso") acierta las 4, incluida la retenida
     assert all(r["sign_correct"] for r in results)
+    assert all(r["level_correct"] for r in results)
     assert by_cell[("B", 1)]["absolute_error"] == 0.0
+    # evaluación por magnitud (6 niveles)
+    assert by_cell[("A", 0)]["truth_level"] == 5   # +8 -> ganancia grande
+    assert by_cell[("B", 1)]["truth_level"] == 1   # -5 -> pérdida media
 
 
 def test_probe_writes_jsonl(tmp_path):
@@ -102,4 +106,6 @@ def test_probe_detects_agent_failure(tmp_path):
     by_cell = {(r["region"], r["phase"]): r for r in results}
     # acierta A-clara y A-oscura (regla A), falla B-clara y B-oscura
     assert by_cell[("A", 0)]["sign_correct"] is True
+    assert by_cell[("A", 0)]["level_correct"] is True
     assert by_cell[("B", 1)]["sign_correct"] is False   # la retenida delata
+    assert by_cell[("B", 1)]["level_correct"] is False

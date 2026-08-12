@@ -19,6 +19,21 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 
+def _magnitude_level(x: float) -> int:
+    """Discretiza un cambio de energía en 6 niveles (exigencia de Opus:
+    la predicción no puede ser binaria — con 6 niveles el azar cae a ~17%).
+
+    Niveles: 0=pérdida grande, 1=pérdida media, 2=pérdida pequeña,
+    3=ganancia pequeña, 4=ganancia media, 5=ganancia grande.
+    """
+    if x <= -8: return 0
+    if x <= -3: return 1
+    if x < 0:   return 2
+    if x < 3:   return 3
+    if x < 8:   return 4
+    return 5
+
+
 class CompositionProbe:
     """Ejecuta el probe de composición para un agente y registra resultados."""
 
@@ -31,16 +46,21 @@ class CompositionProbe:
         os.makedirs(output_dir, exist_ok=True)
 
     def run(self, rkind: str, region: str, phase: int) -> Dict[str, Any]:
-        """Pregunta al agente por (rkind, region, phase) y compara con el motor."""
+        """Pregunta al agente por (rkind, region, phase) y compara con el motor.
+        Evaluación por MAGNITUD (6 niveles), no binaria."""
         truth = self.world.ground_truth_effect(rkind, region, phase)
         predicted = self.agent.predict_effect(rkind, region, phase)
 
+        truth_level = _magnitude_level(truth)
+        pred_level = _magnitude_level(predicted) if predicted is not None else None
+
+        level_correct = None
         sign_correct = None
+        error = None
         if predicted is not None:
+            level_correct = pred_level == truth_level
             sign_correct = (predicted > 0) == (truth > 0)
             error = abs(predicted - truth)
-        else:
-            error = None
 
         result = {
             "experiment": self.experiment_id,
@@ -52,6 +72,9 @@ class CompositionProbe:
             "never_lived": self._never_lived(region, phase),
             "predicted_energy_change": predicted,
             "truth_energy_change": truth,
+            "predicted_level": pred_level,
+            "truth_level": truth_level,
+            "level_correct": level_correct,
             "sign_correct": sign_correct,
             "absolute_error": round(error, 2) if error is not None else None,
         }
