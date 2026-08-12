@@ -81,6 +81,8 @@ class WorldConfig:
     energy_per_tick: float = 0.5     # costo metabólico base por tick
     move_energy: float = 1.0
     energy_per_unit: Dict[str, float] = field(default_factory=dict)  # conversión recurso->energía
+    recipes: Dict[str, Dict[str, float]] = field(
+        default_factory=lambda: {"hut": {"wood": 2.0, "stone": 1.0}})
     seed: int = 1
 
 
@@ -100,6 +102,7 @@ class WorldState:
         self.day = 1
         self.tick = 0
         self.events: List[Event] = []
+        self._drop_seq = 0  # contador para eids opacos de recursos soltados
         for ent in initial_entities:
             self._place(ent)
 
@@ -194,13 +197,14 @@ class WorldState:
         return abs(ent.x - other.x) + abs(ent.y - other.y) == 1
 
     def gather(self, eid: str, target_eid: str, amount: float = 1.0) -> Event:
-        """Recolecta de un recurso adyacente. Reduce el recurso, llena inventario."""
+        """Recolecta de un recurso adyacente O en la misma celda (distancia ≤ 1,
+        consistente con pickup — bug corregido: antes exigía distancia == 1)."""
         ent, res = self.entities.get(eid), self.entities.get(target_eid)
         if ent is None or res is None:
             return self._event(eid, "gather", "impossible", {"reason": "no_such_entity"})
         if res.kind != "resource":
             return self._event(eid, "gather", "impossible", {"reason": "not_a_resource"})
-        if not self._adjacent(eid, target_eid):
+        if abs(ent.x - res.x) + abs(ent.y - res.y) > 1:
             return self._event(eid, "gather", "impossible", {"reason": "not_adjacent"})
         avail = float(res.attrs.get("amount", 0.0))
         if avail <= 0:
@@ -240,7 +244,9 @@ class WorldState:
                                {"reason": "not_enough", "have": have})
         agent.inventory[rkind] = have - amount
         ent = agent.entity
-        dropped = Entity(eid=f"d_{rkind}_{self.tick}_{eid}", kind="resource",
+        # eid OPACO (bug corregido): el tipo de recurso NO viaja en el id
+        self._drop_seq += 1
+        dropped = Entity(eid=f"e_{self._drop_seq:04d}", kind="resource",
                          x=ent.x, y=ent.y, attrs={"amount": amount, "kind": rkind,
                                                   "owner_dropped": eid})
         self.entities[dropped.eid] = dropped
@@ -281,14 +287,18 @@ class WorldState:
         return self._event(eid, "give", "ok",
                            {"resource": rkind, "amount": amount, "to": target_eid})
 
-    def build(self, eid: str, structure: str, x: int, y: int,
-              materials: Dict[str, float]) -> Event:
-        """Construye una estructura en (x,y) adyacente, consumiendo materiales
-        del inventario. La receta (qué estructura requiere qué materiales) es
-        config de ontología; aquí solo la mecánica."""
+    def build(self, eid: str, structure: str, x: int, y: int) -> Event:
+        """Construye una estructura en (x,y) adyacente. La RECETA vive en la
+        config del mundo (WorldConfig.recipes), no en quien llama — un agente
+        no puede declarar sus propios materiales (bug corregido: antes se
+        construía gratis con materials={})."""
         agent = self.agents.get(eid)
         if agent is None:
             return self._event(eid, "build", "impossible", {"reason": "no_such_entity"})
+        recipe = self.config.recipes.get(structure)
+        if recipe is None:
+            return self._event(eid, "build", "impossible",
+                               {"reason": "unknown_recipe", "structure": structure})
         ent = agent.entity
         if abs(ent.x - x) + abs(ent.y - y) != 1:
             return self._event(eid, "build", "impossible", {"reason": "not_adjacent"})
@@ -296,17 +306,18 @@ class WorldState:
             return self._event(eid, "build", "impossible", {"reason": "out_of_bounds"})
         if self.entities_at(x, y):
             return self._event(eid, "build", "impossible", {"reason": "cell_occupied"})
-        for rkind, need in materials.items():
+        for rkind, need in recipe.items():
             if agent.inventory.get(rkind, 0.0) < need:
                 return self._event(eid, "build", "impossible",
                                    {"reason": "missing_material", "resource": rkind})
-        for rkind, need in materials.items():
+        for rkind, need in recipe.items():
             agent.inventory[rkind] -= need
         obj = Entity(eid=f"b_{structure}_{self.tick}_{eid}", kind="object",
                      x=x, y=y, attrs={"structure": structure})
         self.entities[obj.eid] = obj
         return self._event(eid, "build", "ok",
-                           {"structure": structure, "at": [x, y], "materials": materials})
+                           {"structure": structure, "at": [x, y],
+                            "materials": dict(recipe)})
 
     def talk(self, eid: str, message: str, cost: float = 1.0) -> Event:
         """Comunicación con costo energético (crítica de Zod: si hablar es gratis,
@@ -352,14 +363,27 @@ class WorldState:
 
     # -- snapshot para percepción (subconjunto, nunca el estado completo) --
     def visible_to(self, eid: str, radius: int = 4) -> Dict[str, Any]:
-        """Percepción limitada del agente: solo entidades dentro del radio."""
+        """Percepción limitada del agente: solo entidades dentro del radio.
+
+        DECISIÓN DE PERCEPCIÓN (explícita, no por omisión):
+        - eids SIEMPRE opacos (nunca revelan tipo por el identificador).
+        - El agente SÍ distingue el tipo de recurso a distancia (rkind) y el
+          tipo de estructura (structure): regla del mundo. Es lo que le permite
+          decidir "quiero comida" sin que el nombre viaje en el id.
+        - No se revelan cantidades exactas de recursos (solo que existe).
+        """
         ent = self.entities.get(eid)
         if ent is None:
             return {"error": "no_such_entity"}
         seen = []
         for other in self.entities.values():
             if abs(other.x - ent.x) <= radius and abs(other.y - ent.y) <= radius:
-                seen.append({"eid": other.eid, "kind": other.kind,
-                             "dx": other.x - ent.x, "dy": other.y - ent.y})
+                info = {"eid": other.eid, "kind": other.kind,
+                        "dx": other.x - ent.x, "dy": other.y - ent.y}
+                if other.kind == "resource":
+                    info["rkind"] = other.attrs.get("kind", "generic")
+                elif other.kind == "object":
+                    info["structure"] = other.attrs.get("structure", "unknown")
+                seen.append(info)
         return {"day": self.day, "tick": self.tick,
                 "position": [ent.x, ent.y], "visible": seen}

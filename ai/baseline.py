@@ -56,13 +56,12 @@ class DeterministicAgent:
         if best is not None:
             return "gather", {"target_eid": best.eid, "amount": 1.0}
 
-        # 3. construir si hay materiales suficientes (suma de inventario)
-        total = sum(agent.inventory.values())
-        if total >= p.build_min:
+        # 3. construir si el inventario cubre la receta definida en el mundo
+        recipe = world.config.recipes.get("hut")
+        if recipe and all(agent.inventory.get(r, 0.0) >= need for r, need in recipe.items()):
             bx, by = self._free_adjacent_cell(world)
             if bx is not None:
-                mats = self._materials_for(agent.inventory)
-                return "build", {"structure": "hut", "x": bx, "y": by, "materials": mats}
+                return "build", {"structure": "hut", "x": bx, "y": by}
 
         # 4. moverse hacia el recurso visible más cercano (greedy)
         step = self._step_toward_resource(world)
@@ -99,14 +98,6 @@ class DeterministicAgent:
             if world.in_bounds(nx, ny) and not world.entities_at(nx, ny):
                 return nx, ny
         return None, None
-
-    def _materials_for(self, inventory: Dict[str, float]) -> Dict[str, float]:
-        """Usa hasta la mitad de cada recurso para construir (heurística simple)."""
-        mats = {}
-        for rkind, amt in inventory.items():
-            if amt > 1.0:
-                mats[rkind] = min(2.0, amt / 2)
-        return mats
 
     def _step_toward_resource(self, world: WorldState):
         ent = world.entities[self.eid]

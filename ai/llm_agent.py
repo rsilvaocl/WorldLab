@@ -26,7 +26,7 @@ VALID_ACTIONS = {
     "drop": {"rkind": str, "amount": (int, float)},
     "pickup": {"target_eid": str},
     "give": {"target_eid": str, "rkind": str, "amount": (int, float)},
-    "build": {"structure": str, "x": int, "y": int, "materials": dict},
+    "build": {"structure": str, "x": int, "y": int},
     "talk": {"message": str},
     "rest": {},
 }
@@ -166,12 +166,12 @@ class LLMAgent:
             "Si el recurso está más lejos, primero usa move para acercarte (dx,dy son pasos de 1 casilla).\n"
             "- consume convierte inventario en energía; come cuando tengas hambre.\n"
             "- drop/pickup/give funcionan solo en tu celda o casilla adyacente.\n"
-            "- build construye una estructura en una casilla adyacente libre, consumiendo materiales.\n"
+            "- build construye una estructura en una casilla adyacente libre, consumiendo los materiales de su receta (definida en el mundo; tú solo eliges structure, x, y).\n"
             "- Solo percibes lo que está cerca (radio de visión limitado); lo que no ves, no sabes que existe.\n"
             "- La comunicación cuesta energía: hablar solo cuando aporte.\n"
             "Acciones disponibles (JSON): move{dx,dy}, gather{target_eid,amount}, "
             "consume{rkind,amount}, drop{rkind,amount}, pickup{target_eid}, "
-            "give{target_eid,rkind,amount}, build{structure,x,y,materials}, talk{message}, rest.\n"
+            "give{target_eid,rkind,amount}, build{structure,x,y}, talk{message}, rest.\n"
             "Tu objetivo: " + self.goal + "\n"
             "Decide una sola acción para este instante. "
             "Responde SOLO con JSON válido, sin texto adicional."

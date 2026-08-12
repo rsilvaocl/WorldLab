@@ -150,8 +150,8 @@ def test_visibility_radius():
     cfg = WorldConfig(width=20, height=20)
     w = WorldState(cfg, [
         Entity(eid="a0", kind="agent", x=10, y=10),
-        Entity(eid="near", kind="resource", x=12, y=10),   # dentro de radio 4
-        Entity(eid="far", kind="resource", x=18, y=10),    # fuera de radio 4
+        Entity(eid="near", kind="resource", x=12, y=10, attrs={"kind": "food"}),
+        Entity(eid="far", kind="resource", x=18, y=10),
     ], seed=1)
     vis = w.visible_to("a0", radius=4)
     seen_ids = {v["eid"] for v in vis["visible"]}
@@ -159,3 +159,6 @@ def test_visibility_radius():
     assert "far" not in seen_ids
     # el agente NO ve el estado completo (solo su percepción)
     assert "agents" not in vis and "entities" not in vis
+    # DECISIÓN DE PERCEPCIÓN: el tipo del recurso se revela explícitamente
+    near = next(v for v in vis["visible"] if v["eid"] == "near")
+    assert near["rkind"] == "food"
