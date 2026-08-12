@@ -197,18 +197,29 @@ def main() -> None:
 
     results = []
     t_start = time.time()
-    for cond in conditions:
-        for density in densities:
-            for seed in worlds:
-                t0 = time.time()
-                r = run_world(cond, density, seed, days, model_name, client, out_dir)
-                dt = time.time() - t0
-                r["elapsed_s"] = round(dt, 1)
-                results.append(r)
-                print(f"[{cond} | d={density:.0%} | seed={seed}] "
-                      f"superv={r['survivors']} en {dt:.0f}s "
-                      f"tokens={r['tokens']} heldout={r['heldout_clean']}",
-                      flush=True)
+    # INTERCALADO (exigencia de Opus): mundo por mundo, rotando condición en
+    # CADA mundo (nunca dos mundos seguidos de la misma condición), densidad
+    # rotando en bloque. Un diseño por bloques convertiría la deriva temporal
+    # del proveedor en una diferencia entre condiciones indetectable después.
+    n_cond = len(conditions)
+    n_dens = len(densities)
+    for seed in worlds:
+        for k in range(n_cond * n_dens):
+            condition = conditions[(k + seed) % n_cond]
+            density = densities[(k // n_cond + seed) % n_dens]
+            t0 = time.time()
+            r = run_world(condition, density, seed, days, model_name, client, out_dir)
+            dt = time.time() - t0
+            r["elapsed_s"] = round(dt, 1)
+            results.append(r)
+            print(f"[{condition:16s} | d={density:.0%} | seed={seed}] "
+                  f"superv={r['survivors']} en {dt:.0f}s "
+                  f"tokens={r['tokens']} heldout={r['heldout_clean']}",
+                  flush=True)
+
+    # marcar el piloto como NO confirmatorio (dato de desarrollo)
+    for r in results:
+        r["estado"] = "desarrollo_no_confirmatorio"
 
     summary_path = out_dir / "piloto_summary.json"
     summary_path.write_text(json.dumps(results, ensure_ascii=False, indent=2))

@@ -110,8 +110,13 @@ def main() -> None:
     # 5. red de detección
     print("\n5) INTEGRIDAD DEL HELD-OUT (no_heldout_consumption)")
     dirty = [r for r in results if not r["heldout_clean"]]
-    print(f"  mundos con contaminación: {len(dirty)}/{len(results)}",
-          "⚠️ REVISAR" if dirty else "✅ limpio")
+    if dirty:
+        print(f"  mundos con contaminación: {len(dirty)}/{len(results)} — SEEDS:")
+        for r in dirty:
+            print(f"    condición={r['condition']} densidad={r['density']:.0%} "
+                  f"seed={r['seed']}  ← REPORTAR (dato sobre la expulsión, no se descarta)")
+    else:
+        print(f"  mundos con contaminación: 0/{len(results)} ✅ limpio")
 
     # guardar análisis
     report = {
