@@ -1,17 +1,18 @@
 #!/bin/bash
 # WorldLab — piloto principal en modo RECURRENTE (cada 2 h).
-# El scheduler de Hermes mata procesos de larga duración (~1 h). Con checkpoint
-# por mundo + --resume, cada ciclo avanza los mundos pendientes y los conserva
-# en piloto_summary.json. Cuando estén los 96, este script no hace nada.
+# El bash lanza el python en background y SALE LIMPIO (exit 0) para que el
+# scheduler NO marque timeout (los "errores" previos eran ese timeout, no
+# fallos del piloto). El python queda huérfano y corre hasta completar o
+# morir; el próximo ciclo lo reanuda con --resume (checkpoint por mundo).
 cd /Users/ruben/Proyectos/worldlab || exit 1
 
-# guard anti-doble-instancia (el job recurrente puede solaparse con el anterior)
+# guard anti-doble-instancia
 if pgrep -f "ai.run_pilot --worlds 8" >/dev/null 2>&1; then
   echo "$(date '+%H:%M:%S') piloto ya corriendo — salgo" >> data/silver/piloto_recurrente.log
   exit 0
 fi
 
-# si ya están los 96 mundos, terminar limpio
+# si ya están los 96 mundos, terminar limpio y avisar una sola vez
 N=$(python3 -c "
 import json, os
 p='data/silver/piloto/piloto_summary.json'
@@ -23,4 +24,7 @@ if [ "$N" -ge 96 ]; then
 fi
 
 echo "$(date '+%H:%M:%S') ciclo nuevo — mundos completados hasta ahora: $N" >> data/silver/piloto_recurrente.log
-.venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model qwen2.5:7b --resume 2>&1 | tee -a data/silver/piloto_progress.log
+# lanzar en background: el bash termina ya, el python sigue (huérfano, PPID 1)
+.venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model qwen2.5:7b --resume \
+  >> data/silver/piloto_progress.log 2>&1 &
+exit 0
