@@ -71,7 +71,45 @@ de las 8 celdas vecinas a un recurso (y encima de él) → `gather` debe aparece
 exactamente cuando `world.gather()` lo aceptaría. Si divergen, ese es el bug y no
 hay nada que discutir sobre el modelo.
 
-### Paso 1 — Cuantificar la navegación (el análisis quedó a medio correr)
+### Paso 1 — RESUELTO: el agente solo se mueve en el eje X
+
+Corrido sobre los 138 moves del gate (todos con recurso a la vista, ninguno a
+ciegas):
+
+| Métrica (Manhattan al recurso más cercano) | Valor |
+|---|---|
+| Se ACERCA | 57 (41%) |
+| Se ALEJA | **81 (59%)** |
+| Move óptimo elegido | 41% |
+| **Direcciones elegidas** | **(1,0)×74 · (-1,0)×63 · (0,1)×1 · (0,-1)×0** |
+
+**137 de 138 movimientos son horizontales.** El agente oscila izquierda-derecha
+(74 vs 63, una caminata aleatoria en un eje) y prácticamente **nunca usa el eje
+Y**. Los 5 agentes nacen en `y=15` y murieron en `y=15`. Cualquier recurso que
+exija cambiar de fila —como el que a0 veía en `dy=-2` desde el tick 0— es
+inalcanzable por construcción.
+
+**Hipótesis principal: sesgo posicional inducido por D-026.**
+`world_state.py:761` construye el menú siempre en el mismo orden:
+`((1,0), (-1,0), (0,1), (0,-1))`. La distribución observada es exactamente la de
+un modelo que copia el primer o segundo ítem de la lista y casi nunca el tercero
+o cuarto. El menú de acciones arregló los rechazos (91-96% → ~0) e introdujo, sin
+que nadie lo notara, un sesgo que confina a los agentes a una línea.
+
+**Test decisivo, barato y sin tocar el mundo:** barajar el orden del menú con el
+RNG del mundo (determinista por seed) y volver a correr el gate. Es corrección de
+instrumento, no de dificultad: el orden de una lista no debe ser información, y
+hoy lo es. Si al barajar aparecen movimientos en Y, la hipótesis queda confirmada
+y el 0/5 previo mide el orden de un array, no la capacidad del modelo.
+
+Si al barajar el patrón NO cambia (sigue moviéndose en un solo eje, ahora otro),
+entonces sí es el modelo, y aplica el Paso 2.
+
+Ojo con la métrica: Chebyshev da 71% de "igual" y enmascara todo — moverse en un
+eje hacia un objetivo diagonal no cambia esa distancia. Usa Manhattan.
+
+<details>
+<summary>Comando del análisis (por si hay que repetirlo sobre otra corrida)</summary>
 
 ```bash
 .venv/bin/python - <<'PY'
@@ -93,15 +131,12 @@ print(f'  ACERCA {acerca} ({acerca/tot:.0%}) | ALEJA {aleja} ({aleja/tot:.0%}) |
 print(f'moves sin recurso visible: {sinrec}')
 PY
 ```
+</details>
 
-Lectura del resultado:
-
-- **~33% acerca / 33% aleja** → el movimiento es indistinguible del azar respecto
-  al objetivo visible. El 7B no convierte `dx/dy` percibido en dirección. Es un
-  resultado publicable sobre el motor arreglado, y define el problema como
-  navegación, no como composición.
-- **>60% acerca** → sí navega y el fallo está en otra parte (llega y no recolecta,
-  o el cúmulo se agota). Investiga esa parte.
+**Tu primera tarea concreta:** implementar el barajado del menú (RNG del mundo,
+por seed, idéntico en las 4 condiciones), test que verifique que el orden cambia
+entre seeds pero es reproducible con la misma seed, y re-correr el gate. Ese es
+el camino más corto a un techo que mida algo.
 
 ### Paso 2 — Decidir con evidencia, y dejarlo escrito
 
