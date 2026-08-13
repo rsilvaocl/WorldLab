@@ -7,3 +7,4 @@ data/silver/
 data/gold/
 .DS_Store
 .impeccable/
+.playwright-mcp/
