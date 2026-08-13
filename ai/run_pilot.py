@@ -74,6 +74,36 @@ ORACLE_RULES = (
 )
 
 
+def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity]:
+    """D-023: nacimiento repartido entre regiones (spec v1.1 de Opus).
+
+    Los 5 agentes nacen REPARTIDOS entre las dos regiones (2 en una, 3 en la
+    otra; el lado mayor lo sortea el seed), NUNCA todos en la misma.
+
+    Por qué: el piloto mostró que el 92% de los agentes terminaba sub-expuesto
+    con cero consumos en B-clara. La causa de fondo es una trampa de
+    explotación (no falta de días): una política que aprende descubre que S2
+    es malo en A y deja de probarlo, pero S2 solo revela su valor en B.
+    Nacer repartido entrega experiencia de ambas regiones por construcción.
+    """
+    import random
+    rng = random.Random(seed)
+    split_x = int(cfg.width * cfg.region_split)
+    n = len(eids)
+    n_left = rng.choice([n // 2, n - n // 2])  # 2 o 3 para 5 agentes
+    n_right = n - n_left
+    entities = []
+    left_x = [max(2, split_x // 4 + i * 3) for i in range(n_left)]
+    right_x = [split_x + 3 + i * 3 for i in range(n_right)]
+    for i, eid in enumerate(eids):
+        if i < n_left:
+            entities.append(Entity(eid=eid, kind="agent", x=left_x[i], y=15))
+        else:
+            entities.append(Entity(eid=eid, kind="agent",
+                                   x=right_x[i - n_left], y=15))
+    return entities
+
+
 def make_agents(condition: str, model_name: str, client: LLMClient,
                 world_cfg: WorldConfig) -> Dict[str, Any]:
     """Crea 5 agentes para la condición. Devuelve {eid: agente} para policy y hooks."""
@@ -108,8 +138,7 @@ def run_world(condition: str, density: float, seed: int, days: int,
     cfg = make_world_config(days)
     agents = make_agents(condition, model_name, client, cfg)
     eids = sorted(agents.keys())
-    entities = [Entity(eid=eid, kind="agent", x=3 + i * 3, y=15)
-                for i, eid in enumerate(eids)]
+    entities = spawn_positions(eids, cfg, seed)
     if condition == "baseline_empirico":
         policy = make_empirical_policy(agents)
     else:
