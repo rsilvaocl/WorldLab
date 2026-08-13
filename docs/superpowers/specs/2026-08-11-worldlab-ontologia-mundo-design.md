@@ -25,6 +25,16 @@ Para registrar en `DECISIONES.md` con estos identificadores:
 | D-016 | Agentes con utilidad idéntica (sobrevivir); sin perfiles diferenciados | Opus, aprobado por el Comandante |
 | D-017 | Expulsión de la región B al comenzar la fase oscura + invariante de no-consumo | Opus, aprobado por el Comandante |
 | D-018 | El agente elige su propio horizonte de despertar | Opus, aprobado por el Comandante |
+| D-019 | Baseline empírico como comparación; el informado queda como techo determinista | Opus |
+| D-020 | El world model no se presta: sin predicciones nuestras en el prompt | Opus |
+| D-022 | Requisito de discriminación de niveles en el probe (§3.1) | Opus |
+| D-023 | Nacimiento repartido entre regiones (§3.2) | Opus |
+| D-024 | Probe de salida al iniciar la inanición (§4.5) | Opus |
+| D-025 | Corte de exposición: ≥3 consumos por celda vivida (§4.5) | Opus |
+| D-026 | Acciones disponibles en la observación (§4.8) | Opus |
+
+Las decisiones D-011 a D-018 son de la sesión de diseño; D-019 a D-026 salen de las
+correcciones al motor y de los hallazgos del piloto de desarrollo (§10).
 
 ---
 
@@ -59,21 +69,37 @@ efecto(símbolo, región, fase) = base + δ_región + δ_fase
 
 | Símbolo | Rol | base | δ región B | δ fase oscura |
 |---|---|---|---|---|
-| S1 | consumible | +8 | −11 | −4 |
+| S1 | consumible | +8 | −9 | −4 |
 | S2 | consumible | −2 | +9 | +3 |
 | S3 | material | 0 | 0 | 0 |
-| S4 | consumible marginal | +1 | 0 | −1 |
+| S4 | consumible marginal | +1 | +6 | −9 |
 
 Normalización: la región A y la fase clara son la referencia (δ = 0).
 
-Tabla resultante:
+Tabla resultante, con el nivel de magnitud del probe entre paréntesis:
 
 | | A-clara | A-oscura | B-clara | **B-oscura (retenida)** |
 |---|---|---|---|---|
-| S1 | +8 | +4 | −3 | **−7** |
-| S2 | −2 | +1 | +7 | **+10** |
-| S3 | 0 | 0 | 0 | **0** |
-| S4 | +1 | 0 | +1 | **0** |
+| S1 | +8 (5) | +4 (4) | −1 (2) | **−5 (1)** |
+| S2 | −2 (2) | +1 (3) | +7 (4) | **+10 (5)** |
+| S3 | 0 (3) | 0 (3) | 0 (3) | **0 (3)** |
+| S4 | +1 (3) | −8 (0) | +7 (4) | **−2 (2)** |
+
+### Requisito de discriminación (D-022)
+
+**Para cada símbolo evaluado, el nivel de magnitud de la celda retenida debe ser distinto
+del de las tres celdas vividas.**
+
+Si la retenida cae en el mismo nivel que una celda vivida, un agente que solo memoriza acierta
+sin componer nada y el probe deja de medir lo que dice medir. La primera versión de esta tabla
+tenía ese defecto en tres de los cuatro símbolos: S1 caía en el mismo nivel que B-clara, y S3 y
+S4 tenían las cuatro celdas en el mismo nivel. Solo S2 exigía composición real.
+
+Los valores de arriba cumplen el requisito para S1, S2 y S4. **S3 queda excluido del score de
+composición** — sus cuatro celdas valen 0 por definición (es material, no alimento) y su papel
+es el de control de "esto no se come", no el de medir modelado.
+
+Debe existir un test que falle si alguna edición de valores rompe esta separación de niveles.
 
 **Racional de los valores:**
 
@@ -105,6 +131,26 @@ B-oscura es idéntica a B-clara, el agente ya la vivió y no hay segunda regla q
 aparece en A, el agente nunca puede probarlo en B, nunca aprende la regla espacial, y el
 experimento entero queda sin base. Es el error más fácil de cometer al sembrar, y merece un test
 que falle si algún símbolo queda ausente de una región.
+
+### Nacimiento repartido entre regiones (D-023)
+
+Los cinco agentes nacen **repartidos entre las dos regiones** (2 y 3, el lado sorteado por seed),
+nunca todos en la misma.
+
+Esta cláusula faltaba en la versión 1.0 de este documento y el piloto expuso su costo: **el 92%
+de los agentes terminó sub-expuesto, con cero consumos en B-clara.** Sin experiencia en ambas
+regiones no existe δ_región que aprender, y el probe de composición no mide modelado sino
+falta de datos.
+
+La causa de fondo es una trampa de explotación, y conviene tenerla escrita porque no se arregla
+con más días: una política que aprende de su experiencia descubre que S2 es malo (lo es, en A) y
+por lo tanto **deja de probarlo**; pero S2 solo revela su valor en B. El agente nunca vuelve a
+tocar lo que ya cree malo, así que jamás descubre que la región cambia la regla. Nacer repartido
+entrega la experiencia de ambas regiones por construcción, en vez de dejarla a que alguien
+decida explorar en contra de lo que cree saber.
+
+Efecto lateral deseable: dos agentes criados en regiones distintas valoran cosas distintas, que
+es la asimetría de la que puede nacer un intercambio.
 
 ### 3.3 Densidad — la perilla del barrido
 
@@ -246,6 +292,22 @@ Tres condiciones obligatorias:
 
 Métricas: `level_correct` (primaria), `sign_correct` (secundaria).
 
+**Probe de salida (D-024):** además de las rondas periódicas, se dispara un probe cuando la
+energía del agente llega a 0 y arranca el contador de inanición — antes de que desaparezca del
+mundo. Captura su estado de conocimiento final en vez de perderlo con él.
+
+**Corte de exposición (D-025):** un agente con **menos de 3 consumos** en alguna de las tres
+celdas vividas queda marcado como sub-expuesto, y su probe retenido se reporta aparte, fuera del
+score de composición.
+
+Sin este corte, un fallo en la celda retenida es ambiguo: no distingue "no supo componer" de "no
+tenía qué componer". El piloto lo demostró — el baseline empírico sacó 0 de 41 en la retenida,
+por debajo del azar, y la explicación no fue que la celda sea incomponible sino que **nunca
+había consumido en B**. Respondía desde la única región que conocía.
+
+La exposición por celda se calcula post-hoc desde el JSONL: los eventos `consume` ya registran
+`region` y `phase`.
+
 El sub-check del piloto propuesto por Zod queda incorporado en el tipo "vividas": si los agentes
 no aprenden ni la regla simple, el diagnóstico es "el mundo era demasiado difícil", no "no
 modelan". Solo si aprenden la simple, el resultado del probe retenido es interpretable.
@@ -281,24 +343,49 @@ autonomía. Devolverle esa elección lo convierte además en un dato medible —
 horizontes elegidos: un agente que entendió el ciclo debería despertar antes de que cierre la
 frontera— y baja el costo de API, porque un agente tranquilo pide dormir más.
 
+### 4.8 Acciones disponibles en la observación (D-026)
+
+La observación incluye la lista de acciones **ejecutables en este instante**, con sus argumentos
+ya rellenados:
+
+```json
+"acciones_disponibles": [
+  {"action": "gather",  "args": {"target_eid": "e_0447", "amount": 1}},
+  {"action": "consume", "args": {"rkind": "S2", "amount": 1}},
+  {"action": "move",    "args": {"dx": 1, "dy": 0}}
+]
+```
+
+**Esto no es prestarle un world model.** Le decimos qué botones existen, no qué hacen: el agente
+sigue sin saber qué efecto tiene consumir S2 aquí y ahora, que es lo único que el experimento le
+pide descubrir. La decisión de qué hacer sigue siendo enteramente suya.
+
+Lo que elimina es ruido que nunca quisimos medir: la habilidad del modelo para escribir nuestra
+API de memoria. El piloto mostró que ese ruido se comía el experimento entero — 91-96% de
+rechazos en las condiciones LLM, casi todos por proponer `gather` sobre un recurso lejano, más
+llamadas a `consume` sin el argumento `rkind`. Los agentes recolectaban y luego morían de hambre
+con el inventario lleno porque no sabían formular la acción de comer.
+
+**Se aplica idéntico en las cuatro condiciones**, o se convierte en una ventaja diferencial.
+
 ---
 
-## 5. Pendientes de motor
+## 5. Pendientes
 
-Lo que este diseño requiere y aún no existe en el código:
+Los diez pendientes de la versión 1.0 están cerrados y verificados (expulsión, invariante de
+no-consumo, cúmulos, regeneración, muerte por inanición, `struct_a`, alfabeto de 4, horizonte de
+despertar, memoria corrupta, baseline re-optimizado y separado en empírico/informado).
+
+Lo que queda, en orden de prioridad, después del piloto de desarrollo:
 
 | # | Qué | Por qué |
 |---|---|---|
-| 1 | **Expulsión de B al iniciar la fase oscura** | Sin ella el held-out se contamina en silencio (§3.7) |
-| 2 | **Invariante: ningún `consume` en (B, oscura)** | Red de seguridad del punto anterior |
-| 3 | Siembra en cúmulos con los 4 símbolos en ambas regiones, + test | §3.2 |
-| 4 | Regeneración por cúmulo | §3.4 |
-| 5 | Muerte por inanición sostenida (48 ticks) | §3.5 |
-| 6 | Efecto de `struct_a` sobre el metabolismo en fase oscura | §3.6 |
-| 7 | Alfabeto simbólico a 4 | §4.6 |
-| 8 | Horizonte de despertar elegido por el agente | §4.7 |
-| 9 | Condición `llm_memoria_corrupta` | §4.3 |
-| 10 | **Re-optimizar el baseline determinista** | Sus parámetros se calcularon con la mecánica anterior a los fixes de mecánica; los actuales no son válidos y producirían un hombre de paja |
+| 1 | **Acciones disponibles en la observación** | Ataca ~90% de los rechazos de las condiciones LLM (§4.8) |
+| 2 | **Nacimiento repartido entre regiones** | Sin esto no hay exposición a B y no hay regla espacial que aprender (§3.2) |
+| 3 | **Valores recalibrados + test de niveles distintos** | Tres de cuatro símbolos no discriminaban composición (§3.1) |
+| 4 | **Diagnóstico del oráculo** | Solo caminó: cero `gather`, cero `consume`. Es el techo de la métrica primaria; si no funciona, LE no tiene denominador (§10) |
+| 5 | Probe de salida al iniciar la inanición | §4.5 |
+| 6 | Corte de exposición en el análisis | §4.5 |
 
 ---
 
@@ -345,10 +432,10 @@ Valores para que Zod los traduzca a `WorldConfig`. Los nombres son indicativos.
 SYMBOLS = ["S1", "S2", "S3", "S4"]
 
 EFFECT_SPEC = {                     # base, δ_región_B, δ_fase_oscura
-    "S1": (+8.0, -11.0, -4.0),
+    "S1": (+8.0,  -9.0, -4.0),
     "S2": (-2.0,  +9.0, +3.0),
-    "S3": ( 0.0,   0.0,  0.0),
-    "S4": (+1.0,   0.0, -1.0),
+    "S3": ( 0.0,   0.0,  0.0),      # control: nunca alimenta, fuera del score
+    "S4": (+1.0,  +6.0, -9.0),
 }
 # consume_effects = build_separable_effects(EFFECT_SPEC)
 # assert separable_invariant_holds(consume_effects)
@@ -372,11 +459,50 @@ WORLD = dict(
     vision_radius=4,
 )
 
-AGENTS = dict(n=5, utility="survive", identical=True)
+AGENTS = dict(n=5, utility="survive", identical=True,
+              spawn="split_by_region",   # 2 en una región, 3 en la otra; lado por seed
+              show_available_actions=True)
 
 PROBES = dict(every_days=10, levels=6, types=["lived", "held_out", "nonexistent"],
-              feedback=False, enters_memory=False, order_by_seed=True)
+              feedback=False, enters_memory=False, order_by_seed=True,
+              on_starvation=True,        # probe de salida
+              exposure_cutoff=3,         # < 3 consumos por celda => sub-expuesto
+              excluded_from_score=["S3"])
 ```
+
+---
+
+## 10. Hallazgos del piloto de desarrollo (2026-08-12)
+
+96 mundos (4 condiciones × 3 densidades × 8 seeds), 30 días, qwen2.5:7b local, costo $0.
+Datos marcados `desarrollo_no_confirmatorio`.
+
+**El piloto no midió composición. Midió el contrato entre el agente y el motor**, y encontró
+cuatro defectos antes de que existiera un pre-registro que congelara ninguno de ellos.
+
+| Condición | Eventos | Rechazo | Fallo dominante | Acciones exitosas |
+|---|---|---|---|---|
+| sin_memoria | 6.117 | 96% | `gather not_adjacent` (5.243) | gather 229, move 37, **consume 0** |
+| memoria | 11.144 | 91% | `gather not_adjacent` (8.554) | gather 647, move 369, **consume 6** |
+| oráculo | 2.192 | 45% | `move blocked` (764) | **solo move (1.202)** |
+| baseline empírico | 52.032 | 51% | `move blocked` (16.322) | gather 11.081, consume 4.931, build 100 |
+
+1. **El mundo es habitable; el agente LLM no funciona.** El baseline empírico sobrevive y
+   produce 11.081 recolecciones y 4.931 consumos en el mismo mundo. Suavizar el mundo habría
+   sido corregir lo que no estaba roto — y habría sido, además, ajustar la configuración hasta
+   obtener el resultado deseado (crítica #19).
+2. **Los agentes LLM no comían.** Recolectaban y morían de hambre con el inventario lleno:
+   `consume` exitoso 0 y 6. No era falta de comida, era incapacidad de formular la acción
+   (confirmado por los rechazos `consume() missing 'rkind'`). De ahí D-026.
+3. **El oráculo colapsó de forma distinta:** solo caminó. Cero `gather`, cero `consume`, y una
+   cuarta parte de los eventos de las otras condiciones. Es el techo de la métrica primaria y
+   requiere diagnóstico propio; la sospecha es que el prompt con la tabla completa de efectos
+   satura a un modelo de 7B.
+4. **92% de agentes sub-expuestos**, con cero consumos en B-clara. De ahí D-023 y D-025.
+
+El 0/41 del baseline en la celda retenida **no** es evidencia de que B-oscura sea incomponible,
+como pareció al principio: está por debajo del azar (~17% esperado) y se explica por la
+sub-exposición. El agente respondía desde la única región que conocía.
 
 ---
 
