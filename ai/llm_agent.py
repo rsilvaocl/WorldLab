@@ -102,7 +102,13 @@ class LLMAgent:
 
     @staticmethod
     def _parse_horizonte(raw) -> Optional[int]:
-        """sleep_ticks válido: entero 1..96; inválido => 1 (despertar pronto)."""
+        """sleep_ticks válido: entero 1..24; inválido => 1 (despertar pronto).
+
+        Tope 24 (fix de Opus): una fase dura 24 ticks; un horizonte de 96
+        permitía dormir 4 días seguidos sin observar nunca una de las dos
+        fases — y la fase es una de las dos dimensiones que debe aprender
+        para componer. Un tope de 24 garantiza que ninguna fase quede
+        invisible (requisito del experimento, no muleta de supervivencia)."""
         if isinstance(raw, str):
             try:
                 raw = json.loads(raw)
@@ -112,7 +118,7 @@ class LLMAgent:
             return 1
         try:
             h = int(raw.get("sleep_ticks", 1))
-            return max(1, min(96, h))
+            return max(1, min(24, h))
         except (TypeError, ValueError):
             return 1
 
@@ -153,8 +159,9 @@ class LLMAgent:
         user = (
             "Estado actual:\n" + json.dumps(observation, ensure_ascii=False) +
             "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}, \"sleep_ticks\": N}\n"
-            "donde sleep_ticks (1..96) = en cuántos ticks quieres volver a decidir. "
-            "Si no hay nada urgente, pide dormir más (ahorras energía y costos)."
+            "donde sleep_ticks (1..24) = en cuántos ticks quieres volver a decidir. "
+            "El metabolismo te consume 0.5 de energía por tick, duermas o no: "
+            "dormir N ticks te cuesta N×0.5 de energía y pierdes lo que pase mientras tanto."
         )
         try:
             raw = self.client.chat_json([

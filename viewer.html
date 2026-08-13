@@ -2,143 +2,312 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WorldLab — Visor</title>
 <style>
-  :root { --bg:#0f1115; --panel:#171a21; --border:#2a2f3a; --txt:#d7dce3; --dim:#8a93a3; --acc:#4da3ff; }
+  :root {
+    /* Paleta tomada del logo: fondo casi negro azulado, trazos cian → azul → violeta.
+       Cian y violeta NO son decoración: identifican las regiones A y B. */
+    --bg:#0d0f14;
+    --surface:#151922;
+    --surface-2:#1b2029;
+    --border:#252b38;
+    --border-strong:#333b4c;
+    --ink:#e4e9f0;
+    --ink-2:#aab4c4;      /* 6.4:1 sobre --surface */
+    --dim:#8d97a8;
+    --acc:#4da3ff;
+    --region-a:#3fd0c9;
+    --region-b:#9b7fe8;
+    --ok:#5fd68a;
+    --warn:#e8b45c;
+    --bad:#ef6d6d;
+    --r-sm:6px; --r-md:10px;
+    --z-drop:40;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; height:100vh; display:flex; flex-direction:column; }
-  header { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-  header h1 { font-size:16px; font-weight:600; display:flex; align-items:center; gap:10px; }
-  header .logo { width:34px; height:34px; border-radius:50%; object-fit:cover; box-shadow:0 0 10px rgba(77,163,255,.35); }
-  header .dim { color:var(--dim); font-size:12px; }
+  html,body { height:100%; }
+  body {
+    background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:14px; line-height:1.5;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  button, input { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:4px; }
+
+  /* ---------- header ---------- */
+  header {
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:12px 20px; border-bottom:1px solid var(--border); background:var(--surface);
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand img { width:46px; height:46px; border-radius:50%; object-fit:cover; display:block; }
+  .brand .t { font-size:16px; font-weight:650; letter-spacing:-.01em; line-height:1.2; }
+  .brand .s { font-size:12px; color:var(--dim); }
+  .spacer { flex:1; }
+  #fileInfo { font-size:12.5px; color:var(--ink-2); }
+
+  .btn {
+    background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:var(--r-sm); padding:7px 14px; cursor:pointer;
+    transition:background .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease);
+  }
+  .btn:hover { background:#222836; border-color:var(--acc); }
+  .btn:active { background:#1a1f2b; }
+  .btn[aria-pressed="true"] { border-color:var(--acc); color:var(--acc); background:#16283d; }
+  .btn.primary { background:var(--acc); border-color:var(--acc); color:#07121f; font-weight:600; }
+  .btn.primary:hover { background:#69b2ff; }
+
+  /* ---------- layout ---------- */
   #main { flex:1; display:flex; min-height:0; }
   #left { flex:1; display:flex; flex-direction:column; min-width:0; }
-  #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; background:#0b0d11; padding:12px; }
-  canvas { background:#12151b; border:1px solid var(--border); border-radius:6px; }
-  #legend { display:flex; gap:14px; padding:6px 16px; font-size:11px; color:var(--dim); border-top:1px solid var(--border); background:var(--bg); flex-wrap:wrap; }
-  .lg { display:flex; align-items:center; gap:5px; }
-  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; }
+
+  /* estado narrativo: qué está pasando AHORA, en una línea legible */
+  #status {
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:11px 20px; border-bottom:1px solid var(--border); background:var(--bg);
+  }
+  #status .now { font-size:17px; font-weight:600; letter-spacing:-.01em; }
+  #status .chip {
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12.5px; color:var(--ink-2);
+  }
+  #status .chip b { color:var(--ink); font-weight:600; }
+  .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+
+  #canvasWrap {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    overflow:auto; background:#090b0f; padding:16px;
+  }
+  canvas { border:1px solid var(--border); border-radius:var(--r-md); display:block; }
+
+  /* ---------- leyenda ---------- */
+  #legend {
+    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    padding:9px 20px; font-size:12px; color:var(--ink-2);
+    border-top:1px solid var(--border); background:var(--bg);
+  }
+  .lg { display:inline-flex; align-items:center; gap:6px; }
+  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; flex:none; }
   .sw.circ { border-radius:50%; }
-  #controls { padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:13px; }
-  #controls button { background:var(--panel); color:var(--txt); border:1px solid var(--border); border-radius:5px; padding:5px 12px; cursor:pointer; }
-  #controls button:hover { border-color:var(--acc); }
-  #controls button.active { border-color:var(--acc); color:var(--acc); }
-  #scrub { flex:1; min-width:180px; }
-  #right { width:320px; border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
-  #agentsPanel { flex:1; overflow-y:auto; padding:10px; border-bottom:1px solid var(--border); }
-  #logPanel { flex:1; overflow-y:auto; padding:10px; font-size:12px; }
-  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin-bottom:8px; }
-  .agentRow { background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:8px; margin-bottom:8px; }
-  .agentRow .name { font-weight:600; font-size:13px; display:flex; align-items:center; gap:8px; }
-  .agentRow .bar { height:5px; background:#232936; border-radius:3px; margin-top:6px; overflow:hidden; }
-  .agentRow .bar > div { height:100%; background:var(--acc); }
-  .agentRow .inv { color:var(--dim); font-size:11px; margin-top:4px; word-break:break-word; }
-  .logLine { padding:2px 0; border-bottom:1px solid #1c212b; color:#b8c0cc; }
-  .logLine .badge { display:inline-block; background:#232936; border-radius:3px; padding:0 5px; font-size:10px; margin-right:6px; color:var(--dim); }
-  .logLine.ok .badge { background:#1d4d2e; color:#6fe39a; }
-  .logLine.impossible .badge { background:#4d2b1d; color:#e39a6f; }
-  #drop { position:fixed; inset:0; background:rgba(77,163,255,.12); border:3px dashed var(--acc); display:none; align-items:center; justify-content:center; font-size:20px; z-index:9; }
+
+  /* ---------- controles ---------- */
+  #controls {
+    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    padding:12px 20px; border-top:1px solid var(--border); background:var(--surface);
+  }
+  #playBtn { width:40px; height:36px; display:grid; place-items:center; font-size:14px; }
+  .scrubWrap { flex:1; min-width:200px; display:flex; flex-direction:column; gap:5px; }
+  /* bandas de fase: el ciclo día/noche visible a lo largo de toda la corrida */
+  #phaseStrip { height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; display:flex; }
+  #phaseStrip i { display:block; height:100%; }
+  input[type=range] { width:100%; accent-color:var(--acc); cursor:pointer; }
+  .ctrlLabel { font-size:12px; color:var(--dim); display:inline-flex; align-items:center; gap:8px; }
+  #speed { width:96px; }
+
+  /* ---------- panel derecho ---------- */
+  #right {
+    width:340px; flex:none; border-left:1px solid var(--border);
+    display:flex; flex-direction:column; min-height:0; background:var(--surface);
+  }
+  .panel { padding:16px 18px; border-bottom:1px solid var(--border); }
+  .panel.scroll { overflow-y:auto; flex:1; min-height:0; }
+  h2 {
+    font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--dim); margin-bottom:12px;
+  }
+  .lead { font-size:13px; color:var(--ink-2); line-height:1.6; }
+  .lead b { color:var(--ink); font-weight:600; }
+
+  /* diagrama 2×2: la idea central del experimento de un vistazo */
+  .matrix { display:grid; grid-template-columns:auto 1fr 1fr; gap:5px; margin:14px 0 10px; }
+  .matrix .hd { font-size:11px; color:var(--dim); text-align:center; padding-bottom:2px; }
+  .matrix .rw { font-size:12px; color:var(--ink-2); display:grid; place-items:center; padding-right:6px; font-weight:600; }
+  .matrix .cell {
+    border:1px solid var(--border-strong); border-radius:var(--r-sm);
+    padding:9px 6px; text-align:center; font-size:11px; color:var(--ink-2); background:var(--surface-2);
+  }
+  .matrix .cell.held {
+    border-color:var(--acc); background:#132433; color:var(--acc); font-weight:600;
+  }
+  .matrix .cell .q { font-size:15px; display:block; line-height:1.1; }
+  .caption { font-size:12px; color:var(--dim); line-height:1.55; }
+  .caption b { color:var(--ink-2); }
+
+  dl.facts { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin-top:12px; }
+  dl.facts dt { color:var(--dim); }
+  dl.facts dd { color:var(--ink-2); }
+
+  /* ---------- agentes ---------- */
+  .agent { padding:11px 0; border-bottom:1px solid var(--border); }
+  .agent:last-child { border-bottom:0; }
+  .agent .top { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
+  .agent .meta { margin-left:auto; font-size:11.5px; font-weight:400; color:var(--dim); }
+  .agent .bar { height:6px; background:#232936; border-radius:3px; margin:7px 0 5px; overflow:hidden; }
+  .agent .bar > i { display:block; height:100%; border-radius:3px; transition:width .2s var(--ease); }
+  .agent .inv { font-size:11.5px; color:var(--ink-2); word-break:break-word; }
+  .agent.dead { opacity:.5; }
+  .tag { font-size:10px; padding:1px 6px; border-radius:99px; font-weight:600; letter-spacing:.02em; }
+  .tag.dead { background:#3a1f22; color:var(--bad); }
+  .tag.low  { background:#3a2e1a; color:var(--warn); }
+
+  /* ---------- log ---------- */
+  .logLine { padding:4px 0; border-bottom:1px solid #1a1f29; font-size:12.5px; color:var(--ink-2); }
+  .logLine:last-child { border-bottom:0; }
+  .logLine b { color:var(--ink); font-weight:600; }
+  .badge {
+    display:inline-block; background:#232936; border-radius:3px;
+    padding:0 6px; font-size:10.5px; margin-right:7px; color:var(--dim);
+    font-variant-numeric:tabular-nums;
+  }
+  .logLine.ok .badge { background:#17331f; color:var(--ok); }
+  .logLine.impossible .badge { background:#331f17; color:#e39a6f; }
+
+  /* ---------- vacío / drop ---------- */
+  .empty { text-align:center; max-width:420px; padding:32px 24px; }
+  .empty img { width:112px; height:112px; border-radius:50%; opacity:.9; margin-bottom:20px; }
+  .empty h3 { font-size:19px; font-weight:650; letter-spacing:-.015em; margin-bottom:10px; text-wrap:balance; }
+  .empty p { font-size:13.5px; color:var(--ink-2); line-height:1.65; margin-bottom:20px; text-wrap:pretty; }
+  #drop {
+    position:fixed; inset:0; background:rgba(77,163,255,.1);
+    border:2px dashed var(--acc); display:none; align-items:center; justify-content:center;
+    font-size:18px; z-index:var(--z-drop); backdrop-filter:blur(2px);
+  }
   #fileInput { display:none; }
-  .tip { color:var(--dim); font-size:11px; }
-  #infoPanel { padding:10px; border-bottom:1px solid var(--border); font-size:11px; background:var(--panel); }
-  #infoBody { color:var(--dim); line-height:1.55; font-size:11px; }
-  #infoBody b { color:var(--txt); }
-  #legendAgents { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+
+  @media (max-width:900px) {
+    #main { flex-direction:column; }
+    #right { width:auto; border-left:0; border-top:1px solid var(--border); max-height:44vh; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { transition-duration:.01ms !important; animation-duration:.01ms !important; }
+  }
 </style>
 </head>
 <body>
 <div id="drop">Suelte el archivo .jsonl aquí</div>
+
 <header>
-  <h1><img class="logo" src="assets/logo.jpg" alt="WorldLab"> WorldLab — Visor</h1>
-  <span class="dim" id="fileInfo">sin archivo cargado — arrastre un .jsonl o Cargar</span>
-  <button onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
+  <div class="brand">
+    <img src="assets/logo.jpg" alt="">
+    <div>
+      <div class="t">WorldLab</div>
+      <div class="s">Visor de simulación</div>
+    </div>
+  </div>
+  <span class="spacer"></span>
+  <span id="fileInfo">sin archivo cargado</span>
+  <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
   <input type="file" id="fileInput" accept=".jsonl">
 </header>
+
 <div id="main">
   <div id="left">
-    <div id="canvasWrap"><canvas id="cv" width="600" height="600"></canvas></div>
-    <div id="legend">
-      <span class="lg"><span class="sw circ" style="background:#4da3ff"></span> agente</span>
-      <span class="lg"><span class="sw" style="background:#58c26a"></span> comida</span>
-      <span class="lg"><span class="sw" style="background:#c2a358"></span> madera</span>
-      <span class="lg"><span class="sw" style="background:#8fa3b8"></span> piedra</span>
-      <span class="lg"><span class="sw" style="background:#4da3ff"></span> agua</span>
-      <span class="lg"><span class="sw" style="background:#7a8699"></span> construcción</span>
-      <span class="lg">☀️ fase clara / 🌙 fase oscura</span>
-      <span class="lg">A/B regiones — 🔒 B bloqueada de noche</span>
-      <span class="lg" id="legendAgents"></span>
-      <span class="lg tip">El número en cada recurso es la cantidad disponible</span>
+    <div id="status" hidden>
+      <span class="now" id="nowLabel">—</span>
+      <span class="chip" id="chipAlive"></span>
+      <span class="chip" id="chipBorder"></span>
+      <span class="chip" id="chipFrame"></span>
     </div>
-    <div id="controls">
-      <button id="btnPlay" onclick="togglePlay()">▶</button>
-      <span id="timeLabel" class="dim">—</span>
-      <input type="range" id="scrub" min="0" max="1" step="1" value="0" oninput="goTo(parseInt(this.value))">
-      <label class="dim">velocidad <input type="range" id="speed" min="0.1" max="3" step="0.1" value="0.6" style="width:80px;vertical-align:middle"></label>
-      <button id="btnOkOnly" onclick="toggleOkOnly()">solo exitosas: ON</button>
+
+    <div id="canvasWrap">
+      <canvas id="cv" width="660" height="660" hidden></canvas>
+      <div class="empty" id="emptyState">
+        <img src="assets/logo.jpg" alt="">
+        <h3>Un mundo donde nadie explicó las reglas</h3>
+        <p>Cinco agentes viven en una cuadrícula. Los recursos los alimentan o los envenenan
+           según <b>dónde</b> estén y <b>en qué momento del ciclo</b>. Nadie se los dijo:
+           tienen que descubrirlo comiendo.</p>
+        <p>Cargue un archivo <code>.jsonl</code> de una corrida — o arrástrelo a esta ventana —
+           para verlos moverse.</p>
+        <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar una corrida</button>
+      </div>
+    </div>
+
+    <div id="legend" hidden></div>
+
+    <div id="controls" hidden>
+      <button class="btn" id="playBtn" onclick="togglePlay()" aria-label="Reproducir">▶</button>
+      <div class="scrubWrap">
+        <div id="phaseStrip" aria-hidden="true"></div>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0"
+               aria-label="Línea de tiempo" oninput="goTo(parseInt(this.value))">
+      </div>
+      <label class="ctrlLabel">velocidad
+        <input type="range" id="speed" min="0.1" max="3" step="0.1" value="0.6">
+      </label>
+      <button class="btn" id="okBtn" aria-pressed="true" onclick="toggleOkOnly()">solo acciones logradas</button>
     </div>
   </div>
+
   <div id="right">
-    <div id="infoPanel"><h2>Sobre este experimento</h2><div id="infoBody">Cargue un archivo .jsonl para ver la explicación de esta simulación.</div></div>
-    <div id="agentsPanel"><h2>Agentes</h2><div id="agentsList"></div></div>
-    <div id="logPanel"><h2>Eventos</h2><div id="logList"></div></div>
+    <div class="panel">
+      <h2>Qué se está probando</h2>
+      <div id="infoBody"></div>
+    </div>
+    <div class="panel scroll">
+      <h2>Agentes</h2>
+      <div id="agentsList"><p class="caption">Sin datos cargados.</p></div>
+    </div>
+    <div class="panel scroll">
+      <h2>Qué va pasando</h2>
+      <div id="logList"><p class="caption">Sin datos cargados.</p></div>
+    </div>
   </div>
 </div>
+
 <script>
-// ------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // WorldLab viewer — lee JSONL de eventos/snapshots y reproduce la simulación.
-// Cero dependencias. Mejoras de legibilidad: leyenda, casas con techo,
-// log en español, colores por tipo de recurso, toggle solo-exitosas.
-// ------------------------------------------------------------------
+// Cero dependencias.
+// ---------------------------------------------------------------------------
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null, okOnly = true;
 const CELL = 22;
 
-// Logo oficial del proyecto como marca de agua de fondo (decisión del Comandante):
-// en grande y con opacidad para no molestar la lectura de la data.
+// Marca de agua: el logo es oscuro con trazos claros, así que se dibuja en modo
+// 'screen' — el negro del logo se vuelve transparente y solo brillan los trazos.
+// Así puede ser grande y visible sin tapar un solo dato.
 const logoImg = new Image();
 logoImg.src = 'assets/logo.jpg';
-const LOGO_ALPHA = 0.10;   // opacidad del watermark (10% — sutil, no molesta)
-const LOGO_SIZE = 0.42;    // fracción del ancho del canvas
+const LOGO_ALPHA = 0.38;
+const LOGO_SIZE  = 0.66;   // fracción del lado menor del canvas
 
-const RES_NAMES = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
-const RES_COLORS = { food:'#58c26a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
-// En el mundo experimental los IDs son opacos (S1..S4). Los nombres y colores
-// bonitos vienen del meta del JSONL (resource_names) — SOLO para el visor.
+const RES_NAMES  = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
+const RES_COLORS = { food:'#5fd68a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
+
+// En el mundo experimental los símbolos son opacos (S1..S4). Los nombres legibles
+// vienen del meta del JSONL — SOLO para el visor, nunca para el modelo.
 function rName(rk) {
   if (meta?.resource_names && meta.resource_names[rk]) return meta.resource_names[rk];
   return RES_NAMES[rk] || rk;
 }
-// Escape HTML para valores que vienen del .jsonl (hallazgo de seguridad de
-// Opus, pendiente 7): el repo está publicado y un .jsonl de un tercero abierto
-// en el visor NO debe poder ejecutar JavaScript. SOLO valores del archivo;
-// números y valores calculados por el visor no lo necesitan.
+// Escape HTML para todo lo que venga del .jsonl: el repo está publicado y un
+// archivo de un tercero no debe poder ejecutar JavaScript en el visor.
 const esc = s => String(s).replace(/[&<>"']/g, c => (
   {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 function rColor(rk) {
   if (RES_COLORS[rk]) return RES_COLORS[rk];
-  if (meta?.resource_names && meta.resource_names[rk]) {
-    // color estable por hash del id opaco
-    let h = 0;
-    for (const c of rk) h = (h * 31 + c.charCodeAt(0)) % 360;
-    return `hsl(${h} 55% 55%)`;
-  }
-  return RES_COLORS.generic;
+  let h = 0;
+  for (const c of rk) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 58% 58%)`;
 }
 const ACTION_VERBS = {
   move:    ['se movió', 'intentó moverse'],
   gather:  ['recolectó', 'intentó recolectar'],
-  consume: ['consumió', 'intentó consumir'],
+  consume: ['comió', 'intentó comer'],
   drop:    ['soltó', 'intentó soltar'],
   pickup:  ['tomó', 'intentó tomar'],
-  give:    ['entregó', 'intentó entregar'],
+  give:    ['le entregó', 'intentó entregar'],
   build:   ['construyó', 'intentó construir'],
-  talk:    ['dijo', 'intentó hablar'],
+  talk:    ['emitió', 'intentó emitir'],
   expelled:['fue expulsado', 'expulsión fallida'],
   death:   ['murió', 'muerte fallida'],
 };
 
-// Fase del snapshot: la trae el logger nuevo; si el archivo es viejo, la
-// deriva del meta (phase_ticks, n_phases). Sin información: null.
 function phaseOf(s) {
   if (typeof s.phase === 'number') return s.phase;
   const pt = meta?.phase_ticks, np = meta?.n_phases;
@@ -150,56 +319,86 @@ function regionOf(x) {
   const w = meta?.width || 30;
   return x < w * split ? 'A' : 'B';
 }
+const phaseName = p => p === 1 ? 'oscura' : (p === 0 ? 'clara' : '—');
+const phaseIcon = p => p === 1 ? '🌙' : (p === 0 ? '☀️' : '');
 
-// ---------------------------------------------------------------
-// Info del experimento (panel derecho) + leyenda de agentes.
-// El meta trae "experiment": "piloto_sin_memoria_4_s8" — se parsea
-// para mostrar la condición de forma legible (SOLO para el visor).
-// ---------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Panel: qué se está probando. El diagrama 2×2 es la pieza que hace entendible
+// el experimento sin leer una línea de documentación.
+// ---------------------------------------------------------------------------
 const COND_LABELS = {
-  sin_memoria: 'Sin memoria (LLM, sin registro de eventos)',
-  memoria: 'Con memoria (LLM, registro literal de eventos)',
-  oraculo: 'Oráculo (LLM con las reglas del mundo)',
-  baseline_empirico: 'Baseline empírico (reactivo determinista)',
+  sin_memoria:       'Sin memoria — decide solo con lo que ve ahora',
+  memoria:           'Con memoria — recuerda lo que le pasó antes',
+  oraculo:           'Oráculo — le entregamos las reglas del mundo',
+  baseline_empirico: 'Baseline — política simple, sin modelo de lenguaje',
 };
 function expInfo() {
   if (!meta?.experiment) return null;
-  const m = String(meta.experiment).match(/^piloto_([a-z_]+)_(\d+)_s(\d+)$/);
+  const m = String(meta.experiment).match(/^[a-z0-9]+_([a-z_]+)_(\d+)_s(\d+)$/);
   if (!m) return { raw: meta.experiment };
   return { cond: m[1], dens: parseInt(m[2], 10) / 100, seed: parseInt(m[3], 10) };
 }
 function fillInfo() {
   const body = document.getElementById('infoBody');
-  if (!meta) { body.innerHTML = 'Cargue un archivo .jsonl para ver la explicación de esta simulación.'; return; }
+  const matrix = `
+    <div class="matrix" role="img" aria-label="Tres situaciones vividas y una nunca vivida: región B en fase oscura">
+      <span></span><span class="hd">☀️ clara</span><span class="hd">🌙 oscura</span>
+      <span class="rw" style="color:var(--region-a)">A</span>
+      <span class="cell">la vive</span><span class="cell">la vive</span>
+      <span class="rw" style="color:var(--region-b)">B</span>
+      <span class="cell">la vive</span>
+      <span class="cell held"><span class="q">?</span>nunca</span>
+    </div>`;
+  if (!meta) {
+    body.innerHTML = `
+      <p class="lead">Los recursos hacen cosas distintas según <b>la región</b> (A o B) y
+      <b>la fase</b> del ciclo. Son cuatro combinaciones, pero el mundo está hecho para que
+      un agente solo pueda vivir tres.</p>
+      ${matrix}
+      <p class="caption">Al final se le pregunta por la cuarta. Como nunca estuvo ahí, no hay nada
+      que recordar: solo acierta quien entendió que la región suma una cosa y la fase otra,
+      y las combina.</p>`;
+    return;
+  }
   const ei = expInfo();
   const condTxt = ei?.cond ? (COND_LABELS[ei.cond] || ei.cond) : (ei?.raw || '—');
-  const res = meta.resource_names ? Object.entries(meta.resource_names)
-    .map(([k, v]) => `${k} = ${v}`).join(' · ') : 'S1..S4 opacos';
+  const res = meta.resource_names
+    ? Object.entries(meta.resource_names).map(([k, v]) => `${k} = ${v}`).join(' · ')
+    : 'símbolos opacos';
   body.innerHTML = `
-    <b>WorldLab</b> — simulación multi-agente: ¿puede un agente aprender
-    las reglas del mundo y <b>componerlas</b> para predecir lo que nunca vivió?<br><br>
-    <b>Condición:</b> ${esc(condTxt)}${ei?.dens != null ? ` · densidad ${esc(ei.dens*100)}%` : ''}${ei?.seed != null ? ` · seed ${esc(ei.seed)}` : ''}<br>
-    <b>Mundo:</b> ${esc(meta.width)}×${esc(meta.height)} · ${esc(meta.days)} días · ${esc(meta.ticks_per_day)} ticks/día<br>
-    <b>Ciclo:</b> ${esc(meta.n_phases || 2)} fases (☀️/${meta.n_phases === 2 ? '🌙' : '…'}) · ${esc(meta.phase_ticks)} ticks por fase<br>
-    <b>Regiones:</b> A/B separadas en ${esc(Math.round((meta.region_split || 0.5)*100))}% — 🔒 B bloqueada en fase oscura<br>
-    <b>Recursos:</b> ${esc(res)}<br><br>
-    <b>La pregunta:</b> al final se le pide al agente predecir la celda que
-    <i>nunca</i> vivió (B-oscura). Solo se acierta componiendo reglas
-    aprendidas — imposible por memoria (azar ~17%).`;
+    <p class="lead">Los recursos hacen cosas distintas según <b>la región</b> y <b>la fase</b>.
+    Este agente solo puede vivir tres de las cuatro combinaciones.</p>
+    ${matrix}
+    <p class="caption">Al final se le pregunta por la casilla que nunca vivió. No hay nada que
+    recordar: solo acierta quien compuso las dos reglas. Al azar sería ~17%.</p>
+    <dl class="facts">
+      <dt>Condición</dt><dd>${esc(condTxt)}</dd>
+      ${ei?.dens != null ? `<dt>Recursos</dt><dd>${esc(Math.round(ei.dens*100))}% del mapa</dd>` : ''}
+      ${ei?.seed != null ? `<dt>Semilla</dt><dd>${esc(ei.seed)}</dd>` : ''}
+      <dt>Mundo</dt><dd>${esc(meta.width)}×${esc(meta.height)} · ${esc(meta.days)} días</dd>
+      <dt>Ciclo</dt><dd>${esc(meta.phase_ticks)} ticks por fase</dd>
+      <dt>Símbolos</dt><dd>${esc(res)}</dd>
+    </dl>`;
 }
-function fillAgentLegend(agents) {
-  const leg = document.getElementById('legendAgents');
-  if (!agents.length) { leg.innerHTML = ''; return; }
-  leg.innerHTML = '<b style="color:var(--dim)">agentes:</b> ' + agents.map((a, i) => {
-    const hue = (i * 137.5) % 360;
-    return `<span class="lg"><span class="sw circ" style="background:hsl(${hue} 70% 55%)"></span>${esc(a.eid)}</span>`;
-  }).join('');
+
+// leyenda construida desde los datos, no hardcodeada
+function fillLegend(agents, kinds) {
+  const leg = document.getElementById('legend');
+  const resPart = [...kinds].sort().map(k =>
+    `<span class="lg"><span class="sw" style="background:${rColor(k)}"></span>${esc(rName(k))}</span>`).join('');
+  const agentPart = agents.map((a, i) =>
+    `<span class="lg"><span class="sw circ" style="background:hsl(${(i*137.5)%360} 70% 58%)"></span>${esc(a.eid)}</span>`).join('');
+  leg.innerHTML =
+    agentPart +
+    (resPart ? `<span class="lg" style="color:var(--dim)">recursos:</span>${resPart}` : '') +
+    `<span class="lg"><span class="sw" style="background:#7a8699"></span>construcción</span>` +
+    `<span class="lg" style="color:var(--dim)">el número sobre un recurso es lo que queda</span>`;
 }
 
 function parseFile(text) {
-  const lines = text.split('\n').filter(l => l.trim());
   const data = { snapshots: [], events: [] };
-  for (const line of lines) {
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
     const obj = JSON.parse(line);
     if (obj.type === 'meta') data.meta = obj;
     else if (obj.type === 'snapshot') data.snapshots.push(obj);
@@ -209,30 +408,60 @@ function parseFile(text) {
 }
 
 function loadFromText(text, name) {
-  const d = parseFile(text);
-  if (!d.snapshots.length) { alert('Sin snapshots en el archivo'); return; }
+  let d;
+  try { d = parseFile(text); }
+  catch (err) { showError('El archivo no es un .jsonl válido.'); return; }
+  if (!d.snapshots.length) { showError('El archivo no contiene snapshots de la simulación.'); return; }
   meta = d.meta; snapshots = d.snapshots; events = d.events;
-  snapshots.sort((a,b) => (a.day*100000+a.tick) - (b.day*100000+b.tick));
-  document.getElementById('fileInfo').textContent = name + ' · ' + snapshots.length + ' frames · ' + events.length + ' eventos';
+  snapshots.sort((a, b) => (a.day*100000+a.tick) - (b.day*100000+b.tick));
+
+  document.getElementById('fileInfo').textContent =
+    `${name} · ${snapshots.length} momentos · ${events.length} eventos`;
+  document.getElementById('emptyState').hidden = true;
+  for (const id of ['cv','status','legend','controls']) document.getElementById(id).hidden = false;
+
   const scr = document.getElementById('scrub');
-  scr.max = snapshots.length - 1; scr.min = 0; scr.value = 0;
-  frame = 0; render(); updatePanels(); fillInfo();
+  scr.max = snapshots.length - 1; scr.value = 0;
+  frame = 0;
+  buildPhaseStrip();
+  fillInfo(); render(); updatePanels();
+}
+function showError(msg) {
+  const e = document.getElementById('emptyState');
+  e.hidden = false;
+  e.querySelector('p').innerHTML = `<span style="color:var(--bad)">${esc(msg)}</span>`;
 }
 
-function goTo(i) { frame = Math.max(0, Math.min(snapshots.length-1, i)); render(); updatePanels(); }
+// bandas del ciclo a lo largo de toda la corrida
+function buildPhaseStrip() {
+  const strip = document.getElementById('phaseStrip');
+  strip.innerHTML = snapshots.map(s =>
+    `<i style="flex:1;background:${phaseOf(s) === 1 ? '#1c2333' : '#39445c'}"></i>`
+  ).join('');
+}
 
+function goTo(i) {
+  frame = Math.max(0, Math.min(snapshots.length-1, i));
+  document.getElementById('scrub').value = frame;
+  render(); updatePanels();
+}
 function togglePlay() {
   playing = !playing;
-  document.getElementById('btnPlay').textContent = playing ? '⏸' : '▶';
-  if (playing) { timer = setInterval(() => { if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1); }, 400 / parseFloat(document.getElementById('speed').value)); }
-  else clearInterval(timer);
+  const b = document.getElementById('playBtn');
+  b.textContent = playing ? '⏸' : '▶';
+  b.setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir');
+  clearInterval(timer);
+  if (playing) {
+    timer = setInterval(() => {
+      if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1);
+    }, 400 / parseFloat(document.getElementById('speed').value));
+  }
 }
-
 function toggleOkOnly() {
   okOnly = !okOnly;
-  const btn = document.getElementById('btnOkOnly');
-  btn.textContent = 'solo exitosas: ' + (okOnly ? 'ON' : 'OFF');
-  btn.classList.toggle('active', okOnly);
+  const b = document.getElementById('okBtn');
+  b.setAttribute('aria-pressed', String(okOnly));
+  b.textContent = okOnly ? 'solo acciones logradas' : 'todos los intentos';
   updatePanels();
 }
 
@@ -240,146 +469,178 @@ function render() {
   const s = snapshots[frame];
   const w = (meta?.width || 30), h = (meta?.height || 30);
   cv.width = w * CELL; cv.height = h * CELL;
-  ctx.clearRect(0, 0, cv.width, cv.height);
-  // FONDO según fase (☀️ clara / 🌙 oscura): lectura inmediata del ciclo
+  const W = cv.width, H = cv.height;
   const phase = phaseOf(s);
-  ctx.fillStyle = phase === 1 ? '#0c0e13' : '#141a26';
-  ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.strokeStyle = phase === 1 ? '#232838' : '#1d222c'; ctx.lineWidth = 1;
-  for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
-  for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
 
-  // MARCA DE AGUA: logo grande centrado, con opacidad, detrás de la data
+  // fondo según fase — el ciclo se lee sin mirar ninguna etiqueta
+  ctx.fillStyle = phase === 1 ? '#0a0d14' : '#121826';
+  ctx.fillRect(0, 0, W, H);
+
+  // tinte de región: cian a la izquierda (A), violeta a la derecha (B)
+  const splitX = Math.round((meta?.region_split ?? 0.5) * w);
+  ctx.fillStyle = 'rgba(63,208,201,0.045)';  ctx.fillRect(0, 0, splitX*CELL, H);
+  ctx.fillStyle = 'rgba(155,127,232,0.045)'; ctx.fillRect(splitX*CELL, 0, W - splitX*CELL, H);
+
+  // marca de agua: grande, en modo screen (el negro del logo desaparece)
   if (logoImg.complete && logoImg.naturalWidth > 0) {
-    const side = Math.round(w * CELL * LOGO_SIZE);
+    const side = Math.round(Math.min(W, H) * LOGO_SIZE);
     ctx.save();
+    ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = LOGO_ALPHA;
-    ctx.drawImage(logoImg, (w*CELL - side) / 2, (h*CELL - side) / 2, side, side);
+    ctx.drawImage(logoImg, (W - side)/2, (H - side)/2, side, side);
     ctx.restore();
   }
 
-  // REGIONES A/B: línea divisoria + etiquetas
-  const splitX = Math.round((meta?.region_split ?? 0.5) * w);
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
-  ctx.setLineDash([6,4]);
-  ctx.beginPath(); ctx.moveTo(splitX*CELL, 0); ctx.lineTo(splitX*CELL, h*CELL); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(255,255,255,0.30)';
-  ctx.fillText('A', 8, 16); ctx.fillText('B', (splitX+1)*CELL + 4, 16);
+  ctx.strokeStyle = phase === 1 ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.06)';
+  ctx.lineWidth = 1;
+  for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,H); ctx.stroke(); }
+  for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(W,y*CELL); ctx.stroke(); }
 
-  // BARRERA: en fase oscura, la región B está bloqueada (no se puede entrar)
+  // frontera entre regiones
+  ctx.strokeStyle = phase === 1 ? 'rgba(239,109,109,.75)' : 'rgba(255,255,255,.28)';
+  ctx.lineWidth = 2; ctx.setLineDash(phase === 1 ? [] : [6,5]);
+  ctx.beginPath(); ctx.moveTo(splitX*CELL, 0); ctx.lineTo(splitX*CELL, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font = '600 12px system-ui'; ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(63,208,201,.7)';  ctx.fillText('REGIÓN A', 9, 17);
+  ctx.fillStyle = 'rgba(155,127,232,.7)'; ctx.fillText('REGIÓN B', splitX*CELL + 9, 17);
+
   if (phase === 1) {
-    ctx.fillStyle = 'rgba(255,60,60,0.06)';
-    ctx.fillRect(splitX*CELL, 0, (w-splitX)*CELL, h*CELL);
-    ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = 2;
-    ctx.strokeRect(splitX*CELL+1, 1, (w-splitX)*CELL-2, h*CELL-2);
-    ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,90,90,0.65)';
-    ctx.fillText('🔒 BLOQUEADA', splitX*CELL + (w-splitX)*CELL/2, h*CELL-8);
+    ctx.font = '600 11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(239,109,109,.8)';
+    ctx.fillText('🔒 frontera cerrada — nadie puede entrar a B', splitX*CELL + (W - splitX*CELL)/2, H - 10);
   }
 
   const ent = s.entities || [];
   const agents = ent.filter(e => e.kind === 'agent');
-  // capa 1: recursos y objetos
+  const kinds = new Set();
+
   for (const e of ent) {
     if (e.kind === 'agent') continue;
     const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
     if (e.kind === 'resource') {
       const rk = e.attrs?.kind || 'generic';
+      kinds.add(rk);
+      const amt = Math.round(e.attrs?.amount ?? 0);
       ctx.fillStyle = rColor(rk);
       ctx.fillRect(e.x*CELL+4, e.y*CELL+4, CELL-8, CELL-8);
-      ctx.fillStyle = '#0b0d11'; ctx.font = 'bold 9px system-ui'; ctx.textAlign='center';
-      const amt = Math.round(e.attrs?.amount ?? 0);
-      ctx.fillText(amt > 0 ? amt : '', px, py+3);
+      if (amt > 0) {
+        ctx.fillStyle = 'rgba(9,11,15,.85)'; ctx.font = '700 9px system-ui'; ctx.textAlign='center';
+        ctx.fillText(amt, px, py+3);
+      }
     } else if (e.kind === 'object') {
-      // casa: cuerpo + techo
-      ctx.fillStyle = '#7a8699';
-      ctx.fillRect(e.x*CELL+3, e.y*CELL+7, CELL-6, CELL-9);
-      ctx.fillStyle = '#a06a4a'; // techo
+      ctx.fillStyle = '#7a8699'; ctx.fillRect(e.x*CELL+3, e.y*CELL+7, CELL-6, CELL-9);
+      ctx.fillStyle = '#a06a4a';
       ctx.beginPath();
-      ctx.moveTo(e.x*CELL+1, e.y*CELL+8);
-      ctx.lineTo(px, e.y*CELL+1);
-      ctx.lineTo((e.x+1)*CELL-1, e.y*CELL+8);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#2a2f3a'; // puerta
-      ctx.fillRect(px-3, (e.y+1)*CELL-6, 6, 6);
+      ctx.moveTo(e.x*CELL+1, e.y*CELL+8); ctx.lineTo(px, e.y*CELL+1);
+      ctx.lineTo((e.x+1)*CELL-1, e.y*CELL+8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#252b38'; ctx.fillRect(px-3, (e.y+1)*CELL-6, 6, 6);
     }
   }
-  // capa 2 (SIEMPRE encima): agentes, para que no queden tapados por recursos
-  for (const e of agents) {
+
+  // agentes siempre encima, para que no queden tapados
+  agents.forEach((e, idx) => {
     const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
-    const idx = agents.indexOf(e);
-    const hue = (idx*137.5)%360;
-    ctx.fillStyle = `hsl(${hue} 70% 55%)`;
+    const energy = s.agents?.[e.eid]?.energy ?? 0;
+    ctx.fillStyle = `hsl(${(idx*137.5)%360} 70% 58%)`;
     ctx.beginPath(); ctx.arc(px, py, CELL*0.38, 0, Math.PI*2); ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = '#0b0d11'; ctx.stroke(); // borde para contraste
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign='center';
-    ctx.strokeStyle = '#0b0d11'; ctx.lineWidth = 3;
-    ctx.strokeText(e.eid.replace(/[^0-9]/g,''), px, py+3);
-    ctx.fillText(e.eid.replace(/[^0-9]/g,''), px, py+3);
-  }
-  const phaseIcon = phase === 1 ? '🌙' : (phase === 0 ? '☀️' : '');
-  document.getElementById('timeLabel').textContent =
-    `${phaseIcon} día ${s.day} · tick ${s.tick} · frame ${frame+1}/${snapshots.length}`;
+    ctx.lineWidth = 2; ctx.strokeStyle = energy <= 0 ? '#ef6d6d' : '#090b0f'; ctx.stroke();
+    const n = e.eid.replace(/[^0-9]/g,'');
+    ctx.font = '700 10px system-ui'; ctx.textAlign='center';
+    ctx.strokeStyle = '#090b0f'; ctx.lineWidth = 3; ctx.strokeText(n, px, py+3);
+    ctx.fillStyle = '#fff'; ctx.fillText(n, px, py+3);
+  });
+
+  // barra de estado narrativa
+  const alive = agents.filter(a => (s.agents?.[a.eid]?.energy ?? 0) > 0).length;
+  document.getElementById('nowLabel').textContent =
+    `${phaseIcon(phase)} Día ${s.day} · fase ${phaseName(phase)}`;
+  document.getElementById('chipAlive').innerHTML =
+    `<span class="dot" style="background:${alive === agents.length ? 'var(--ok)' : (alive ? 'var(--warn)' : 'var(--bad)')}"></span>
+     <b>${alive}</b>&nbsp;de ${agents.length} con energía`;
+  document.getElementById('chipBorder').innerHTML = phase === 1
+    ? `<span class="dot" style="background:var(--bad)"></span>frontera a B <b>cerrada</b>`
+    : `<span class="dot" style="background:var(--region-b)"></span>frontera a B <b>abierta</b>`;
+  document.getElementById('chipFrame').textContent = `momento ${frame+1} de ${snapshots.length}`;
+  fillLegend(agents, kinds);
 }
 
 function updatePanels() {
   const s = snapshots[frame];
-  const agentsList = document.getElementById('agentsList');
-  agentsList.innerHTML = '';
-  const ents = s.entities || [];
-  const agents = ents.filter(e => e.kind === 'agent');
-  for (const a of agents) {
+  const list = document.getElementById('agentsList');
+  const agents = (s.entities || []).filter(e => e.kind === 'agent');
+  list.innerHTML = '';
+  agents.forEach((a, idx) => {
     const info = s.agents?.[a.eid] || { energy: 0, inventory: {} };
-    const hue = (agents.indexOf(a)*137.5)%360;
-    const row = document.createElement('div'); row.className = 'agentRow';
-    const inv = Object.entries(info.inventory||{})
-      .map(([k,v]) => `${rName(k)}:${Math.round(v)}`).join(' · ') || 'vacío';
-    const reg = regionOf(a.x);
-    const fz = phaseOf(s);
-    const faseTxt = fz === 1 ? '🌙 oscura' : (fz === 0 ? '☀️ clara' : '');
-    const energyPct = Math.min(100, info.energy);
-    const barColor = info.energy < 20 ? '#e06060' : (info.energy < 45 ? '#e0a050' : 'var(--acc)');
+    const inv = Object.entries(info.inventory||{}).filter(([,v]) => v > 0)
+      .map(([k,v]) => `${rName(k)} ×${Math.round(v)}`).join(' · ') || 'sin nada encima';
+    const e = info.energy;
+    const color = e <= 0 ? 'var(--bad)' : (e < 20 ? 'var(--bad)' : (e < 45 ? 'var(--warn)' : 'var(--acc)'));
+    const tag = e <= 0 ? '<span class="tag dead">sin energía</span>'
+              : (e < 20 ? '<span class="tag low">en riesgo</span>' : '');
+    const row = document.createElement('div');
+    row.className = 'agent' + (e <= 0 ? ' dead' : '');
     row.innerHTML = `
-      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${esc(a.eid)}
-        <span class="dim">· región ${esc(reg)} · ${esc(faseTxt)}</span></div>
-      <div class="bar"><div style="width:${energyPct}%;background:${barColor}"></div></div>
-      <div class="inv">energía ${Math.round(info.energy)} · ${esc(inv)}</div>`;
-    agentsList.appendChild(row);
-  }
-  fillAgentLegend(agents);
+      <div class="top">
+        <span class="dot" style="background:hsl(${(idx*137.5)%360} 70% 58%)"></span>
+        ${esc(a.eid)} ${tag}
+        <span class="meta">región ${esc(regionOf(a.x))}</span>
+      </div>
+      <div class="bar"><i style="width:${Math.max(0,Math.min(100,e))}%;background:${color}"></i></div>
+      <div class="inv">energía ${Math.round(e)} · ${esc(inv)}</div>`;
+    list.appendChild(row);
+  });
+
   const key = s.day*100000 + s.tick;
   const logList = document.getElementById('logList');
-  logList.innerHTML = '';
   let relevant = events.filter(e => (e.day*100000+e.tick) <= key);
   if (okOnly) relevant = relevant.filter(e => e.outcome === 'ok');
+  if (!relevant.length) {
+    logList.innerHTML = '<p class="caption">Todavía no ha pasado nada en este momento.</p>';
+    return;
+  }
+  logList.innerHTML = '';
   for (const e of relevant.slice(-40)) {
     const div = document.createElement('div');
     div.className = 'logLine ' + (e.outcome === 'ok' ? 'ok' : 'impossible');
-    const [verbOk, verbFail] = ACTION_VERBS[e.action] || [e.action, e.action + ' (fallido)'];
-    const verb = e.outcome === 'ok' ? verbOk : verbFail;
+    const [vOk, vFail] = ACTION_VERBS[e.action] || [e.action, e.action + ' (falló)'];
+    const verb = e.outcome === 'ok' ? vOk : vFail;
     let extra = '';
     if (e.outcome === 'ok') {
       if (e.detail?.resource) extra = ` ${rName(e.detail.resource)}${e.detail.amount ? ' ×'+Math.round(e.detail.amount) : ''}`;
       if (e.detail?.structure) extra = ` ${e.detail.structure}`;
       if (e.action === 'consume' && e.detail?.energy_gain != null)
-        extra += ` (energía ${e.detail.energy_gain > 0 ? '+' : ''}${e.detail.energy_gain})`;
+        extra += e.detail.energy_gain >= 0
+          ? ` y ganó ${Math.abs(Math.round(e.detail.energy_gain))} de energía`
+          : ` y perdió ${Math.abs(Math.round(e.detail.energy_gain))} de energía`;
       if (e.action === 'expelled' && e.detail?.to)
-        extra = ` a (${e.detail.to[0]},${e.detail.to[1]}) por cierre de B`;
+        extra = ` de la región B al cerrarse la frontera`;
       if (e.action === 'death' && e.detail?.reason === 'starvation')
-        extra = ' de inanición (48 ticks sin energía)';
+        extra = ' de inanición';
     } else {
-      const reasons = { blocked:'camino bloqueado', out_of_bounds:'fuera del mapa', no_energy:'sin energía', not_adjacent:'demasiado lejos', depleted:'recurso agotado', not_enough:'no tiene suficiente', cell_occupied:'lugar ocupado', missing_material:'le faltan materiales', not_a_resource:'no es un recurso', no_such_entity:'no existe', no_such_agent:'no existe', not_in_alphabet:'símbolos inválidos (solo k1..k4)' };
-      extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'inválido');
+      const reasons = { blocked:'el camino estaba bloqueado', out_of_bounds:'quedaba fuera del mapa',
+        no_energy:'no le quedaba energía', not_adjacent:'estaba demasiado lejos',
+        depleted:'el recurso estaba agotado', not_enough:'no tenía suficiente',
+        cell_occupied:'el lugar estaba ocupado', missing_material:'le faltaban materiales',
+        not_a_resource:'eso no es un recurso', no_such_entity:'no existe',
+        no_such_agent:'no existe', not_in_alphabet:'usó símbolos inválidos' };
+      extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'no se pudo');
     }
-    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${esc(e.eid)}</b> ${esc(verb)}${esc(extra)}`;
+    div.innerHTML = `<span class="badge">d${e.day}·t${e.tick}</span><b>${esc(e.eid)}</b> ${esc(verb)}${esc(extra)}`;
     logList.appendChild(div);
   }
   logList.scrollTop = logList.scrollHeight;
 }
 
-// drag & drop
+// teclado: espacio reproduce, flechas mueven momento a momento
+document.addEventListener('keydown', ev => {
+  if (!snapshots.length || /input|textarea/i.test(ev.target.tagName)) return;
+  if (ev.code === 'Space') { ev.preventDefault(); togglePlay(); }
+  else if (ev.key === 'ArrowRight') { ev.preventDefault(); goTo(frame+1); }
+  else if (ev.key === 'ArrowLeft')  { ev.preventDefault(); goTo(frame-1); }
+});
+
 const drop = document.getElementById('drop');
 document.addEventListener('dragover', e => { e.preventDefault(); drop.style.display='flex'; });
 document.addEventListener('dragleave', () => drop.style.display='none');
@@ -392,13 +653,19 @@ document.getElementById('fileInput').addEventListener('change', e => {
   const f = e.target.files[0];
   if (f) f.text().then(t => loadFromText(t, f.name));
 });
+document.getElementById('speed').addEventListener('input', () => {
+  if (playing) { playing = false; togglePlay(); }
+});
+logoImg.onload = () => { if (snapshots.length) render(); };
 
-// soporte ?file=ruta.jsonl: abre directo (útil para enlazar archivos del repo)
+fillInfo();
+
+// ?file=ruta.jsonl para enlazar corridas directamente
 (function loadFromQuery() {
   const q = new URLSearchParams(location.search).get('file');
   if (!q) return;
   fetch(q).then(r => r.text()).then(t => loadFromText(t, q.split('/').pop()))
-    .catch(err => console.error('No pude cargar ?file=', q, err));
+    .catch(err => showError('No se pudo cargar ' + q));
 })();
 </script>
 </body>

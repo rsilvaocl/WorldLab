@@ -131,7 +131,36 @@ def test_llm_agent_horizonte_invalid_clamped():
     agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
     world = make_world()
     action, kwargs, trace, horizonte = agent.decide(world)
-    assert horizonte == 96  # clamp
+    assert horizonte == 24  # clamp al tope (antes 96; fix de Opus: 1 fase = 24 ticks)
+
+
+def test_llm_agent_prompt_no_miente_sobre_metabolismo():
+    """Fix de Opus: el prompt NO debe afirmar que dormir ahorra energía.
+
+    Antes decía 'pide dormir más (ahorras energía y costos)' — falso, el
+    metabolismo corre en cada tick duerma o no. El oráculo dormía 96 ticks
+    creyendo que ahorraba. El texto debe declarar el costo real por tick."""
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 1})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
+    world = make_world()
+    prompt = agent._ask_model  # se construye en el flujo; usamos _system_prompt + el user real
+    # El mensaje user se arma en _ask_model; verificamos la cadena del sistema
+    sys_prompt = agent._system_prompt()
+    # El texto mentiroso no puede aparecer en ningún lado
+    assert "ahorras energía" not in sys_prompt
+    assert "pide dormir más" not in sys_prompt
+    # El contrato de metabolismo debe estar en el mensaje user real
+    # (lo verificamos monkeando chat_json para capturar el user message)
+    captured = {}
+
+    def fake_chat(messages):
+        captured["user"] = messages[-1]["content"]
+        return {"action": "rest", "args": {}, "sleep_ticks": 1}
+
+    client.chat_json = fake_chat
+    agent.decide(world)
+    assert "0.5 de energía por tick" in captured["user"]
+    assert "1..24" in captured["user"]
 
 
 # ---------------------------------------------------------------------------
