@@ -105,8 +105,14 @@ def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity
 
 
 def make_agents(condition: str, model_name: str, client: LLMClient,
-                world_cfg: WorldConfig) -> Dict[str, Any]:
-    """Crea 5 agentes para la condición. Devuelve {eid: agente} para policy y hooks."""
+                world_cfg: WorldConfig,
+                force_sleep: Optional[int] = None) -> Dict[str, Any]:
+    """Crea 5 agentes para la condición. Devuelve {eid: agente} para policy y hooks.
+
+    force_sleep (ABLATION, None en el experimento): fija el horizonte de
+    despertar e ignora el que pide el modelo. Se aplica idéntico en las 3
+    condiciones LLM — nunca a una sola, o sería ventaja diferencial.
+    """
     agents: Dict[str, Any] = {}
     for i in range(5):
         eid = f"a{i}"
@@ -114,16 +120,19 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           system_rules=ORACLE_RULES,
                           think_every=8, hunger_threshold=30.0,
-                          model_name=model_name, memory=None)
+                          model_name=model_name, memory=None,
+                          force_sleep=force_sleep)
         elif condition == "memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name,
-                          memory=LiteralMemory(max_items=80, label="memory"))
+                          memory=LiteralMemory(max_items=80, label="memory"),
+                          force_sleep=force_sleep)
         elif condition == "sin_memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
-                          model_name=model_name, memory=None)
+                          model_name=model_name, memory=None,
+                          force_sleep=force_sleep)
         else:  # baseline_empirico — control de comparación, 0 tokens
             ag = EmpiricalAgent(eid, BaselineParams(eat_threshold=30.0,
                                                     build_min=4.0,
@@ -135,9 +144,10 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
 
 def run_world(condition: str, density: float, seed: int, days: int,
               model_name: str, client: LLMClient, out_dir: Path,
-              exp_prefix: str = "piloto") -> Dict[str, Any]:
+              exp_prefix: str = "piloto",
+              force_sleep: Optional[int] = None) -> Dict[str, Any]:
     cfg = make_world_config(days)
-    agents = make_agents(condition, model_name, client, cfg)
+    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep)
     eids = sorted(agents.keys())
     entities = spawn_positions(eids, cfg, seed)
     if condition == "baseline_empirico":
@@ -233,6 +243,10 @@ def main() -> None:
                     help="retomar: salta mundos ya completados (checkpoint por mundo)")
     ap.add_argument("--out-dir", default="data/silver/piloto",
                     help="directorio de salida (cada corrida con params distintos va a dir propio)")
+    ap.add_argument("--force-sleep", type=int, default=None,
+                    help="ABLATION: fija sleep_ticks e ignora el que pide el modelo "
+                         "(separa 'no supo qué hacer' de 'no tuvo turnos'). "
+                         "Marca los datos como ablation_no_confirmatorio.")
     ap.add_argument("--exp-prefix", default="piloto",
                     help="prefijo de archivos de experimento (p.ej. 'ronda1' para la ronda 1)")
     args = ap.parse_args()
@@ -287,10 +301,14 @@ def main() -> None:
                 continue  # ya completado en una corrida previa
             t0 = time.time()
             r = run_world(condition, density, seed, days, model_name, client,
-                          out_dir, exp_prefix=args.exp_prefix)
+                          out_dir, exp_prefix=args.exp_prefix,
+                          force_sleep=args.force_sleep)
             dt = time.time() - t0
             r["elapsed_s"] = round(dt, 1)
-            r["estado"] = "desarrollo_no_confirmatorio"
+            r["estado"] = ("ablation_no_confirmatorio" if args.force_sleep
+                           else "desarrollo_no_confirmatorio")
+            if args.force_sleep:
+                r["force_sleep"] = args.force_sleep
             results.append(r)
             # CHECKPOINT: escribir el summary tras CADA mundo — si el proceso
             # muere (p.ej. el scheduler), el progreso no se pierde

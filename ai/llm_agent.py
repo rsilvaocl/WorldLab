@@ -38,7 +38,8 @@ class LLMAgent:
                  system_rules: str = "", think_every: int = 12,
                  hunger_threshold: float = 30.0, radius: int = 6,
                  model_name: str = "", near_trigger_radius: int = 0,
-                 memory: Optional[LiteralMemory] = None):
+                 memory: Optional[LiteralMemory] = None,
+                 force_sleep: Optional[int] = None):
         self.eid = eid
         self.client = client
         self.goal = goal
@@ -49,6 +50,12 @@ class LLMAgent:
         self.model_name = model_name or client.describe()
         self.near_trigger_radius = near_trigger_radius  # 0 = trigger desactivado
         self.memory = memory                  # registro literal de eventos propios (o corrupto)
+        # ABLATION (no experimento): si se fija, el horizonte del modelo se
+        # IGNORA y se usa este valor. Sirve para separar "no sabe qué hacer"
+        # de "no tuvo turnos para hacerlo": con sleep=24 el agente dispone de
+        # 60 decisiones en 30 días y necesita ~83 acciones solo para cubrir el
+        # metabolismo. Lo que el modelo pidió igual se registra en el trace.
+        self.force_sleep = force_sleep
         self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
@@ -84,10 +91,12 @@ class LLMAgent:
             return "rest", {}, None, None
 
         observation = self._build_observation(world)
-        action, kwargs, raw = self._ask_model(observation)
+        action, kwargs, raw = self._ask_model(
+            observation, energy_per_tick=world.config.energy_per_tick)
 
         # D-018: el agente elige su propio horizonte de despertar (en ticks)
-        horizonte = self._parse_horizonte(raw)
+        horizonte_modelo = self._parse_horizonte(raw)
+        horizonte = horizonte_modelo if self.force_sleep is None else self.force_sleep
 
         trace = {
             "observation": observation,
@@ -98,6 +107,11 @@ class LLMAgent:
             "model": self.model_name,
             "raw_response": raw,
         }
+        if self.force_sleep is not None:
+            # el horizonte NO lo eligió el agente: la corrida queda marcada y
+            # se conserva lo que habría pedido, para poder analizarlo después.
+            trace["sleep_forced"] = self.force_sleep
+            trace["sleep_ticks_modelo"] = horizonte_modelo
         return action, kwargs, trace, horizonte
 
     @staticmethod
@@ -154,14 +168,19 @@ class LLMAgent:
         es en predict_effect() — pregunta sin decir nada (forced-choice)."""
         return {"risk_note": "world model NO prestado (el agente no recibe predicciones)"}
 
-    def _ask_model(self, observation: Dict[str, Any]) -> Tuple[str, Dict[str, Any], str]:
+    def _ask_model(self, observation: Dict[str, Any],
+                   energy_per_tick: float = 0.5) -> Tuple[str, Dict[str, Any], str]:
         system = self._system_prompt()
+        # El costo se LEE de la config del mundo, no se escribe a mano: el
+        # texto anterior afirmaba 0.5 mientras el piloto corría a 0.3 (mismo
+        # defecto que D-020 — un número inventado en el prompt).
+        met = round(float(energy_per_tick), 3)
         user = (
             "Estado actual:\n" + json.dumps(observation, ensure_ascii=False) +
             "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}, \"sleep_ticks\": N}\n"
             "donde sleep_ticks (1..24) = en cuántos ticks quieres volver a decidir. "
-            "El metabolismo te consume 0.5 de energía por tick, duermas o no: "
-            "dormir N ticks te cuesta N×0.5 de energía y pierdes lo que pase mientras tanto."
+            f"El metabolismo te consume {met} de energía por tick, duermas o no: "
+            f"dormir N ticks te cuesta N×{met} de energía y pierdes lo que pase mientras tanto."
         )
         try:
             raw = self.client.chat_json([
