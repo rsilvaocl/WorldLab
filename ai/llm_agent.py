@@ -130,6 +130,10 @@ class LLMAgent:
             "phase": vis.get("phase", 0),
             "visible": vis.get("visible", []),
             "heard": vis.get("heard", []),
+            # D-026: botones ejecutables AHORA con args ya rellenados. No dice
+            # qué hacen — solo que existen. Elimina el ruido de saber escribir
+            # la API del motor (91-96% de rechazos en el piloto).
+            "acciones_disponibles": world.available_actions(self.eid),
         }
         # memoria literal: registro de eventos propios (o corruptos, condición aparte)
         if self.memory is not None:
@@ -214,6 +218,10 @@ class LLMAgent:
             "Eres un agente autónomo en un mundo 2D.\n"
             "Reglas del mundo:\n"
             "- El mundo valida tus acciones: las imposibles se rechazan.\n"
+            "- En tu observación, 'acciones_disponibles' lista SOLO las acciones "
+            "ejecutables en este instante, con sus argumentos ya rellenados. "
+            "Elige una de ESA lista y respeta sus args. Si una acción no está, "
+            "no es posible ahora.\n"
             "- gather solo funciona si el recurso está a 1 casilla de distancia (adyacente). "
             "Si el recurso está más lejos, primero usa move para acercarte (dx,dy son pasos de 1 casilla).\n"
             "- consume convierte inventario en energía; come cuando tengas hambre.\n"

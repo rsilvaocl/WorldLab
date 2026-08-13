@@ -724,3 +724,90 @@ class WorldState:
                 "phase": self.phase(),
                 "heard": list(self.inbox.get(eid, [])[-5:]),   # últimos 5 mensajes oídos
                 "visible": seen}
+
+    def available_actions(self, eid: str) -> List[Dict[str, Any]]:
+        """Acciones EJECUTABLES en este instante, con argumentos ya rellenados (D-026).
+
+        NO es prestar un world model: se dicen los botones que existen, no qué
+        hacen. El agente sigue sin saber qué efecto tiene consumir S2 aquí y
+        ahora — eso es lo único que el experimento le pide descubrir. Lo que
+        se elimina es el ruido de saber escribir la API del motor (91-96% de
+        rechazos del piloto: gather lejano, consume sin rkind).
+
+        La lista replica las condiciones del validador (can_move, adyacencia,
+        inventario, materiales) para que SOLO aparezcan acciones que el motor
+        aceptaría. Aplicada idéntico en las 4 condiciones (D-026).
+        """
+        agent = self.agents.get(eid)
+        if agent is None:
+            return [{"action": "rest", "args": {}}]
+        ent = agent.entity
+        actions: List[Dict[str, Any]] = []
+
+        # move: solo direcciones que el validador aceptaría (y alcanza la energía)
+        if agent.energy >= self.config.move_energy:
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                ok, _ = self.can_move(eid, dx, dy)
+                if ok:
+                    actions.append({"action": "move", "args": {"dx": dx, "dy": dy}})
+
+        # gather: recursos a distancia <= 1 con cantidad disponible
+        for other in self.entities.values():
+            if other.kind != "resource":
+                continue
+            if abs(other.x - ent.x) + abs(other.y - ent.y) > 1:
+                continue
+            if float(other.attrs.get("amount", 0.0)) <= 0:
+                continue
+            actions.append({"action": "gather",
+                            "args": {"target_eid": other.eid, "amount": 1}})
+
+        # pickup: recursos DROPEADOS (suelo) a distancia <= 1 con cantidad
+        for other in self.entities.values():
+            if other.kind != "resource" or not other.attrs.get("owner_dropped"):
+                continue
+            if abs(other.x - ent.x) + abs(other.y - ent.y) > 1:
+                continue
+            if float(other.attrs.get("amount", 0.0)) <= 0:
+                continue
+            actions.append({"action": "pickup", "args": {"target_eid": other.eid}})
+
+        # consume / drop: desde el inventario (solo lo que tiene)
+        for rkind, qty in agent.inventory.items():
+            if qty > 0:
+                actions.append({"action": "consume", "args": {"rkind": rkind, "amount": 1}})
+                actions.append({"action": "drop", "args": {"rkind": rkind, "amount": 1}})
+
+        # give: a agentes adyacentes, por cada recurso que tiene
+        for other in self.agents.values():
+            if other.entity.eid == eid:
+                continue
+            if abs(other.entity.x - ent.x) + abs(other.entity.y - ent.y) != 1:
+                continue
+            for rkind, qty in agent.inventory.items():
+                if qty > 0:
+                    actions.append({"action": "give",
+                                    "args": {"target_eid": other.entity.eid,
+                                             "rkind": rkind, "amount": 1}})
+
+        # build: recetas que alcanza con su inventario, en celdas adyacentes libres
+        for structure, recipe in self.config.recipes.items():
+            if any(agent.inventory.get(rkind, 0.0) < need for rkind, need in recipe.items()):
+                continue
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = ent.x + dx, ent.y + dy
+                if not self.in_bounds(nx, ny):
+                    continue
+                if self.entities_at(nx, ny):
+                    continue
+                actions.append({"action": "build",
+                                "args": {"structure": structure, "x": nx, "y": ny}})
+
+        # talk: símbolo del alfabeto, si tiene energía (cost = 1.0)
+        if agent.energy >= 1.0 and self.config.symbol_alphabet:
+            actions.append({"action": "talk",
+                            "args": {"message": self.config.symbol_alphabet[0]}})
+
+        # rest: siempre disponible
+        actions.append({"action": "rest", "args": {}})
+        return actions
