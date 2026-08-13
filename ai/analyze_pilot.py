@@ -103,7 +103,8 @@ def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, 
                 subexposed.append({
                     "condition": r["condition"], "density": r["density"],
                     "seed": r["seed"], "eid": eid,
-                    "exposure": cells, "low_cells": low,
+                    "exposure": {f"{reg}-{phase}": n for (reg, phase), n in cells.items()},
+                    "low_cells": low,
                 })
     frac = len(subexposed) / total_agents if total_agents else 0.0
     return {"total_agents": total_agents, "subexposed": subexposed,

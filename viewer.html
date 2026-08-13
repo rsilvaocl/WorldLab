@@ -40,6 +40,10 @@
   #drop { position:fixed; inset:0; background:rgba(77,163,255,.12); border:3px dashed var(--acc); display:none; align-items:center; justify-content:center; font-size:20px; z-index:9; }
   #fileInput { display:none; }
   .tip { color:var(--dim); font-size:11px; }
+  #infoPanel { padding:10px; border-bottom:1px solid var(--border); font-size:11px; background:var(--panel); }
+  #infoBody { color:var(--dim); line-height:1.55; font-size:11px; }
+  #infoBody b { color:var(--txt); }
+  #legendAgents { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 </style>
 </head>
 <body>
@@ -62,6 +66,7 @@
       <span class="lg"><span class="sw" style="background:#7a8699"></span> construcción</span>
       <span class="lg">☀️ fase clara / 🌙 fase oscura</span>
       <span class="lg">A/B regiones — 🔒 B bloqueada de noche</span>
+      <span class="lg" id="legendAgents"></span>
       <span class="lg tip">El número en cada recurso es la cantidad disponible</span>
     </div>
     <div id="controls">
@@ -73,6 +78,7 @@
     </div>
   </div>
   <div id="right">
+    <div id="infoPanel"><h2>Sobre este experimento</h2><div id="infoBody">Cargue un archivo .jsonl para ver la explicación de esta simulación.</div></div>
     <div id="agentsPanel"><h2>Agentes</h2><div id="agentsList"></div></div>
     <div id="logPanel"><h2>Eventos</h2><div id="logList"></div></div>
   </div>
@@ -86,6 +92,13 @@
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null, okOnly = true;
 const CELL = 22;
+
+// Logo oficial del proyecto como marca de agua de fondo (decisión del Comandante):
+// en grande y con opacidad para no molestar la lectura de la data.
+const logoImg = new Image();
+logoImg.src = 'assets/logo.jpg';
+const LOGO_ALPHA = 0.10;   // opacidad del watermark (10% — sutil, no molesta)
+const LOGO_SIZE = 0.42;    // fracción del ancho del canvas
 
 const RES_NAMES = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
 const RES_COLORS = { food:'#58c26a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
@@ -132,6 +145,51 @@ function regionOf(x) {
   return x < w * split ? 'A' : 'B';
 }
 
+// ---------------------------------------------------------------
+// Info del experimento (panel derecho) + leyenda de agentes.
+// El meta trae "experiment": "piloto_sin_memoria_4_s8" — se parsea
+// para mostrar la condición de forma legible (SOLO para el visor).
+// ---------------------------------------------------------------
+const COND_LABELS = {
+  sin_memoria: 'Sin memoria (LLM, sin registro de eventos)',
+  memoria: 'Con memoria (LLM, registro literal de eventos)',
+  oraculo: 'Oráculo (LLM con las reglas del mundo)',
+  baseline_empirico: 'Baseline empírico (reactivo determinista)',
+};
+function expInfo() {
+  if (!meta?.experiment) return null;
+  const m = String(meta.experiment).match(/^piloto_([a-z_]+)_(\d+)_s(\d+)$/);
+  if (!m) return { raw: meta.experiment };
+  return { cond: m[1], dens: parseInt(m[2], 10) / 100, seed: parseInt(m[3], 10) };
+}
+function fillInfo() {
+  const body = document.getElementById('infoBody');
+  if (!meta) { body.innerHTML = 'Cargue un archivo .jsonl para ver la explicación de esta simulación.'; return; }
+  const ei = expInfo();
+  const condTxt = ei?.cond ? (COND_LABELS[ei.cond] || ei.cond) : (ei?.raw || '—');
+  const res = meta.resource_names ? Object.entries(meta.resource_names)
+    .map(([k, v]) => `${k} = ${v}`).join(' · ') : 'S1..S4 opacos';
+  body.innerHTML = `
+    <b>WorldLab</b> — simulación multi-agente: ¿puede un agente aprender
+    las reglas del mundo y <b>componerlas</b> para predecir lo que nunca vivió?<br><br>
+    <b>Condición:</b> ${condTxt}${ei?.dens != null ? ` · densidad ${ei.dens*100}%` : ''}${ei?.seed != null ? ` · seed ${ei.seed}` : ''}<br>
+    <b>Mundo:</b> ${meta.width}×${meta.height} · ${meta.days} días · ${meta.ticks_per_day} ticks/día<br>
+    <b>Ciclo:</b> ${meta.n_phases || 2} fases (☀️/${meta.n_phases === 2 ? '🌙' : '…'}) · ${meta.phase_ticks} ticks por fase<br>
+    <b>Regiones:</b> A/B separadas en ${Math.round((meta.region_split || 0.5)*100)}% — 🔒 B bloqueada en fase oscura<br>
+    <b>Recursos:</b> ${res}<br><br>
+    <b>La pregunta:</b> al final se le pide al agente predecir la celda que
+    <i>nunca</i> vivió (B-oscura). Solo se acierta componiendo reglas
+    aprendidas — imposible por memoria (azar ~17%).`;
+}
+function fillAgentLegend(agents) {
+  const leg = document.getElementById('legendAgents');
+  if (!agents.length) { leg.innerHTML = ''; return; }
+  leg.innerHTML = '<b style="color:var(--dim)">agentes:</b> ' + agents.map((a, i) => {
+    const hue = (i * 137.5) % 360;
+    return `<span class="lg"><span class="sw circ" style="background:hsl(${hue} 70% 55%)"></span>${a.eid}</span>`;
+  }).join('');
+}
+
 function parseFile(text) {
   const lines = text.split('\n').filter(l => l.trim());
   const data = { snapshots: [], events: [] };
@@ -152,7 +210,7 @@ function loadFromText(text, name) {
   document.getElementById('fileInfo').textContent = name + ' · ' + snapshots.length + ' frames · ' + events.length + ' eventos';
   const scr = document.getElementById('scrub');
   scr.max = snapshots.length - 1; scr.min = 0; scr.value = 0;
-  frame = 0; render(); updatePanels();
+  frame = 0; render(); updatePanels(); fillInfo();
 }
 
 function goTo(i) { frame = Math.max(0, Math.min(snapshots.length-1, i)); render(); updatePanels(); }
@@ -184,6 +242,15 @@ function render() {
   ctx.strokeStyle = phase === 1 ? '#232838' : '#1d222c'; ctx.lineWidth = 1;
   for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,h*CELL); ctx.stroke(); }
   for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(w*CELL,y*CELL); ctx.stroke(); }
+
+  // MARCA DE AGUA: logo grande centrado, con opacidad, detrás de la data
+  if (logoImg.complete && logoImg.naturalWidth > 0) {
+    const side = Math.round(w * CELL * LOGO_SIZE);
+    ctx.save();
+    ctx.globalAlpha = LOGO_ALPHA;
+    ctx.drawImage(logoImg, (w*CELL - side) / 2, (h*CELL - side) / 2, side, side);
+    ctx.restore();
+  }
 
   // REGIONES A/B: línea divisoria + etiquetas
   const splitX = Math.round((meta?.region_split ?? 0.5) * w);
@@ -275,6 +342,7 @@ function updatePanels() {
       <div class="inv">energía ${Math.round(info.energy)} · ${inv}</div>`;
     agentsList.appendChild(row);
   }
+  fillAgentLegend(agents);
   const key = s.day*100000 + s.tick;
   const logList = document.getElementById('logList');
   logList.innerHTML = '';
