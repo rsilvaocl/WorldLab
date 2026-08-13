@@ -116,11 +116,27 @@ d=7%, flag `--backend openai` agregado en `0172947`).
 recolecta más (84 vs 50), navega hacia los recursos desde el día 1. **Y muere
 igual (día 12, un día más tarde).**
 
-**Implicación para la decisión del oráculo:** el fallo NO es (solo) del 7B.
-Ni un LLM de gran escala competente sobrevive 30 días a d=7% con metabolismo
-0.3/tick. El baseline empírico sí (11.081 gathers, 4.931 consumes), pero es
-una política determinista optimizada — ningún LLM alcanza esa eficiencia
-energética. Esto REDEFINE el Paso 2: ya no es "qué modelo usa el oráculo"
-sino "¿es el mundo sobrevivible para CUALQUIER LLM a esta duración/densidad?".
-Si el techo informado (oráculo) colapsa, LE no tiene denominador. Decisión
-para Opus.
+**Implicación (precisión de Terra aplicada):** el fallo NO es (solo) del 7B.
+No sabemos que el mundo sea inviable para *cualquier* LLM — sabemos que es
+inviable a 30d/d=7% para los **dos perfiles evaluados**: `qwen2.5:7b` local y
+`deepseek-chat` informado. Eso ya basta para bloquear LE en Ronda 1: DeepSeek
+descarta la hipótesis cómoda de que era solo insuficiencia del 7B — entiende
+el contrato, navega, recolecta y consume mucho más, pero no alcanza la
+eficiencia de supervivencia.
+
+**Lectura (Terra):** el mundo es habitable para una **política reactiva
+optimizada** (baseline empírico), pero NO para un **agente LLM que decide vía
+llamadas discretas**, incluso informado. El problema dejó de ser "qué oráculo
+elegir" y pasó a: ¿es la supervivencia de largo horizonte un prerrequisito
+legítimo de la prueba de composición? No suavizar el mundo (contaminaría la
+interpretación). Opciones para Opus:
+
+1. **Separar Ronda 1 como evaluación de capacidad/viabilidad LLM**, sin LE ni
+   pretensión de composición.
+2. **Rediseñar el protocolo** para que el probe de composición ocurra ANTES de
+   que la supervivencia sea el cuello de botella (declarando el cambio antes
+   de re-correr).
+3. **Mantener el diseño** y aceptar que la hipótesis exige modelos/agentes más
+   eficientes que los probados.
+
+Con DeepSeek, "probar otro modelo" deja de ser la acción más informativa.
