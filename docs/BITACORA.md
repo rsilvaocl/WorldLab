@@ -145,6 +145,36 @@ producir la conclusión falsa.
 
 ---
 
+## Hallazgo que afecta a la ronda 0 (2026-08-13, posterior al cierre)
+
+**El motor congelaba a los agentes que elegían su horizonte de despertar.**
+`next_think = world.tick + horizonte`, contra un `world.tick` que se reinicia a 0
+cada día. Todo horizonte que cruzara la medianoche daba un valor inalcanzable: el
+agente no volvía a decidir **nunca**, salvo que su energía cayera bajo 15 —
+moribundo. Fix en `ai/simulate.py` (reloj absoluto) + test permanente.
+
+Qué implica para lo ya registrado, sin adornos:
+
+- La asimetría **"el baseline sobrevive y los LLM no"** tiene una causa mecánica.
+  `EmpiricalAgent` no devuelve horizonte, así que nunca se congelaba. Comparábamos
+  un agente que actuaba 1.440 veces contra agentes congelados.
+- **"El oráculo solo caminó"** (1.202 `move`, 0 `consume`) es el síntoma exacto de
+  un agente que decide una vez, se duerme para siempre y despierta moribundo.
+- El diagnóstico **"el 7B no traduce la tabla en planificación espacial"** se apoya
+  en corridas donde el agente no tuvo turnos. No es falsable con esos datos —
+  puede ser cierto, pero está sin medir.
+
+Los 96 mundos del piloto y los dos smokes siguen siendo válidos como validación de
+andamiaje. **Ninguna conclusión sobre supervivencia o composición de las
+condiciones LLM sobrevive a este hallazgo.** Se re-mide con el motor arreglado.
+
+Cómo se encontró: no por leer el código, sino por contrastar el presupuesto físico
+(1.440 ticks × 0,3 de metabolismo ⇒ ~83 acciones mínimas para no morir) contra las
+acciones observadas (68 entre 5 agentes). La brecha no la explicaba ninguna
+hipótesis sobre el modelo.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
