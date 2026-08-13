@@ -72,12 +72,14 @@ operacionalmente "oráculo". Opciones, de menor a mayor intervención:
 3. **Aceptar que el 7B no es agente viable a 30 días** y reportarlo como
    resultado de ronda 0 (no fallo de andamiaje).
 
-Nota (Terra/Codex, vía Comandante): sugiere `qwen3:4b` con thinking
-desactivado como alternativa. **Sin validar en este repo** — el skill
-documenta `qwen2.5:7b` (max_tokens≈120) como verificado para agent loops y
-advierte contra `qwen3:8b` por el modo thinking (500-1000 tokens ocultos).
-`qwen3:4b` es más pequeño que el actual; requeriría un smoke propio antes de
-aceptarlo.
+Nota (Terra/Codex, vía Comandante): sugirió `qwen3:4b` con thinking
+desactivado. **PROBADO y DESCARTADO (13/08, smoke a nivel de modelo)**:
+instalado `qwen3:4b`; el razonamiento va al campo `reasoning` de la
+respuesta — con `max_tokens` bajo el `content` queda vacío. `"think": false`
+es CONTRAproducente (razona 3× más — 800 vs 282 tokens — y deja `content`
+vacío). Default produce JSON válido en `content` pero ~5.6s/llamada y ~280
+tokens (vs 1.5s/120 de `qwen2.5:7b`): más lento y más pequeño, sin beneficio
+como oráculo. La sugerencia de Terra no se sostiene empíricamente.
 
 **La decisión se escribe en `docs/DECISIONES.md` ANTES de correr la ronda 1**
 (criterio de Opus, sin negociar). Queda a la espera de la luz verde.
