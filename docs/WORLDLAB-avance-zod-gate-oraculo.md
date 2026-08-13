@@ -116,6 +116,15 @@ d=7%, flag `--backend openai` agregado en `0172947`).
 recolecta más (84 vs 50), navega hacia los recursos desde el día 1. **Y muere
 igual (día 12, un día más tarde).**
 
+**Hallazgo fino — por qué muere DeepSeek (con datos):** comió 69 veces, TODAS
+en región A. Desglose del `energy_gain`: 30× S2-A-fase1 = **+1**, 23×
+S2-A-fase0 = **−2**, 5× S4-A-fase1 = **−8**, 11× S3 = 0. O sea, **28 de 69
+comidas le restaron energía** (neto ≈ −86). La comida buena (S2 en B = +7)
+estaba INTACTA al final: 8 celdas de S2 en B con stock, y los agentes pisaron
+B solo **4 de 61 snapshots**. No es falta de comida ni de movimiento — es que
+**no cruza a la región donde la comida vale**: come donde cae mal (A) y se
+envenena, mientras la comida de +7 está a unos pasos en B, sin tocar.
+
 **Implicación (precisión de Terra aplicada):** el fallo NO es (solo) del 7B.
 No sabemos que el mundo sea inviable para *cualquier* LLM — sabemos que es
 inviable a 30d/d=7% para los **dos perfiles evaluados**: `qwen2.5:7b` local y
