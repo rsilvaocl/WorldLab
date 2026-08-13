@@ -24,8 +24,15 @@ def load_results(out_dir: Path) -> List[Dict[str, Any]]:
         return json.load(f)
 
 
-def probe_rates(out_dir: Path, condition: str, density: float, seed: int) -> Dict[str, Any]:
-    """Tasa de acierto (level_correct) separando celdas vividas de la retenida."""
+def probe_rates(out_dir: Path, condition: str, density: float, seed: int,
+                subexposed_eids: Optional[set] = None) -> Dict[str, Any]:
+    """Tasa de acierto (level_correct) separando celdas vividas de la retenida.
+
+    D-025 (corte de exposición): los probes retenidos de agentes SUB-EXPONENTES
+    (<3 consumos en alguna celda vivida) se reportan APARTE, fuera del score
+    de composición — un agente sin experiencia en una celda vivida no tiene de
+    dónde componer, y su fallo diría 'faltaban datos', no 'no compuso'.
+    """
     prefix = f"piloto_{condition}_{int(density*100)}_s{seed}"
     probes = []
     p = out_dir / f"{prefix}_probes.jsonl"
@@ -37,9 +44,17 @@ def probe_rates(out_dir: Path, condition: str, density: float, seed: int) -> Dic
                 probes.append(json.loads(line))
     if not probes:
         return {}
+    subexposed_eids = subexposed_eids or set()
 
+    # D-025: los probes de salida (exit_starvation) de agentes sub-expuestos
+    # NO entran al score de composición. Los del momento "final" de un agente
+    # bien expuesto SÍ.
     lived = [r for r in probes if not r["never_lived"]]
-    retained = [r for r in probes if r["never_lived"]]
+    retained_all = [r for r in probes if r["never_lived"]]
+    retained = [r for r in retained_all
+                if r["eid"] not in subexposed_eids]
+    retained_sub = [r for r in retained_all
+                    if r["eid"] in subexposed_eids]
     lived_correct = sum(1 for r in lived if r["level_correct"]) if lived else 0
     retained_correct = sum(1 for r in retained if r["level_correct"]) if retained else 0
     return {
@@ -47,6 +62,8 @@ def probe_rates(out_dir: Path, condition: str, density: float, seed: int) -> Dic
         "lived_rate": lived_correct / len(lived) if lived else None,
         "n_retained": len(retained),
         "retained_rate": retained_correct / len(retained) if retained else None,
+        "n_retained_subexposed": len(retained_sub),
+        "retained_subexposed_correct": sum(1 for r in retained_sub if r["level_correct"]),
     }
 
 
@@ -107,8 +124,13 @@ def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, 
                     "low_cells": low,
                 })
     frac = len(subexposed) / total_agents if total_agents else 0.0
+    # D-025: claves (condition, density, seed, eid) de sub-expuestos, para
+    # excluir SUS probes retenidos del score de composición
+    subexposed_keys = {(s["condition"], s["density"], s["seed"], s["eid"])
+                       for s in subexposed}
     return {"total_agents": total_agents, "subexposed": subexposed,
-            "frac_subexposed": round(frac, 3)}
+            "frac_subexposed": round(frac, 3),
+            "subexposed_keys": subexposed_keys}
 
 
 def main() -> None:
@@ -138,28 +160,8 @@ def main() -> None:
               f"| supervivientes μ={statistics.mean(surv):.1f}")
 
     # 2+3. probes: celdas vividas (sub-check) y retenida (composición)
-    print("\n2) SUB-CHECK: tasa de acierto en CELDAS VIVIDAS (si falla, mundo difícil)")
-    print("3) COMPOSICIÓN: tasa de acierto en el probe RETENIDO vs azar ~17%")
-    for (cond, dens), rs in sorted(groups.items()):
-        lived_rates, retained_rates = [], []
-        n_retained_total, n_retained_ok = 0, 0
-        for r in rs:
-            pr = probe_rates(out_dir, cond, dens, r["seed"])
-            if not pr:
-                continue
-            if pr.get("lived_rate") is not None:
-                lived_rates.append(pr["lived_rate"])
-            if pr.get("retained_rate") is not None:
-                retained_rates.append(pr["retained_rate"])
-                n_retained_total += pr["n_retained"]
-                n_retained_ok += round(pr["retained_rate"] * pr["n_retained"])
-        lr = statistics.mean(lived_rates) if lived_rates else float("nan")
-        rr = n_retained_ok / n_retained_total if n_retained_total else float("nan")
-        print(f"  {cond:11s} d={dens:.0%} | vividas: {lr*100:5.1f}% | retenida: {rr*100:5.1f}% "
-              f"({n_retained_ok}/{n_retained_total})")
-
-    # 2b. EXPOSICIÓN por celda (Opus): si un agente no vivió una celda, su
-    # fallo en el probe retenido es "no tenía qué componer", no "no compuso".
+    # D-025: la exposición se calcula PRIMERO — los probes retenidos de
+    # agentes sub-expuestos quedan FUERA del score de composición.
     print("\n2b) EXPOSICIÓN POR CELDA (consumos OK por agente en A-clara/A-oscura/B-clara)")
     expo = exposure_summary(results, out_dir)
     if expo["total_agents"] == 0:
@@ -177,6 +179,34 @@ def main() -> None:
         if expo["frac_subexposed"] > 0.5:
             print("  ⚠️ MAYORÍA SUB-EXPONENTE: el hallazgo del piloto no es sobre "
                   "modelado — es que 30 días no alcanzan para recorrer el mundo.")
+
+    print("\n2) SUB-CHECK: tasa de acierto en CELDAS VIVIDAS (si falla, mundo difícil)")
+    print("3) COMPOSICIÓN: tasa de acierto en el probe RETENIDO vs azar ~17% "
+          "(solo agentes bien expuestos; los sub-expuestos van aparte, D-025)")
+    subkeys = expo.get("subexposed_keys", set())
+    for (cond, dens), rs in sorted(groups.items()):
+        lived_rates, retained_rates = [], []
+        n_retained_total, n_retained_ok = 0, 0
+        n_sub, n_sub_ok = 0, 0
+        for r in rs:
+            sub_eids = {eid for (c, d, s, eid) in subkeys
+                        if c == cond and d == dens and s == r["seed"]}
+            pr = probe_rates(out_dir, cond, dens, r["seed"], subexposed_eids=sub_eids)
+            if not pr:
+                continue
+            if pr.get("lived_rate") is not None:
+                lived_rates.append(pr["lived_rate"])
+            if pr.get("retained_rate") is not None:
+                retained_rates.append(pr["retained_rate"])
+                n_retained_total += pr["n_retained"]
+                n_retained_ok += round(pr["retained_rate"] * pr["n_retained"])
+            n_sub += pr.get("n_retained_subexposed", 0)
+            n_sub_ok += pr.get("retained_subexposed_correct", 0)
+        lr = statistics.mean(lived_rates) if lived_rates else float("nan")
+        rr = n_retained_ok / n_retained_total if n_retained_total else float("nan")
+        sub_txt = f" | sub-expuestos aparte: {n_sub_ok}/{n_sub}" if n_sub else ""
+        print(f"  {cond:11s} d={dens:.0%} | vividas: {lr*100:5.1f}% | retenida: {rr*100:5.1f}% "
+              f"({n_retained_ok}/{n_retained_total}){sub_txt}")
 
     # 4. costo real
     print("\n4) COSTO")
