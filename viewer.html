@@ -108,6 +108,12 @@ function rName(rk) {
   if (meta?.resource_names && meta.resource_names[rk]) return meta.resource_names[rk];
   return RES_NAMES[rk] || rk;
 }
+// Escape HTML para valores que vienen del .jsonl (hallazgo de seguridad de
+// Opus, pendiente 7): el repo está publicado y un .jsonl de un tercero abierto
+// en el visor NO debe poder ejecutar JavaScript. SOLO valores del archivo;
+// números y valores calculados por el visor no lo necesitan.
+const esc = s => String(s).replace(/[&<>"']/g, c => (
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function rColor(rk) {
   if (RES_COLORS[rk]) return RES_COLORS[rk];
   if (meta?.resource_names && meta.resource_names[rk]) {
@@ -172,11 +178,11 @@ function fillInfo() {
   body.innerHTML = `
     <b>WorldLab</b> — simulación multi-agente: ¿puede un agente aprender
     las reglas del mundo y <b>componerlas</b> para predecir lo que nunca vivió?<br><br>
-    <b>Condición:</b> ${condTxt}${ei?.dens != null ? ` · densidad ${ei.dens*100}%` : ''}${ei?.seed != null ? ` · seed ${ei.seed}` : ''}<br>
-    <b>Mundo:</b> ${meta.width}×${meta.height} · ${meta.days} días · ${meta.ticks_per_day} ticks/día<br>
-    <b>Ciclo:</b> ${meta.n_phases || 2} fases (☀️/${meta.n_phases === 2 ? '🌙' : '…'}) · ${meta.phase_ticks} ticks por fase<br>
-    <b>Regiones:</b> A/B separadas en ${Math.round((meta.region_split || 0.5)*100)}% — 🔒 B bloqueada en fase oscura<br>
-    <b>Recursos:</b> ${res}<br><br>
+    <b>Condición:</b> ${esc(condTxt)}${ei?.dens != null ? ` · densidad ${esc(ei.dens*100)}%` : ''}${ei?.seed != null ? ` · seed ${esc(ei.seed)}` : ''}<br>
+    <b>Mundo:</b> ${esc(meta.width)}×${esc(meta.height)} · ${esc(meta.days)} días · ${esc(meta.ticks_per_day)} ticks/día<br>
+    <b>Ciclo:</b> ${esc(meta.n_phases || 2)} fases (☀️/${meta.n_phases === 2 ? '🌙' : '…'}) · ${esc(meta.phase_ticks)} ticks por fase<br>
+    <b>Regiones:</b> A/B separadas en ${esc(Math.round((meta.region_split || 0.5)*100))}% — 🔒 B bloqueada en fase oscura<br>
+    <b>Recursos:</b> ${esc(res)}<br><br>
     <b>La pregunta:</b> al final se le pide al agente predecir la celda que
     <i>nunca</i> vivió (B-oscura). Solo se acierta componiendo reglas
     aprendidas — imposible por memoria (azar ~17%).`;
@@ -186,7 +192,7 @@ function fillAgentLegend(agents) {
   if (!agents.length) { leg.innerHTML = ''; return; }
   leg.innerHTML = '<b style="color:var(--dim)">agentes:</b> ' + agents.map((a, i) => {
     const hue = (i * 137.5) % 360;
-    return `<span class="lg"><span class="sw circ" style="background:hsl(${hue} 70% 55%)"></span>${a.eid}</span>`;
+    return `<span class="lg"><span class="sw circ" style="background:hsl(${hue} 70% 55%)"></span>${esc(a.eid)}</span>`;
   }).join('');
 }
 
@@ -336,10 +342,10 @@ function updatePanels() {
     const energyPct = Math.min(100, info.energy);
     const barColor = info.energy < 20 ? '#e06060' : (info.energy < 45 ? '#e0a050' : 'var(--acc)');
     row.innerHTML = `
-      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${a.eid}
-        <span class="dim">· región ${reg} · ${faseTxt}</span></div>
+      <div class="name"><span style="width:10px;height:10px;border-radius:50%;background:hsl(${hue} 70% 55%)"></span>${esc(a.eid)}
+        <span class="dim">· región ${esc(reg)} · ${esc(faseTxt)}</span></div>
       <div class="bar"><div style="width:${energyPct}%;background:${barColor}"></div></div>
-      <div class="inv">energía ${Math.round(info.energy)} · ${inv}</div>`;
+      <div class="inv">energía ${Math.round(info.energy)} · ${esc(inv)}</div>`;
     agentsList.appendChild(row);
   }
   fillAgentLegend(agents);
@@ -367,7 +373,7 @@ function updatePanels() {
       const reasons = { blocked:'camino bloqueado', out_of_bounds:'fuera del mapa', no_energy:'sin energía', not_adjacent:'demasiado lejos', depleted:'recurso agotado', not_enough:'no tiene suficiente', cell_occupied:'lugar ocupado', missing_material:'le faltan materiales', not_a_resource:'no es un recurso', no_such_entity:'no existe', no_such_agent:'no existe', not_in_alphabet:'símbolos inválidos (solo k1..k4)' };
       extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'inválido');
     }
-    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${e.eid}</b> ${verb}${extra}`;
+    div.innerHTML = `<span class="badge">d${e.day}t${e.tick}</span><b>${esc(e.eid)}</b> ${esc(verb)}${esc(extra)}`;
     logList.appendChild(div);
   }
   logList.scrollTop = logList.scrollHeight;
