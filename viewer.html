@@ -3,670 +3,1501 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WorldLab — Visor</title>
+<meta name="color-scheme" content="dark">
+<title>WorldLab — Panel de corrida</title>
 <style>
-  :root {
-    /* Paleta tomada del logo: fondo casi negro azulado, trazos cian → azul → violeta.
-       Cian y violeta NO son decoración: identifican las regiones A y B. */
-    --bg:#0d0f14;
-    --surface:#151922;
-    --surface-2:#1b2029;
-    --border:#252b38;
-    --border-strong:#333b4c;
-    --ink:#e4e9f0;
-    --ink-2:#aab4c4;      /* 6.4:1 sobre --surface */
-    --dim:#8d97a8;
-    --acc:#4da3ff;
-    --region-a:#3fd0c9;
-    --region-b:#9b7fe8;
-    --ok:#5fd68a;
-    --warn:#e8b45c;
-    --bad:#ef6d6d;
-    --r-sm:6px; --r-md:10px;
-    --z-drop:40;
-    --ease:cubic-bezier(.22,1,.36,1);
-  }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  html,body { height:100%; }
-  body {
-    background:var(--bg); color:var(--ink);
-    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-    font-size:14px; line-height:1.5;
-    display:flex; flex-direction:column; overflow:hidden;
-  }
-  button, input { font:inherit; color:inherit; }
-  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:4px; }
+/* Saira Condensed, subseteada y embebida: el visor abre desde file:// sin red.
+   Es la letra de placa condensada del panel; no hay sustituto instalado. */
+@font-face{font-family:'WL Placard';font-style:normal;font-weight:400;font-display:block;src:url(data:font/woff2;base64,d09GMgABAAAAABfAAA4AAAAAMTAAABdpAAASbgAAAAAAAAAAAAAAAAAAAAAAAAAAGjQbjiQcbAZgAIMyEQgKwTCxHgE2AiQDhAwLgggABCAFhAIHIBsjJ7OiXpNaHSb4LxO4MSTsA7twSSxq2LxVjqaoekermkQxrOWN6vjcu7BMf7NHEpErWxumi4UpwqHGjpBklucfjvGe+370unBAm3XrrBI4EihSZPxpZYVJwyj97wd+m73/gU+oKMrEmAyjaKmS/EQL6sRKDHAzFh0uW65qt4zzIreLjJ3//3Ple4GFdzdnhSsgugr1YWYzSyxbVhOb2GWQwAWFsvynSAadk/uoRYfwRGED5xxLlNpIN7CItL06CuD//9b9z9S99RuhCImnL3LlgzgPwOD/1ipt1dTOAtfdheCAXNAD+0QoFrK2qmeuq//WQHeg63qWevegN9RzxLNzxCrALu5eVF5Uz01gdo9YhsmTigQWnoSQQEK7CBWVMSVcRbfRtRHrOWRjeaO0QTzh2I6xKEK/YgcCTAIrgGr/TfkQIlYIClSaNAgUzg5BhPgBAozj0iBs2+EJA/P09M4+YF5oHY4BExHQfwzk/MnpMaAABQQKsxQKDEhWxAWRjAhEOgSiF8LfRSgmIrAJGwIF3YQgqBERh+iGQMg1y5DImTjmKDnWJNJwZHhcHFPK0UMhqoZuQHCZ3qg5fMKadOg1aLcDjkl43gW3fOprv0KkQREQYahSpcmUZcC+TZFPo0E/xJTeQbG7Q6yBuU4vR3iE6fk0hX1QVEeW9FgpLsPlmIcVWInVnBN60sfehcrpGzEaFNJHlb2DIPQPCu0hmX8AU9JrpQmXYR5W4/hPUoQOEYoOI4ZDaHsDLQoQQa2vfskmgW7PDR878643rG82YJy6WR9lTuvN7orrWVmg22/71Rydtfmv0u6wpY9mjpXoxspi5kiwz/rcZFXZ4TYsO8leeDDUthtrf0+sR43+0PRez+6MI8IlywqHAF1I0iOC8gZCR8mYlIoNacdfsQ+WRiCuZXqjh1CALJyfCkVDkJQa/D9DD8Vh8DKgIEl7kIyGpijTJMkSNFk2xeQA6XhpBAeUIn8wVKEiKUqUo+MFSicuRSYlw6CgnEgVKIOa0mkog5am0g1Go1cpnZEJkTlQJgtNV0PTRGiabkrVTwlilCDOrwB8JQC/IvEBLfHr8S6zQhD0IkVddGqS3Prcntaewi/KtdhUPFlznO4hmMGkxcpu4+KrCCKRz6yioaULE6seojj5AN2NozAgHsiAoBqM4MIUD5WqFUipIxjBgPIEWLoASxQhA2oCICkCYnIItUhaMJXIJt5iKgLsXsKFdFz5fF+6ECRd+vQbEIMiUNYA1UIQiURIIgBSrISkSegC0JIlJMM1QgCCU4RACGniZ+WlVJ1y4Wx3KwkQSTQoUDCWBLy4dEw2KC4cSsAOJYFAcBHzWDYigLpbU4G98Mw5QRIJYGgYei0D/kOC43trfXABZ52H+IwTDF7OM0AAmakEsAYZKGAAWIAAARYgZh+wAQdRFhG1+Q5IeMbLLrrprgmvecu7HvjIV77zk1/87d81zCZrymbqvP+PrCGmYRif0SRNAUsuNJ2mxcRYOBKTVPPQOAqE+FaAg2/HB/5BRa8FQKiAY+qWF152MVWjOoNmmq1Jl25VpqnRK6JFtWajho2oNwv6/ZW4MG5Lkox+vWqG9PZRyMSSJVuOXGxTcOQr0CGk0zytFipUrESpMlw8fAJiFSSkZBRU1AdW6bvKFlZt5mo3Q1QPBKf0XzW+dtgyDOA+GDsIJscBfAce6XnV/wQDKg88SCLJzvKGvEpOFNASLUY4orgT8sW4Lg4RaIGcwdSCkBBJfU3QooO1o4Q4uiZJnqDPPWA4HCkKpbRsNbShjnYco6LAUS+PuGNJWdthUIR+IoPWjzEwdyu2hB3lhYF16KRnBmmH2HTadf9vNhbrlkeXlnQVimi2LdPQgb/TX5WceyQwott6NEoYjJUOHLifJfkxWpkCNDcaZERJPWrrJIfPOTKGivSbns0jyectJ9lq6SZ87DarU1f82ZOUc06EQNa/ped0ghmlIpvbz6SGN20vdNtsKlotnwQBwogWMRQY9rblxQxvlXIilpnjpXrkcuSfrpXwEOEjQIjgPTmMfXhFOlIc1VD8GLl8UwJUHUpB6iQ4nqMW9QgiDIXKrZY0Ur1vDa2bj2F+yJM4I75W660+Ca+RxKxKKcvj2VdiGehhJjuqeVYhtes//4krBKfyGjuhS/v9RzM4o09mvcHL8oH8UEnS3k6PjYqOwK1eq5wOmlICoXBEEnR7lBsh7M9jlaSMCAvq3MQFpyBYAl+kRnIS1yAfGuUjB+SBu6s4oo6I3BtOxBSZktq+lN6wa9GeGBmh0luSO445WX6zZi6Am2wRFWo5ftea2+fPZIXYj6q6fDDQHtVzOFrJDLQeK8cqtnsxAy3t8Wk8+YqxEQ9i19lYdYndXOXNx2Z/NEP9Lks+gGYdCxulcgIozduIQKnfqeyg3CxWn0p1orljEcIn/EymjOPEe/RottttFdWMMoL3NjI2Uz2DCn7WWR7s8E4WsnCIoJjuSZERguEWasr1xBvlWt1/qw8a49vgr4V6obVwnvEwYGaqt+FNGpuOFwn/z51OzoTk/ezP4GTAjYqHo3Vo9oAbSGmxh33NWoYU+9MCaNd+kSSO7+FnkBEXTszgnVnv7EWzlmc0Ard6tpK5Cmz4CQAE3m+Wkdm6IjOxJ9bs8ARZJ0pR1AYuzpje2ED70Hb46rCMW1F14gjYHDf3mgP56qLel0Ko2CKwEVX5Z+5efKg9zOEM75R5fnm5mkrNHPTYyJXO5AzkTjOTiexegclRmPSQe6A1jQtHLBwjB2u9Q+/lxbK5ZT8ioQ3TrFS9zx9vGdqyOvcllC7Gu2N4agPn4VBlW/UHs73gqE+UvD5edjvtlSb9eTlKo0zqo7BGuD2GZILz7N1lYLR/JtfzRhXZJ4sd2n8BfiyxFquOWHNUGyh7WOlD+h7uWgbFEufy3PwYZjFyRXc5A5Ii8950Pu3LSlTdbUVJamA0QDWQyHi1oLxc4ord752PuXDijBDe4HXey66ZsI5uJAywvriQfb/44ULb4RsfP4/8CmTa1ZCNTXIURgbGpdf8YPL+HCdxhzgiV2JO+BNvCKy8G48oqlomp3z2KW7S0ZjqfeE+2I90fyj0RXQ5SJVp0mzLDaOsFH2LdzT7+pkWJ576uIFLcUhJzNUk7Yi8+TnqEx8BSsOIQGLf3Px7zOA1Mli/+vkDxKTTlhRHFztjz7luZ7b/FH9K1u6SSSx3Nlkzt6euWHNV28tKXzIbGkwPmpu4kf6im6mh8f+eE1JafJorlgPSkSSuGGSFwu5sATIL43M1axkTWbpAmZbrRsfn4+eNGay1fvejeQLwl7q2BVrB3ubgyI5zzNxkJ0c+nmqdxRN7O7yBxiYpK+b1bOfadPLD01cS4a71Gvx7mpG+KOCfWZbu/MOgneRritX+jlXmkSw2zdL0Cy6AiFN276BQ9ux/rh7yWr4tIw92i1JFUZF/80ZAl6Os3agWIF/PdlH1h2Fn9YahyQn55gxt9dMl248d85kcz6q4jtggOv+a8Lz7ifG28dX9JEwKh8bBNj5R7awN28U+N/GBIGwP21ta7/44T20QpF/nTv9xulF73Wr7Uzvy9wjUweeTI1XyyevHdpdKVYrI5Lfk+pkltqG0+OrVoeKQTfJlJdjGj3SEpVnL9+4NTP+mdxw5YLLxGX3r1jL6ddZaPuAJm/nvn5rYO3/9jQGeUJi/QSZME3z4R2Acby+N0Arra2X5m3btyN9Uq2goiyQdMxz1UFjB/1jT1i9mTJ9llJV+BwvUP6hdCZf0B6krAc6EOwFmY/7cxsvuxFJG0ze1UAkLD2q9OnfCLfEerAg+6Xu6BfCEu/99K9AOE3fyrTv4RIE90b9DiO0U9iZgwbdpRIYj4f+STKQ4EnCAHJKzVh48CIbN29qwcKUpLzW+cWPsyjMakSiwjd/BbQrmVAeOH7VNiS9C3M+YxPfvqDV3zotjfPggTgjo4mFum/IvYZQ8mu05HC+4ULPPi897izIwusZv+Gg1k75okjvxqt0mZVZb3eyWwob8jdUPb8gV118Sj2QNwxKyN9lUFMLyyr7+7sEirnLOJdsQY/vuZIu6p7amtXHcYE6y8tj37s0pEM5c8GScsf2fi06Nl1PrKbXAyf5d1nnWXf1wYXzZctYsn6Suzi9hzV62zH28OcX/g1r9Q7K/+Tg8fXrct9aDrfW4T43D7QEhsV/YtGDc22YmxczhuBlrMbsXjMOCNdnY6uxgou5cdXgVkzRWCJ4LJerhCWrimH+ZFwt/vJ7HjlEhz8AQ0czthnQRywzN5A/CmkxjnySvi1hUiV2QsRzYEo0xxYNb87ODfkslwUb63swW7Emc/sKSP53z7bXy0quGIniN/MNDjGAzfGEvJb2xX6R9wIr19WXF39M2R1P8jY0p/qioaGxeD9Ekkep7BseKoQyOTXZZpRnRaDSr3yK2Tn56kuakSHyOHqirpwdfEktXa2Ep+XbWQH8fK35HK97/BqnU/sU2DuHhD8IfxhZECUZV9eLR8TLBrOSV/nBhzhdYkI7TNObnNZ1+cnHQKWRFBwYyehwVQY9JlNY57d6tHcnWwKVkZ6rZWgqNF1x6V43lOzPDqirv/bCgvVnffNEOi64ZMY2XwNN501yhVNLV/WLdbdZAX19W7LZO8OFDEgGvfDKWFfNJw0rYO3iyUcwNL9tfIoqm+BobU3xREZjKHfdk5cIxqtNOtX9hLyHlWJtVy9ODLosddFtC7pBjyyP7I6h8JfB9onySx7k5kuW3a/Xb41pQzP5Y/skDkdfksx541/6+AYPKL/rgICh3nP+1hL+S6nRR7VznWXbiaqrLvvNHBgKOPRmVKy27sad2yhU1axZuR1D35qkTStWK9IDbbIfVZLyc2T0yIpnOBIOQGSyWEZq8hupua8NZ1kikc2ie1tb+OVIw/KfmyB5+KNC+lxXr62fFHmhF+98g/W+v/xnnfSvZu7hWIG5csHJjKWj1pDf2i7V3WJfYxdxtrdB/e3zZrv1z/5JqXoXUEJ0/ViziECv9OjVht4w8hUM2llnj/NkOO8lebKn2b2tJ6IkpxfO5be3033MsumKjmSWfYiPbNB1mjCPaJMmfz6tqSf7Fka0I241BaLro0ru22rdO1U+9CGacZPtCXOddWblgNy1wkZWwf81/rr7DWO9hhzEdlgcWY+OENdP/c4b3YRlXzeqG9uH2GwKa3uukvuueDejqv/2d50ld592r/txAhEXXOjVVlZog3eFlkhKjSnVPesivspc77hVy1zpasv3Z3uyYVxqAAtU7K1/VlynfXfVAD9vJbtmklYcOSaYz9Y3IZSw9hoVVprMpsU2bcJazas3Z5IHNm/+HwFkNzK1uFuHDVkUCRk2p5qn+WrIrbXlxk7LQJJNwPhKp6mj6NxsoXBWeWe52q9OsLnR91bxpDXwBbCGHKJn6OppCUHFU4dwtjZgi5a/bFcMVFXku7HXD7yFKPh4oKvCZnHz3C8Svha6AmR0M8bww5fD/WnXC/9Stx1Ie6f53YI7DsEEtk9VpNYa6do3SkdIjNH/x4Qk1budmVeEhdkMV15cfpmB6uEi2MRL3ZpP6WqZi8U3p1hplLdtP/V1vS9Jab6T3zSZdHdOZbDmcYCiS2+gp8/JMr5YZcdoFueyz7ytcGfjnIph6dyDF3KC9MwxHyeEydtCmzjDFqcR3yz0uc763qsjlChble82ucs8tIjWeYVLb2MFwmV+05NdCmTzj14qKXzPkssJfxWIzWq3UyFGpFJVrlNVoBTxNDlA/39Jhess8apxx9oVB0kBTO3n0YqRGFMCbTXu1JK9mGXFaQg7vfU1ZIsOWxBx7RjWjuj0xJ7ZMRlk66Fw3qp2h3QP3FEmfsM1Jr7FB+V+kKqLwYStY7wNogpHoZEZ+JFQl//gIvxBUh2pwuD/gfURwUF4rHagaEJHPko7J6ecfwv/X4Sz2RXUfxKR0T37ap6zl3FBPuTFzZYjGlf68p0PKxryLyeOzCMzmfZ6hnVF8I9SnXltzhi/4bglPYqIZMA85r8bon2rNqepQnR2O5tgs2PlIMALPbK/ijkazN2LLrQrl33u3yGYNPXNmR1/W2tFa4be1PMeQb3rJbFC/SD3qxb20owHamJnLTBi2bsX3m5UBhk/YJrkXcFKr18LOBcpuzbA8H9/I3Vgqyoc1yp5iFYPfJJ45x8MiVXfuDLEZYqhANCSYTZ8xz51Jipm5M9HdUKgqvpJg0G6Ym1H3vGDbNm+XvJqQNE6RQ+42JHrXPJjn4bVmbFq8iLm5Rgvt6jJrUQ1z56pVzF2BfSZQg9JfVJ1dtZJ3V5fb1M4Mv/XGUIsWMzfxWkRONSgYulu6ETLspepf02UT8OXSia28gvysUganNrDKT6uWovwcGMkvOiB7Zdp+igqBulDBwEu2CdqAJpp79258xuJA/tav8ZUu/L2wdBG3rSFl53o8aLaYiD6198Bxou6IHcsJbJEWbtBVNadYZ/HUfi1uJHrV8Jpj+3bd9m3abTt0O7aD/n1djw7enhgc3DXqadNOlu5pu6cNVvPkGayK6n5C26MFvamyaA7KVnbvtMFRU9cOW9fOd44OZlWu+XxK5gtJs8pTM57m8LlrP5vCrNMGS+bQmUfrPNCveInuDYfl9PMVFedTSER1iuelCo7COy7r2yO3+6NOZ9Sfm9s8nt6cm9r30jmvOpyyyFjOoM7MUrkwL1zviylyt129Kpn+rVy3PibP2XYtyojg5b1q0rHyInWmQ5J5vazIQmDLXxSUMV//WfaPTT0/w2L5TpWBkJ21Y7RFD2e86bM8cS03afGBI/QlJxykTaLun7kTvZM+K35dwq7LimwozN8/lguPZhuqZZl11OJIA48TsPgFOJ34Pdfp1BX46svDhXVUlobkI+fiZlZYpi0y6w0GA//um2LlW68pJXYD9K69+bzR9PxNiSTUmYzuqQDOjgoP5Oa22Csq7C254D+w0rwShO+1vNf6nmEewzIODqQ8Sb7CTfKsAOY6j9UTSy5U1dkuyS1HZWCfiJUy+3ab7oxQU0c5fEOfIWPtKRYvue4A6H57FcyH27A1xsnkVjyZWmALSR+5CEZhoWJS4D2JeG66sx+IYNiCq7MqLpQDDnoWqDJBnsVCVNZGAFlVv+iYUpDJ40pfxS8IHXWHHxEu5SY7CRcWxCQfc851pqaYhghk6M0/D+TTwBy4xveQs9fbgdk4Q343eT8yMZdG1FykIQUjB+oLIjx3TCUwfXPuAF4pdahZHn4bE9RKcGjKc/wUkE29GZce8547V5+q+08hEL4EvNtm9AHw8Qx48pHy0UF/3qAZGIECBPzWKjNw31X7P8mfCnvlr+VXYBrkh/Th/N/Cs5E8P2n5GHAC7zQ/mdVWaq8HnHDWv6XlI3jm1NWueNowDOSZTECM0XfPmBeUZa+0QsEoDjj30OoJ9HyKkcegOSEvJxXc5F9SmWYiMMTPeNmYeP5Vla7Qo6qyr1/ZiWXqMTTl6rBniDinkEd582WWkjAwfWldVW6bjOowKWPS8WBEQUm86qHY90/Jk25yniTMcey8jpNnKPJgfqhbZOdrkjzAz3aiFGC4RAW6qHA94wRT0YEvhkzUpFiIUkLsGDGVy84XPcgATJIj6f6Bj5zsd4aJ6QMqypyeWE4dNcFIjgRBeY6XFecQaT5luPEepx8b8MJU5mnamktSp+mLoSIaEh8LZIzQOlg4JsGXqxjmAhDgmkEUHUglA4P4TkdEECCDVAAvAWwsgu3aWBTdp2MJzH4eSySMbCxJTtqeGww/c1nEDZpluqhuPYZxSIhVUOAIf3BnENIq6pWtUQa0juudQ7uUNhmJukc8yiHulYn/BjuIajPykUJXuVkGdTLqNsAo+6fQTl+4HB/HDFEuzJGdTXZqOVoX7sDRJS6mkcFrNWDW6gUdY2sKzQSLnOwAxBhph6rvq9uIfq2mExMSU5LQquZWy0fLVKxdiwBWROvaOJ1XozNAEJVYjWPGytPtEPSuqVUSAAA=) format('woff2')}
+@font-face{font-family:'WL Placard';font-style:normal;font-weight:600;font-display:block;src:url(data:font/woff2;base64,d09GMgABAAAAABfEAA4AAAAAMMwAABdsAAASbgAAAAAAAAAAAAAAAAAAAAAAAAAAGjQbjkAcbAZgAIMyEQgKwEiwSgE2AiQDhAwLgggABCAFg2oHIBvTJiNS1NIM8NcFPBlvvBJKvCxtRT337a6R8qa0O7Sr6/222Pu6YoIB+NzUSrGchPGrB1i1KhZssQgLCg6NMtwojuH39WmtNkKSWSKIrax62DsiIiSvYsLSXCY5aPvI6H4oiYSbmpazflc6bVc6066UOAhOnhBOOoEdhfiR5Fae/pGmf+64/I6JArrRXHAEYRZ4FngaFFGOj/A7PL/NnkUaBRigZAutjjQIiTSgFdFvBq7atYsIdZddnqshvWry75kzlOxTlTux9AK6c7I6AElO1bcov/4C+DfXZo5iKP1LsFosb1FYMXxacMGVB1lw5R7u/3SW7YxmiXSUheqAukuKivtrU6dpRiNZ1p/x2PyitfxyOmLJDshBQ0B2wiUQ9d4LaUPEZYoWqE6fNn2dl5KKuouOIbqgStt/swSMtkZWpZuSMyK0gOjefbgfAfoAY4By/moUoLIFpCIWFoisrIc49D8F6CWnhx2LW9yg/B5s7wblb2S4F5TjgHXlTp/NBntBEigA682TfhWgYpCwgww4EDYIvUHnXlIuzoIaZbdCKzIXXnj2iGcJk7N3FNoZit6PKDLUAR15U77twern1zQm7bi7PhU5HBjgZBtJ8rSLnOh0F7rarV4PnBkAWRCGkzRmFi4ePmERUT33hqGw9a//c+8JU6aXeDApMHk0RTRlNFU0TTR7vzmiuV7d4WenCh8wIx2ChQVKBeWqeNp6YJp4Vi9VfwMDAwMPDMrxXL/j1+5PO3SlGLAjJmBGbahfV5YeOChbgRicoPWyjY/iDmoTvfgOHfV5vZ4MPZxc/Ja7ZhfUvlnpJ5XXK+P9jBpfWFprrhdVmbYyydq2G0PXqxXtQDtNxnsV/CiMsWXWjNNuMU8csxAIB3Ev2EVVOFRNSFjWBRmacYAtrACrXVRpdQHNd+owenqy8/8PHRKRFvYZBjr7vwBBT0dHz8FJz81Nz8vLzMdHCAlDERGKqCgSl2CQkmWUl2dUUSHVNVi1tBl1dFh1dRn19Fj19ZkMDGiGxmwmVhJmVik3t1qpC1vaLU/asz5JH4bpvozSfdsjjfzpAD9GTKMDbUaUNUiMt0lMN81xmdOSr1Ppi83irhm9u7b24nXC4Uk1KbM9p6DqQdKs7OjpG/iITgclR94cX5AI5+KAlISmQY39qg4x98jFuA2SRAr1JeRYCTlKRBHUv8DxEWJkSKp9akxwijRWXphDJ8+tPWZ7q9PuT4XwZMiwEaPxCE8QWg8EmU1YLxg/K7FOFUyC4pUIwy7CBLOIMMJS/Dv0IHam3q0SERLBOdRQRWwfGF4tE4clTc6KpmhNU4NQDh+3k0MH5cM8sMzd5zJriAH1VKyuErna6WsCTzXroE7f/83gv5A7dFkof1o4YkMBijQMMYEXlY/z/ygxpwjOo6zrxzU3usMDHvKU57zkFW9427s+8pXv/OQXf/u38WtGNWObyScOaolGRS8v921GNGPEiPVs+lreKy8XOF8YznVnoYtQxKL5Z8Ei4MPVPrR9KPo0DHWAVR3Dt+e3Oq7luPY66rg2vfrsso9tkKedJXDYQYf4jtF+79JXi+16Bqa19clY2Ti4uHl4+fiFfr54fWIe7NbjlA6hSSSlpGXk5BUUVVTV5iud8zu6cpiiV1uj00ldjhjQDzEV9ceHPFmZwFn03EHvH77Eua/tlDi6gmRFSrNm1nnZsoNJreOJnTGymkxdl22Gs1+spdTJGCjDWDybfZn9NC8RNaYSbBWyhF4xcDAp0oTqGRmUMU4ZZjxteKXdUWXaE81MBiS9iiA1FPmWhgY3CPo1O5x6UeWYmFRNyz5fX48UI+hJx1HJczZhqmdUhlpRaTHGy4cXiqJNot4g81jxyYjbGhvPnSvlSJjZnmmcGl6RSNSlT3nBaq5RQivRcSHidSZBkgLOtZHD330UGBDSdbAQgPR5CsvL9WMX8Eeb4mb93hyLWDawv48KC/EW1wp2GoSMI1sIQNhJO++qgmvf+1jnVo1jJvz0bbx+s5qPrN3CQ0xazw5lGU24iZi7Luyj2JNknQXHWLy3aTCdtZCm+9D02tf57LinGRiKY5SlNhJb2BWCjdWRLt92ZGoo359N9WuvNpDvSIPVNnTckjUQv7ak1QB8d8uY9kkZ41pXtNaRy1+Kc8tbtiDMZjZVQN1kLiAW8XTf3c+YH1cKQpEuHic3ws87Hp1jhCaQGDKV9a9bXVQ5kF73o3Mb5zjgrOmRQ/VaWpnvscXKJVn0vEAzBNyHXOcwvO0crW3Bk5dTI98Xozpq1EI0fG8IlGA4+7RC24Tedtxsa3xvKTvr1uE7i1PArIKgkQ4WeevPONgPlWU2G9Eez/a+0UmfJdTNh4jNd59RaalGrosMOztHFNgMeKdJR6FKpVoPfUJu2g7RmBBETRm9ZROCe8NFurR8VtlEW+vx3q3ss/af++J9cIxgRAxcPcE3TPcFyJDVq1rU627BIMFUXCCxIdUlHMUyvmqBwno1zxnMUDj0qfWxsLbGMWg4Na4q+Ac0hbJhbe8wJVKf2XS/c5nf2ryx2zlFn65CfYrD2RbfFHGYTAK8lmWQgd68mJ9AUCOIhyAYL8SzdY7hrnWkO4zsbLeLLq2v7k2kUywljTi4hPPR6zGabZM0Ymel2y9a0Ifq1N5AsU9NdDZxD9pXWEQjxssxiYpFyICh9YyWujjXDCZiIJCTj0TXFa3K5U6o2JzL2wYnoYVpq0GAHUXeCsfG2oeEPjudGQ4gkS6BE9RVJhCcXVKMR9jj7GzMxZIzh43laowvrskV7ROGdXJdpJUCk7McmJnIni8xVYhRxm7IQ06IDny2IQqPXZqMRB9psWH0rO1jdG55J7mKlJ0Jv/AwFGyQ6s6R7Nn4Fim5StmrLZulWimtFdZxPqaQwY/Yyb41THotKYX08tCbh+LnI6wpeNBHEhlMtSyyQeRBloNA4IEz7nHyCktiosEi8V8hd53tKxqiNQqBOtY5/6L92tJpBIKlTUdqjGOyw37yDG9cDCp9Gxkk7xl1Jtr6Qd/yzAl0FDBzUaOjjC2IbR9Dru49TQMI+zBsHVNNb1tynPA5NfwkFfONpSdDF/XCEwxSWICjitnI8TBcx+E3dNxtY3B6u//awBL8Ngg8feRjMcSsCZ7kwXLqQGRcmUKKwCZurbothXzaAtb9vD2KelcQcmHSFhuo1dPNNSLD7QX/W6medHxZr4EKX1lQOtrSVm9kIcl05u10C3sAO+B2J3bBekn/lXYYUQV8CkZCQHmNCxWaLyNRQYLx5xUmsbH237IzxP2fDJoAa/eXL3mPR+GeAw/NaY8dUgsNXdZss+bKifo5sn4+LksYFhg3ODsz22DFuPkHR8DewW/vOIlgLLLjX0y7DgDU7n9diMbpxI48fyoG560glDkQQ9pnl6b7FzaPlnjyeFWN5TUTFKkOplyG95DsSVgJjvfZknx2A1QMMpgEdmCj4ATwR2mEEZXgKGTpJ+ORoMOe5sNDkZJnZw3qwt+i3xXdlUs+gUWDv3q2WWrDVCsSw1Mtbe7mXPbH368B+YnU/4zd0TUpy9OWlHTYRuRsH1yEqmRDDl9U/oXPDfuKz9MWuSSD9WOVG32CEyeM4HXxzILrSgaHH6y+APtBIgn4QDSZonPxaofUh26ZSaFbfdLqL4H6xobEuw8+kHjgiXcT1DcqEs++uJBYKAFLTcf9U0tBFGe9FgVp1759lF0BRZjejFoK/90AL1qysziaGs6J7RGV//24wGQLtMGFQeICcXABLLlxaAGs2Mi21vzY4PY5DGSr6AERwX2YUhbfM5aurByZazjYAdQ3DtY92gUQfbOGsvsGs2E50MI8tARD8OoC6LvrQqZp+5+7uCeTS4PgXI2rMBuOHYvjHlV7+zh249GjWu4VdihQwdWrsYpCJGKiAmvW/FYzRUB1w/v1S0pKQjYLLmySN8S/G7zbyijapZDvKqKbbgBpZ834dtAtUVgvzla6ztnM54Y3gL95zUstR28MLnzasKSopNViwkfu9RZeiRReE4uvFtId3zncVd+EyzZyI1SL0w46K9h7HpfeysdRmz12nt9F0rK9qLkNlHXM+y4+ECFTZ6xr2/La05570rAWq62JqANzi2/pWt+1uQ48c8PqjbhJhyQYbM8cO7lx9eAV+yyGzcHM2q+AiyfMj3SL4F2iwR3z4NVK/8J65BFofqSeDfexN/vZsDr2QIsCXVunwzvTJw83H/SkEsvpI1gen3MebAMXfz330EhSiEgIB+Zf99+gYqPfvvs+sXXk9+9/eQKuWraEXY3T94jo+ozSmX4wT8Oph3uMeZaGBlqZ21Ydr4XhFm/RRvYfflM72oxt3Epg+KngvtpvcXjtJt9BDWzGLQlj+xJJXN+0BB07Neuw7zhFLjkWm420Qb6TZQBWq5cySjHd7e0lPcYqY8V9MGI/lYFF6202tAHDYOz3grF62/C+zgS2v1/imoVFbftdfH548eJ+Y2xnfEfAarXdRyCf2mHH/tMDK9/6RXtzv1hogns2OBGMVZvE2M6uJCZpljjsBnF+vO/Zi4urUZ9TcspxAnBeqAvoBP5KswXjdTNZj1HrfQHfSQhceMLSPezpSxMffI++HLa4LEuawvZ0dOL6tkm82DpY7aaPJDFJm9RDZ9zVAPksFtu9BPKu7famHadIgDRCPzJTQXwwqUNB30GTZT2547QiWYFFb4NA1Z69r3Jo/DZ0G0h3dNqju/wVwRTHSCG0C2/SY0yAst5r1O3Tne6ihl7r2+3vMQSY7Xd/X4A7QYZ4kFBxsUuHgkrPysHv9nZsBeydlaYXpa3vXthpBkFW4bJ6O6QH4wo+cxJfTC9oMpoRWF83c4oTQ8NxvJHtclGeGR7KozkuStuZPo+39wyVeqbX6+nDOiD5L+bqUrNkegBekbDEjdPAlqHX8OpZh2P2FLn8THObr6FWd6EClM8JK1nQJVmpzCaSruL+EHioTR+D6PgzrW0eMcNuPFk2Tgz8M5fhhX9zpXCIH8LVa36CHKy74O+ssQRcNP7D/SV475LYn72+NdsOnZ1Uh/B6xxWMZynBxu8LWpFPrbGestVksAPXRfqAfi+01xlwngStdk7wxLJ85qKVZiqID0xpO8bBut1u9Vk3INo29CRbQGpeJSJ02hi9BamH4fXD3Q33e6XaNRG5BcjLzcM75/tS6ZPLw+ZzsJZz/RPLqXRw/ROmriHfYpVo7RkNCV68cLOMk+tzMyGMsZtX4IXkInDo0U5s0ip1A/IajzTeF5B5HzU9EbCz7lQVbzh2LFKeDgYBRblS5GV1vI8IrFmDNe+zU56fXjA5RYzTu7rOvQAubP5/otvXhnD+FR+1cb4oTuVgJzniZmQIF0ay5jXj+A6Hm2p7b5Xh3hfll4p54GB9GVkXciJU0zzk53JuEImBRAB/C8mehvEwv7rhKJX8/aBt6bfHTBzLS5nZvCUdBorDy7AC9Mk/Nx98euyc+1Llz3mfXHFvxW6QX18m/LIyS1x7R6T9YGyJxMfn3szALtwgKPMZ3MSIR2CntCJlG4C76mbM/LHtm+fy9fnm1po2sgu1FDKhZfNU5LrisLemyVXcIHk9QULEzrIRO358RV78yM/0hNtzvOp3fqWAxsca/kwMtD3tcrYm6BSHUVmk60dmfjR1m1lPt7jJjQ0eMt2qM3MsH2WW7lisUxopDh+9ibyX8AEn7XlCHJXwPHf/MVEENcs8/o818XTeB4KMH2riwGKtzLxGtHz1p6fOezLquoLF+by6025E79lCXavcpxrWSsZr6QFffoQcN4TOMUM5JIaqymNG5IThQ+nM5T1VPeJy8MLs6KlxN+OeQdX3Y3uNgaojRidGx08BoF2jNVWRz02r/Y35hja1FEh2INGsTlGnUdA0ECvlq9ap+GtblsaEfZ3+iPJG3Zksvd9Zcr/ObsUesth9ZQ+5Aur0uMofarS7HtttD2kqsKc7MYc6EV8zEJ6cfl98FtVGmSVQC5oZ7APhb109SKtbHP66CtPz328j+QmyduRr7PyiYhGXtHZrm5lcv+GPJZkzdJv7IGb+31q1A0/Nb2Fwx8PvfgLUN2bPzPeghsDSHN+voRpGnlPXZ+Yl3/VE9D3rtraBQ/sqY9IJcaX2uuw6iayalKjiL5huJ9iFg1OtGPi8v9SAkNB0nwnUrk+wCQdS9MDUoABveajxBXlJMlklHa2pmpAqY+83Up2WesK0ZsYXzWMClaeZfBla4xk+kTKyODuA2bl6NWY3NyKo99O1ZHfRwe3biw6TXbnrB/JVOIVWUw+S3VRFleni3Sf2XLyTExRa/YAv+GpwD63zaEVfx5+IE/Yx5mk5cjFRzczn9g9ecJawGpmPxusfAo1fm6f6BF11eRqOQvSi+sHcjDH/XFsRQEOJEjCvApVwAX+04NxiuvSP1tl0iEj88WIpwf9dofC/PMIclpqG92wrW/uVf7eMV7Peo4b4vk/7z/1BaVW1U2k6b3eCR5dcvz6wiQALnwtsEQAf3RUO6zSRSVdGFwYFzehNq1VAOUUwEey4i8wGlAuGl1qXWkIdm6PgxIKDXlaoRMtfWLBt4VWo+OH/l2g+LvAeKNMKVpXRmH9QG7ILdyzTgL7ZiXkWpzPPQlIoiLlWpyvXTFQQZJH5+uh8wXCORq/X5GCH59gMBlsObpbp/Fyzy5VryVcqCkQPy1cEGJVbnW7hwPPb7CzF73v22Uj5f9W9e4ck+Llnu4a0rBes0mUpl5R+bFzmheqwt3ApJ3+gBcbSTK/Ulr+OaTR8KPCvhOldc6hXH3X+Emz9auwbVGr/+dxXbzZVYdXAl7JsKC999hAKXlMI95eRMASAOnpDB7kjimSsHmLQHAY7r56f+fO0raZQzD1GC6ESPj2yXnNcyWM8WEShhWk08UvczGmeuPy6GLQfi7YvqLk/u2hO/AsrKl9AK7fGazkcLR6HxYs4HBEeC7QXbopvAhXv2O6zPxKcKQinCkDW6lmSo3uzLFsA7R2KhJpC4RBwrG7ekvVQsiULzHR7/4dEv80XiNty3SNlWmH/hyQ//wfbCnJC5VoAJkpHbX8POqsFnEIWu7OJkhQuPMigWVncTp6W5WnfLy48QLddmAIV1ENAMhM5jfmo8BnPRDJw0JKtMk5Zk3svH7PbAcsuATL2S506TDPtdzpl5m854NDibIQ2KwMOiure5NNqBqg5PgRVF3xM2/tL1QjgtUt5HeTofVbtBoSFQ+nfYeBVS6SAtwo5vg1vhSr0bvPuKgDK/GBpOE/jp1DaB8Sg7U/Xa5mhvOrfEBkZ3wO8tOid3QDw6pbzXbotvr02412nGwC1AsLfLqWrCxR9d6LnAhXjh+QfqLwb5Aforfd76mwzNde4PJ/xVuubel9BrvOT6uRLiZx8u2dNor9c78qeyi3Ak+/W4Ufuf1AmxxgtJT883o+hyxcK86vcPC09CxpzTsPW+4i58QJG09B9cStTQR6G/wlS75KgS7qhzZypp8txDOeJOXcZr+PhR4DP/SOgMhT5mlTVIXhEURkDBTltOm3hWi3FLm/n2T/BDQc2j5iYeTV5K872mJn5EDcnVOUHnPzuGZkzNSq5PiRJ05xyCuW/UxQRLt2XGYBPWF8eBALPEvAxuaq0ApApYeLMxSmnThliCknjygWVmCD3r8wlzkogWsj2LhHlq3yEm4MmR6iS86AFyUyvxzPk5WFTy/0Wlgq81GD5ji7bVJkXDxU6fWcKWe4GgkPshbCJLFE8uY6gtrYM6SABjwP1pTGjZ5cW/fy+tLJoMsMdvqVdRqXh1ek2faJAr0+/CYOSEjoNIxITEpEhcldx+1aXiCQgkoOdV/bp0i4mMa01Auisvz6DhhAx9enRKylqxBC+YRP6tdNI6EED6CtivF4WLqKxpuNgIrQ7tHMYnRCvbu/Qp7c3ak5Ej05h8oXmrXwdhV5GjWuXQzjg4tBjoNvHEDj910oYAYkYJMQnJCem5mHm00SN2+y8/zzsZT4QSf4Q8XByYuUyFIfUkmYBAAAA) format('woff2')}
+@font-face{font-family:'WL Placard';font-style:normal;font-weight:700;font-display:block;src:url(data:font/woff2;base64,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) format('woff2')}
 
-  /* ---------- header ---------- */
-  header {
-    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-    padding:12px 20px; border-bottom:1px solid var(--border); background:var(--surface);
-  }
-  .brand { display:flex; align-items:center; gap:12px; }
-  .brand img { width:46px; height:46px; border-radius:50%; object-fit:cover; display:block; }
-  .brand .t { font-size:16px; font-weight:650; letter-spacing:-.01em; line-height:1.2; }
-  .brand .s { font-size:12px; color:var(--dim); }
-  .spacer { flex:1; }
-  #fileInfo { font-size:12.5px; color:var(--ink-2); }
+:root{
+  /* --- panel: negro mate, cara de instrumento hundida tras vidrio --- */
+  --panel:#0b0d0f;
+  --panel-hi:#12151a;
+  --face:#111417;
+  --face-deep:#080a0c;
+  --bezel:#1c2126;
+  --bezel-hi:#2b3238;
+  --screw:#3a4249;
+  --engrave:#000;
 
-  .btn {
-    background:var(--surface-2); border:1px solid var(--border-strong);
-    border-radius:var(--r-sm); padding:7px 14px; cursor:pointer;
-    transition:background .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease);
-  }
-  .btn:hover { background:#222836; border-color:var(--acc); }
-  .btn:active { background:#1a1f2b; }
-  .btn[aria-pressed="true"] { border-color:var(--acc); color:var(--acc); background:#16283d; }
-  .btn.primary { background:var(--acc); border-color:var(--acc); color:#07121f; font-weight:600; }
-  .btn.primary:hover { background:#69b2ff; }
+  /* --- marcas luminosas --- */
+  --lum:#f2f5f2;          /* blanco luminoso: marcas y valores */
+  --lum-2:#a7b0ae;        /* marcas secundarias   5.9:1 sobre --face */
+  --lum-3:#7d8785;        /* placas               4.6:1 sobre --panel */
 
-  /* ---------- layout ---------- */
-  #main { flex:1; display:flex; min-height:0; }
-  #left { flex:1; display:flex; flex-direction:column; min-width:0; }
+  /* --- lámparas: verde=medido, ámbar=derivado/atención, rojo=fallo --- */
+  --green:#39ff9a;
+  --green-dim:#1d7d4c;
+  --amber:#ffb000;
+  --amber-dim:#7a5400;
+  --red:#ff3b30;
+  --red-txt:#ff7a70;      /* rojo legible como texto  5.4:1 sobre --panel */
 
-  /* estado narrativo: qué está pasando AHORA, en una línea legible */
-  #status {
-    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
-    padding:11px 20px; border-bottom:1px solid var(--border); background:var(--bg);
-  }
-  #status .now { font-size:17px; font-weight:600; letter-spacing:-.01em; }
-  #status .chip {
-    display:inline-flex; align-items:center; gap:7px;
-    font-size:12.5px; color:var(--ink-2);
-  }
-  #status .chip b { color:var(--ink); font-weight:600; }
-  .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  /* --- canales de tripulación (tintas de pluma de registrador) --- */
+  --ch0:#39ff9a; --ch1:#ffb000; --ch2:#5ac8fa; --ch3:#ff6fd8; --ch4:#c4f24a;
 
-  #canvasWrap {
-    flex:1; display:flex; align-items:center; justify-content:center;
-    overflow:auto; background:#090b0f; padding:16px;
-  }
-  canvas { border:1px solid var(--border); border-radius:var(--r-md); display:block; }
+  /* --- regiones: A oeste, B este --- */
+  --reg-a:#5ac8fa;
+  --reg-b:#c08cff;
 
-  /* ---------- leyenda ---------- */
-  #legend {
-    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
-    padding:9px 20px; font-size:12px; color:var(--ink-2);
-    border-top:1px solid var(--border); background:var(--bg);
-  }
-  .lg { display:inline-flex; align-items:center; gap:6px; }
-  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; flex:none; }
-  .sw.circ { border-radius:50%; }
+  --r:3px;                /* el panel es escuadrado: radios mínimos */
+  --gap:14px;
+  --ease:cubic-bezier(.2,.9,.3,1);
+  --damp:cubic-bezier(.16,1,.3,1);       /* aguja amortiguada: nunca rebota */
+}
 
-  /* ---------- controles ---------- */
-  #controls {
-    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
-    padding:12px 20px; border-top:1px solid var(--border); background:var(--surface);
-  }
-  #playBtn { width:40px; height:36px; display:grid; place-items:center; font-size:14px; }
-  .scrubWrap { flex:1; min-width:200px; display:flex; flex-direction:column; gap:5px; }
-  /* bandas de fase: el ciclo día/noche visible a lo largo de toda la corrida */
-  #phaseStrip { height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; display:flex; }
-  #phaseStrip i { display:block; height:100%; }
-  input[type=range] { width:100%; accent-color:var(--acc); cursor:pointer; }
-  .ctrlLabel { font-size:12px; color:var(--dim); display:inline-flex; align-items:center; gap:8px; }
-  #speed { width:96px; }
+*{box-sizing:border-box;margin:0;padding:0}
+/* Una regla display de autor le gana al atributo hidden del UA. Sin esto,
+   el estado de arranque se queda encima del canvas ya cargado. */
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  background:var(--panel);
+  color:var(--lum);
+  font-family:'WL Placard',system-ui,-apple-system,sans-serif;
+  font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;overflow:hidden;
+  /* textura fina de panel mate */
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, #14181c 0%, transparent 62%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);
+}
 
-  /* ---------- panel derecho ---------- */
-  #right {
-    width:340px; flex:none; border-left:1px solid var(--border);
-    display:flex; flex-direction:column; min-height:0; background:var(--surface);
-  }
-  .panel { padding:16px 18px; border-bottom:1px solid var(--border); }
-  .panel.scroll { overflow-y:auto; flex:1; min-height:0; }
-  h2 {
-    font-size:11px; font-weight:650; text-transform:uppercase; letter-spacing:.07em;
-    color:var(--dim); margin-bottom:12px;
-  }
-  .lead { font-size:13px; color:var(--ink-2); line-height:1.6; }
-  .lead b { color:var(--ink); font-weight:600; }
+/* ---------- placas y tipografía de instrumento ---------- */
+.placard{
+  font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--lum-3);white-space:nowrap;
+}
+.readout{
+  font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:.02em;
+  font-feature-settings:"tnum" 1;
+}
+h1{font-size:16px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;line-height:1}
+h2{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--lum-3)}
 
-  /* diagrama 2×2: la idea central del experimento de un vistazo */
-  .matrix { display:grid; grid-template-columns:auto 1fr 1fr; gap:5px; margin:14px 0 10px; }
-  .matrix .hd { font-size:11px; color:var(--dim); text-align:center; padding-bottom:2px; }
-  .matrix .rw { font-size:12px; color:var(--ink-2); display:grid; place-items:center; padding-right:6px; font-weight:600; }
-  .matrix .cell {
-    border:1px solid var(--border-strong); border-radius:var(--r-sm);
-    padding:9px 6px; text-align:center; font-size:11px; color:var(--ink-2); background:var(--surface-2);
-  }
-  .matrix .cell.held {
-    border-color:var(--acc); background:#132433; color:var(--acc); font-weight:600;
-  }
-  .matrix .cell .q { font-size:15px; display:block; line-height:1.1; }
-  .caption { font-size:12px; color:var(--dim); line-height:1.55; }
-  .caption b { color:var(--ink-2); }
+/* la placa grabada bajo cada instrumento */
+.nameplate{
+  border:1px solid var(--bezel-hi);border-radius:2px;
+  padding:3px 10px;text-align:center;
+  background:linear-gradient(180deg,#15191d,#0d1013);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 1px 2px rgba(0,0,0,.6);
+}
 
-  dl.facts { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin-top:12px; }
-  dl.facts dt { color:var(--dim); }
-  dl.facts dd { color:var(--ink-2); }
+/* ---------- instrumento: bisel + tornillos + vidrio ---------- */
+.inst{position:relative;background:var(--bezel);border-radius:var(--r);padding:9px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 -1px 0 rgba(0,0,0,.55),
+    0 3px 10px rgba(0,0,0,.55);
+}
+.inst::before,.inst::after,.inst>.scr{
+  content:"";position:absolute;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #4b545b, #23292e 70%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);
+}
+.inst::before{top:4px;left:4px}
+.inst::after{top:4px;right:4px}
+.inst>.scr.bl{bottom:4px;left:4px}
+.inst>.scr.br{bottom:4px;right:4px}
+.inst .face{
+  position:relative;background:var(--face);border-radius:2px;overflow:hidden;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.85), inset 0 0 0 1px rgba(0,0,0,.8);
+}
+/* reflejo de vidrio antirreflejo: una sola banda, no un brillo genérico */
+.inst .face::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(163deg, rgba(255,255,255,.045) 0%, transparent 34%);
+}
 
-  /* ---------- agentes ---------- */
-  .agent { padding:11px 0; border-bottom:1px solid var(--border); }
-  .agent:last-child { border-bottom:0; }
-  .agent .top { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; }
-  .agent .meta { margin-left:auto; font-size:11.5px; font-weight:400; color:var(--dim); }
-  .agent .bar { height:6px; background:#232936; border-radius:3px; margin:7px 0 5px; overflow:hidden; }
-  .agent .bar > i { display:block; height:100%; border-radius:3px; transition:width .2s var(--ease); }
-  .agent .inv { font-size:11.5px; color:var(--ink-2); word-break:break-word; }
-  .agent.dead { opacity:.5; }
-  .tag { font-size:10px; padding:1px 6px; border-radius:99px; font-weight:600; letter-spacing:.02em; }
-  .tag.dead { background:#3a1f22; color:var(--bad); }
-  .tag.low  { background:#3a2e1a; color:var(--warn); }
+/* ---------- riel superior ---------- */
+#rail{
+  display:flex;align-items:stretch;gap:var(--gap);
+  padding:12px 18px;border-bottom:1px solid #000;
+  background:linear-gradient(180deg,var(--panel-hi),var(--panel));
+  box-shadow:0 1px 0 rgba(255,255,255,.045) inset, 0 4px 14px rgba(0,0,0,.5);
+  flex-wrap:wrap;
+}
+.badge-wl{display:flex;align-items:center;gap:11px;flex:none}
+.badge-wl .disc{
+  width:42px;height:42px;border-radius:50%;flex:none;overflow:hidden;
+  border:1px solid var(--bezel-hi);
+  box-shadow:inset 0 0 0 2px #0c0f11, 0 2px 6px rgba(0,0,0,.6);
+}
+.badge-wl .disc img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85) contrast(1.05)}
+.badge-wl .sub{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--lum-3);margin-top:3px}
 
-  /* ---------- log ---------- */
-  .logLine { padding:4px 0; border-bottom:1px solid #1a1f29; font-size:12.5px; color:var(--ink-2); }
-  .logLine:last-child { border-bottom:0; }
-  .logLine b { color:var(--ink); font-weight:600; }
-  .badge {
-    display:inline-block; background:#232936; border-radius:3px;
-    padding:0 6px; font-size:10.5px; margin-right:7px; color:var(--dim);
-    font-variant-numeric:tabular-nums;
-  }
-  .logLine.ok .badge { background:#17331f; color:var(--ok); }
-  .logLine.impossible .badge { background:#331f17; color:#e39a6f; }
+/* placa de identidad de la corrida */
+#runPlate{
+  flex:1;min-width:230px;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(94px,1fr));
+  gap:1px;background:#000;border:1px solid var(--bezel-hi);border-radius:2px;overflow:hidden;
+}
+#runPlate .f{background:#0e1114;padding:5px 10px;min-width:0}
+#runPlate .f .k{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--lum-3)}
+#runPlate .f .v{font-size:13px;font-weight:600;color:var(--lum);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+#runPlate .f .v.derived{color:var(--amber)}
 
-  /* ---------- vacío / drop ---------- */
-  .empty { text-align:center; max-width:420px; padding:32px 24px; }
-  .empty img { width:112px; height:112px; border-radius:50%; opacity:.9; margin-bottom:20px; }
-  .empty h3 { font-size:19px; font-weight:650; letter-spacing:-.015em; margin-bottom:10px; text-wrap:balance; }
-  .empty p { font-size:13.5px; color:var(--ink-2); line-height:1.65; margin-bottom:20px; text-wrap:pretty; }
-  #drop {
-    position:fixed; inset:0; background:rgba(77,163,255,.1);
-    border:2px dashed var(--acc); display:none; align-items:center; justify-content:center;
-    font-size:18px; z-index:var(--z-drop); backdrop-filter:blur(2px);
-  }
-  #fileInput { display:none; }
+/* pila de anunciadores */
+/* flex:none haría que la fila de lámparas mida su max-content y desborde;
+   con base flexible envuelve dentro del riel. */
+#annun{display:flex;gap:5px;align-items:center;flex:1 1 250px;min-width:0;flex-wrap:wrap;max-width:340px}
+.lamp{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:9.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  padding:5px 8px;border-radius:2px;border:1px solid;line-height:1.15;
+  background:#0a0c0e;color:#4d5459;border-color:#22282c;   /* apagado */
+}
+button.lamp{font-family:inherit;cursor:pointer}
+button.lamp:hover{filter:brightness(1.35)}
+.lamp .bulb{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;opacity:.4}
+.lamp[data-on="green"]{color:var(--green);border-color:var(--green-dim);background:#08140e}
+.lamp[data-on="amber"]{color:var(--amber);border-color:var(--amber-dim);background:#151004}
+.lamp[data-on="red"]  {color:var(--red-txt);border-color:#6d1a14;background:#170807}
+.lamp[data-on] .bulb{opacity:1;box-shadow:0 0 7px currentColor}
 
-  @media (max-width:900px) {
-    #main { flex-direction:column; }
-    #right { width:auto; border-left:0; border-top:1px solid var(--border); max-height:44vh; }
-  }
-  @media (prefers-reduced-motion:reduce) {
-    * { transition-duration:.01ms !important; animation-duration:.01ms !important; }
-  }
+/* ---------- controles ---------- */
+.sw{
+  font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--lum-2);background:#0f1316;border:1px solid var(--bezel-hi);border-radius:2px;
+  padding:0 14px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.5);
+  transition:color .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease);
+}
+.sw:hover{color:var(--lum);border-color:#414a51;background:#141a1e}
+.sw:active{background:#0a0d0f;box-shadow:inset 0 2px 5px rgba(0,0,0,.7)}
+.sw.primary{color:var(--green);border-color:var(--green-dim);background:#08140e}
+.sw.primary:hover{background:var(--green);color:#04140b;border-color:var(--green)}
+.sw[aria-pressed="true"]{color:#04140b;background:var(--green);border-color:var(--green);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.5)}
+.sw.icon{padding:0;width:48px;justify-content:center}
+.sw svg{width:15px;height:15px;display:block;fill:none;stroke:currentColor;stroke-width:1.75;
+  stroke-linecap:square;stroke-linejoin:miter}
+.sw svg.solid{fill:currentColor;stroke:none}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* ---------- cuerpo ---------- */
+#deck{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 372px;min-height:0}
+#port{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid #000}
+
+/* instrumento principal: el mundo */
+#worldInst{flex:1;min-height:0;margin:var(--gap);display:flex;flex-direction:column;gap:8px}
+#worldInst .face{flex:1;min-height:0;display:grid;place-items:center;background:var(--face-deep)}
+#cv{display:block;max-width:100%;max-height:100%}
+#worldPlate{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+
+/* leyenda de símbolos: forma + color + código, nunca color solo */
+#legend{display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:center;
+  padding:0 var(--gap) 0}
+.lgi{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--lum-2);border:1px solid #1b2126;border-radius:2px;
+  padding:3px 7px;background:#0d1013}
+.lgi svg{width:13px;height:13px;display:block;flex:none}
+.lgi .code{color:var(--lum);font-weight:700}
+.lgi .alias{color:var(--lum-3)}
+
+/* barra de transporte */
+#transport{
+  display:flex;align-items:center;gap:12px;padding:11px var(--gap);
+  border-top:1px solid #000;background:linear-gradient(180deg,var(--panel-hi),var(--panel));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045);flex-wrap:wrap;
+}
+#timeWrap{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px}
+/* la cinta de fase: impresa, con trama en la zona de barrera cerrada */
+#phaseTape{height:14px;border:1px solid var(--bezel-hi);border-radius:2px;overflow:hidden;
+  display:flex;background:#07090b;position:relative}
+#phaseTape i{display:block;height:100%;position:relative}
+#phaseTape .cursor{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--green);
+  box-shadow:0 0 8px var(--green);pointer-events:none;transform:translateX(-1px)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:#1a1f24;border-radius:2px;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:22px;margin-top:-9px;
+  background:linear-gradient(180deg,#5a646b,#2a3137);border:1px solid #0a0c0e;border-radius:2px;
+  box-shadow:0 1px 3px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.25)}
+input[type=range]::-moz-range-track{height:4px;background:#1a1f24;border-radius:2px}
+input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;border:1px solid #0a0c0e;border-radius:2px}
+#speedWrap{display:flex;align-items:center;gap:8px;flex:none}
+#speed{width:104px}
+
+/* ---------- columna de instrumentos (el six-pack) ---------- */
+#stack{display:flex;flex-direction:column;gap:var(--gap);padding:var(--gap);
+  overflow-y:auto;min-height:0;background:linear-gradient(180deg,#0c0f12,#090b0d)}
+#stack .inst .face{padding:11px}
+.instHead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+.instHead .sup{margin-left:auto;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
+
+/* reloj de corrida */
+#clockRow{display:flex;align-items:center;gap:14px}
+#clockDial{width:96px;height:96px;flex:none}
+#clockRead{display:grid;gap:5px;min-width:0}
+#clockRead .big{font-size:30px;line-height:1;font-weight:700;letter-spacing:-.02em}
+#clockRead .ph{font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:7px}
+#clockRead .ph svg{width:15px;height:15px;flex:none}
+#clockRead .frame{font-size:11px;color:var(--lum-3);letter-spacing:.07em}
+
+/* energía: racimo de cintas verticales, con línea roja */
+#energyRow{display:flex;gap:9px;align-items:flex-end;justify-content:space-between}
+.tape{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.tape .col{width:100%;height:96px;background:#07090b;border:1px solid #1b2126;border-radius:2px;
+  position:relative;overflow:hidden}
+.tape .col .fill{position:absolute;left:0;right:0;bottom:0;height:100%;
+  transform-origin:50% 100%;transition:transform .3s var(--damp)}
+.tape .col .redline{position:absolute;left:0;right:0;bottom:20%;height:1px;background:var(--red);opacity:.75}
+.tape .col .redline::after{content:"";position:absolute;left:0;right:0;top:-3px;height:3px;
+  background:repeating-linear-gradient(90deg,var(--red) 0 2px,transparent 2px 4px);opacity:.5}
+.tape .cs{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--lum-2)}
+.tape .val{font-size:13px;font-weight:700;line-height:1}
+.tape[data-dead="1"]{opacity:.42}
+.tape[data-dead="1"] .cs{color:var(--red-txt)}
+
+/* frontera */
+#borderInst .diagram{display:flex;height:34px;border:1px solid #1b2126;border-radius:2px;overflow:hidden;margin-top:9px}
+#borderInst .half{flex:1;display:grid;place-items:center;font-size:10px;font-weight:700;
+  letter-spacing:.13em;text-transform:uppercase;position:relative}
+#borderInst .half.a{background:rgba(90,200,250,.09);color:var(--reg-a)}
+#borderInst .half.b{background:rgba(192,140,255,.09);color:var(--reg-b)}
+#borderInst .half.b[data-closed="1"]{
+  background:repeating-linear-gradient(45deg,rgba(255,59,48,.16) 0 5px,transparent 5px 10px),rgba(255,59,48,.06);
+  color:var(--red-txt)}
+#borderInst .wall{width:3px;background:var(--lum-3);flex:none}
+#borderInst .wall[data-closed="1"]{background:var(--red);box-shadow:0 0 8px rgba(255,59,48,.6)}
+
+/* exposición: el cuadrante 2×2, la mecánica del experimento como instrumento */
+.quad{display:grid;grid-template-columns:26px 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:4px;margin-top:9px}
+.quad .hd{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--lum-3);
+  text-align:center;display:flex;align-items:center;justify-content:center;gap:4px}
+.quad .hd svg{width:12px;height:12px}
+.quad .rw{display:grid;place-items:center;font-size:12px;font-weight:700;letter-spacing:.06em}
+.quad .cell{border:1px solid #232a30;border-radius:2px;padding:7px 4px;text-align:center;background:#0c1013;
+  display:grid;gap:2px;align-content:center;min-height:52px}
+.quad .cell .n{font-size:17px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.quad .cell .u{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
+.quad .cell[data-lit="1"] .n{color:var(--green)}
+.quad .cell[data-lit="0"] .n{color:var(--amber)}
+.quad .cell.held{
+  border-color:#6d1a14;
+  background:repeating-linear-gradient(45deg,rgba(255,59,48,.12) 0 5px,transparent 5px 10px),#150a09}
+.quad .cell.held .n{color:var(--red-txt);font-size:19px}
+.quad .cell.held .u{color:var(--red-txt);opacity:.8}
+
+/* calibración: la aguja es la predicción, el índice es la verdad */
+.cal{display:grid;gap:9px;margin-top:9px}
+.calRow{display:grid;grid-template-columns:30px 1fr auto;gap:9px;align-items:center}
+.calRow .cs{font-size:11px;font-weight:700;letter-spacing:.06em}
+.calScale{position:relative;height:30px;border:1px solid #232a30;border-radius:2px;background:#07090b;
+  display:flex;overflow:hidden}
+.calScale .lv{flex:1;border-right:1px solid #1b2126;position:relative}
+.calScale .lv:last-child{border-right:0}
+.calScale .lv[data-band="loss"]{background:rgba(255,59,48,.13)}
+.calScale .lv[data-band="gain"]{background:rgba(57,255,154,.11)}
+.calScale .lv[data-truth="1"]{box-shadow:inset 0 0 0 1px var(--amber);background:rgba(255,176,0,.22)}
+.calScale .needle{position:absolute;top:0;bottom:0;width:3px;background:var(--lum);
+  box-shadow:0 0 7px rgba(242,245,242,.75);transition:left .35s var(--damp);z-index:2}
+.calScale .bug{position:absolute;top:0;width:0;height:0;z-index:3;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--amber);
+  transform:translateX(-5px)}
+.calScale[data-answered="0"]{opacity:.55}
+.calRow .verdict{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 7px;border-radius:2px;border:1px solid;white-space:nowrap}
+.calWarn{font-size:10.5px;letter-spacing:.04em;color:var(--amber);line-height:1.45;
+  padding-left:39px;margin-top:-4px}
+.v-ok{color:var(--green);border-color:var(--green-dim);background:#08140e}
+.v-sign{color:var(--amber);border-color:var(--amber-dim);background:#151004}
+.v-bad{color:var(--red-txt);border-color:#6d1a14;background:#170807}
+.v-none{color:#4d5459;border-color:#22282c;background:#0a0c0e}
+.calLegend{display:flex;gap:12px;font-size:10px;color:var(--lum-3);letter-spacing:.06em;
+  text-transform:uppercase;margin-top:2px;flex-wrap:wrap}
+.calLegend b{color:var(--lum-2);font-weight:600}
+
+/* tripulación */
+.crew{display:grid;gap:1px;background:#000;border:1px solid #1b2126;border-radius:2px;overflow:hidden;margin-top:9px}
+.crewRow{background:#0d1013;padding:9px 10px;display:grid;gap:6px;cursor:pointer;border:0;width:100%;
+  text-align:left;font:inherit;color:inherit;transition:background .15s var(--ease)}
+.crewRow:hover{background:#12171b}
+.crewRow[aria-expanded="true"]{background:#12171b;box-shadow:inset 2px 0 0 var(--green)}
+.crewRow .l1{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;letter-spacing:.05em}
+.crewRow .l1 .pip{width:9px;height:9px;flex:none;border-radius:50%}
+.crewRow .l1 .reg{margin-left:auto;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
+.crewRow .l2{font-size:11px;color:var(--lum-2);font-variant-numeric:tabular-nums}
+.crewRow .l2 .warn{color:var(--amber)}
+.trace{background:#07090b;padding:10px;font-size:11.5px;line-height:1.55;display:grid;gap:7px;
+  border-top:1px solid #1b2126}
+.trace .k{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--lum-3)}
+.trace pre{white-space:pre-wrap;word-break:break-word;color:var(--lum-2);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;line-height:1.5;
+  background:#0d1013;border:1px solid #1b2126;border-radius:2px;padding:7px 8px;max-height:150px;overflow:auto}
+.trace .none{color:var(--lum-3)}
+
+/* cinta de registro */
+#tapeInst{display:flex;flex-direction:column;min-height:190px}
+#tapeInst .face{flex:1;min-height:0;display:flex;flex-direction:column}
+#tapeList{flex:1;min-height:0;overflow-y:auto;padding:2px 0}
+.ev{display:grid;grid-template-columns:auto auto 1fr;gap:9px;align-items:baseline;
+  padding:4px 2px;border-bottom:1px solid #12171a;font-size:11.5px}
+.ev:last-child{border-bottom:0}
+.ev .t{font-size:10px;color:var(--lum-3);font-variant-numeric:tabular-nums;letter-spacing:.05em}
+.ev .who{font-weight:700;font-size:11px;letter-spacing:.05em}
+.ev .txt{color:var(--lum-2)}
+.ev .txt b{color:var(--lum);font-weight:600}
+.ev[data-out="fail"] .txt{color:var(--amber)}
+.ev[data-out="fail"] .txt b{color:var(--amber)}
+.ev .sym{display:inline-block;vertical-align:-2px;margin:0 1px}
+
+/* ---------- estado vacío ---------- */
+#boot{position:absolute;inset:0;display:grid;place-items:center;padding:26px;background:var(--face-deep)}
+#boot .inner{max-width:520px;text-align:center;display:grid;gap:18px;justify-items:center}
+#boot .disc{width:96px;height:96px;border-radius:50%;overflow:hidden;border:1px solid var(--bezel-hi);
+  box-shadow:inset 0 0 0 3px #0c0f11, 0 0 30px rgba(57,255,154,.07)}
+#boot .disc img{width:100%;height:100%;object-fit:cover;filter:saturate(.8)}
+#boot h3{font-size:27px;font-weight:700;letter-spacing:-.01em;line-height:1.15;text-wrap:balance}
+#boot p{font-size:14px;color:var(--lum-2);line-height:1.65;text-wrap:pretty}
+#boot p b{color:var(--lum);font-weight:600}
+#boot .hint{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--lum-3)}
+#boot .err{color:var(--red-txt);border:1px solid #6d1a14;background:#170807;border-radius:2px;
+  padding:9px 13px;font-size:12.5px;text-align:left;display:grid;gap:3px}
+#boot .err .h{font-weight:700;letter-spacing:.06em}
+#boot .err .f{color:var(--lum-2);font-size:11.5px}
+
+#drop{position:fixed;inset:0;z-index:60;display:none;place-items:center;
+  background:rgba(5,7,9,.82);backdrop-filter:blur(3px)}
+#drop[data-on="1"]{display:grid}
+#drop .box{border:2px dashed var(--green);border-radius:var(--r);padding:34px 46px;text-align:center;
+  background:#08140e;display:grid;gap:7px}
+#drop .box .t{font-size:17px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--green)}
+#drop .box .s{font-size:12px;color:var(--lum-2)}
+#fileInput{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- adaptación ---------- */
+@media (max-width:1180px){
+  #deck{grid-template-columns:minmax(0,1fr) 320px}
+}
+@media (max-width:900px){
+  /* Apilado, la altura la manda el contenido: si el deck sigue repartiendo el
+     viewport, la cara del instrumento desborda y el transporte se le encima. */
+  html,body{height:auto}
+  body{overflow:auto}
+  #deck{grid-template-columns:1fr;min-height:0;flex:none}
+  #port{border-right:0;border-bottom:1px solid #000;flex:none}
+  #worldInst{flex:none}
+  #stack{overflow:visible}
+  #annun{max-width:none;flex-basis:100%}
+  #runPlate{order:3;width:100%;flex-basis:100%;grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  #rail{padding:10px 12px;gap:10px}
+  .badge-wl .disc{width:34px;height:34px}
+  h1{font-size:14px}
+  #transport{gap:9px}
+  #speedWrap{order:3;width:100%}
+  #speed{width:100%;flex:1}
+  .quad{grid-template-columns:22px 1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
 </style>
 </head>
 <body>
-<div id="drop">Suelte el archivo .jsonl aquí</div>
+<!--
+  THESIS: Un agente de WorldLab vuela a ciegas — sin referencia exterior, solo instrumentos.
+    Esta superficie le da al revisor el cross-check del piloto: seis instrumentos que deben
+    concordar. Rechaza el arreglo por defecto de la categoría (lienzo oscuro + acento neón +
+    panel lateral + scrubber) haciendo de la INTEGRIDAD de la corrida el primer readout, no
+    la animación.
+  OWN-WORLD: Panel negro mate con textura fina; caras de instrumento hundidas tras vidrio,
+    bisel y tornillos de esquina; marcas en blanco luminoso; verde radio = medido, ámbar =
+    derivado, rojo = fallo o barrera. Placas grabadas condensadas en versalitas (Saira
+    Condensed embebida), escalas con ticks, pila de anunciadores.
+  STORY: El revisor abre una corrida. Antes de que nada se mueva, los anunciadores dicen si
+    la corrida es confiable. Luego el mundo como instrumento principal, y seis instrumentos
+    que lo cruzan. Al final, la placa de calibración: qué predijo cada agente sobre la
+    casilla que nunca vivió, contra la verdad del motor.
+  FIRST VIEWPORT: Riel superior con placa WorldLab, placa de identidad de la corrida y pila
+    de anunciadores a la derecha; CARGAR CORRIDA como interruptor verde. Debajo, el mundo
+    30×30 domina a la izquierda dentro de su bisel; a la derecha la columna de instrumentos
+    (reloj, energía, frontera, exposición, calibración, tripulación). Transporte abajo con la
+    cinta de fase impresa.
+  FORM: Retador fijado por el usuario — signals-instruments-night-flight-six-pack; ganó al
+    candidato asignado 4 de la lista fundamentada. Clave de sorteo e56a24a1.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review,
+    the verdict, and DESIGN.md
+-->
 
-<header>
-  <div class="brand">
-    <img src="assets/logo.jpg" alt="">
+<div id="drop" aria-hidden="true"><div class="box">
+  <div class="t">Suelte los archivos</div>
+  <div class="s">Corrida <code>.jsonl</code> — puede soltar también <code>_traces</code> y <code>_probes</code> a la vez</div>
+</div></div>
+
+<!-- símbolos de recurso: forma antes que color -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <symbol id="sym-0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/></symbol>
+  <symbol id="sym-1" viewBox="0 0 24 24"><path d="M12 3 L21.5 20 L2.5 20 Z"/></symbol>
+  <symbol id="sym-2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></symbol>
+  <symbol id="sym-3" viewBox="0 0 24 24"><path d="M12 2.5 L21.5 12 L12 21.5 L2.5 12 Z"/></symbol>
+  <symbol id="sym-4" viewBox="0 0 24 24"><path d="M12 2.5 18.5 6.5 18.5 15.5 12 21.5 5.5 15.5 5.5 6.5 Z"/></symbol>
+  <symbol id="sym-5" viewBox="0 0 24 24"><path d="M12 2.5 22 21.5 2 21.5 Z" transform="rotate(180 12 12)"/></symbol>
+</defs></svg>
+
+<div id="rail">
+  <div class="badge-wl">
+    <div class="disc"><img src="assets/logo.jpg" alt=""></div>
     <div>
-      <div class="t">WorldLab</div>
-      <div class="s">Visor de simulación</div>
-    </div>
-  </div>
-  <span class="spacer"></span>
-  <span id="fileInfo">sin archivo cargado</span>
-  <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar .jsonl</button>
-  <input type="file" id="fileInput" accept=".jsonl">
-</header>
-
-<div id="main">
-  <div id="left">
-    <div id="status" hidden>
-      <span class="now" id="nowLabel">—</span>
-      <span class="chip" id="chipAlive"></span>
-      <span class="chip" id="chipBorder"></span>
-      <span class="chip" id="chipFrame"></span>
-    </div>
-
-    <div id="canvasWrap">
-      <canvas id="cv" width="660" height="660" hidden></canvas>
-      <div class="empty" id="emptyState">
-        <img src="assets/logo.jpg" alt="">
-        <h3>Un mundo donde nadie explicó las reglas</h3>
-        <p>Cinco agentes viven en una cuadrícula. Los recursos los alimentan o los envenenan
-           según <b>dónde</b> estén y <b>en qué momento del ciclo</b>. Nadie se los dijo:
-           tienen que descubrirlo comiendo.</p>
-        <p>Cargue un archivo <code>.jsonl</code> de una corrida — o arrástrelo a esta ventana —
-           para verlos moverse.</p>
-        <button class="btn primary" onclick="document.getElementById('fileInput').click()">Cargar una corrida</button>
-      </div>
-    </div>
-
-    <div id="legend" hidden></div>
-
-    <div id="controls" hidden>
-      <button class="btn" id="playBtn" onclick="togglePlay()" aria-label="Reproducir">▶</button>
-      <div class="scrubWrap">
-        <div id="phaseStrip" aria-hidden="true"></div>
-        <input type="range" id="scrub" min="0" max="1" step="1" value="0"
-               aria-label="Línea de tiempo" oninput="goTo(parseInt(this.value))">
-      </div>
-      <label class="ctrlLabel">velocidad
-        <input type="range" id="speed" min="0.1" max="3" step="0.1" value="0.6">
-      </label>
-      <button class="btn" id="okBtn" aria-pressed="true" onclick="toggleOkOnly()">solo acciones logradas</button>
+      <h1>WorldLab</h1>
+      <div class="sub">Panel de corrida</div>
     </div>
   </div>
 
-  <div id="right">
-    <div class="panel">
-      <h2>Qué se está probando</h2>
-      <div id="infoBody"></div>
+  <div id="runPlate" role="group" aria-label="Identidad de la corrida">
+    <div class="f"><div class="k">Corrida</div><div class="v" id="pRun">—</div></div>
+    <div class="f"><div class="k">Condición</div><div class="v" id="pCond">—</div></div>
+    <div class="f"><div class="k">Mundo</div><div class="v" id="pWorld">—</div></div>
+    <div class="f"><div class="k">Semilla</div><div class="v" id="pSeed">—</div></div>
+  </div>
+
+  <div id="annun" role="status" aria-live="polite" aria-label="Anunciadores de integridad"></div>
+
+  <button class="sw primary" id="loadBtn" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M12 16l-4-4M12 16l4-4M4 20h16"/></svg>
+    Cargar corrida
+  </button>
+  <input type="file" id="fileInput" accept=".jsonl" multiple>
+</div>
+
+<div id="deck">
+  <div id="port">
+    <div class="inst" id="worldInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <canvas id="cv" hidden aria-label="Mapa del mundo en el instante seleccionado"></canvas>
+        <div id="boot">
+          <div class="inner">
+            <div class="disc"><img src="assets/logo.jpg" alt=""></div>
+            <h3>Un mundo donde nadie explicó las reglas</h3>
+            <p>Cinco agentes viven en una cuadrícula. Lo que un recurso les hace depende de
+              <b>dónde</b> están y <b>en qué momento del ciclo</b>. Nadie se los dijo: tienen que
+              descubrirlo comiendo. Y hay una situación que el mundo <b>no les deja vivir nunca</b>;
+              al final se les pregunta justamente por esa.</p>
+            <button class="sw primary" id="bootBtn" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M12 16l-4-4M12 16l4-4M4 20h16"/></svg>
+              Cargar una corrida
+            </button>
+            <div class="hint">o arrastre el .jsonl a esta ventana</div>
+            <div class="err" id="bootErr" hidden></div>
+          </div>
+        </div>
+      </div>
+      <div id="worldPlate">
+        <div class="nameplate placard" id="worldName">El mundo — sin corrida</div>
+      </div>
     </div>
-    <div class="panel scroll">
-      <h2>Agentes</h2>
-      <div id="agentsList"><p class="caption">Sin datos cargados.</p></div>
+
+    <div id="legend" aria-label="Leyenda de símbolos"></div>
+
+    <div id="transport" hidden>
+      <button class="sw icon" id="stepB" type="button" aria-label="Momento anterior">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5 8 12l9 7z" class="x"/><path d="M6 5v14"/></svg>
+      </button>
+      <button class="sw icon" id="playBtn" type="button" aria-label="Reproducir">
+        <svg viewBox="0 0 24 24" class="solid" id="playIcon" aria-hidden="true"><path d="M7 4.5 20 12 7 19.5z"/></svg>
+      </button>
+      <button class="sw icon" id="stepF" type="button" aria-label="Momento siguiente">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l9 7-9 7z"/><path d="M18 5v14"/></svg>
+      </button>
+
+      <div id="timeWrap">
+        <div id="phaseTape" aria-hidden="true"><span class="cursor" id="tapeCursor"></span></div>
+        <input type="range" id="scrub" min="0" max="1" step="1" value="0" aria-label="Momento de la corrida">
+      </div>
+
+      <div id="speedWrap">
+        <label class="placard" for="speed">Velocidad</label>
+        <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1" aria-label="Velocidad de reproducción">
+        <span class="placard readout" id="speedRead" style="width:34px">1×</span>
+      </div>
+
+      <button class="sw" id="filterBtn" type="button" aria-pressed="false">Solo logradas</button>
+      <button class="sw" id="amountBtn" type="button" aria-pressed="false">Cantidades</button>
     </div>
-    <div class="panel scroll">
-      <h2>Qué va pasando</h2>
-      <div id="logList"><p class="caption">Sin datos cargados.</p></div>
+  </div>
+
+  <div id="stack">
+
+    <div class="inst" id="clockInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Reloj de corrida</h2><span class="sup" id="clockSup">—</span></div>
+        <div id="clockRow">
+          <svg id="clockDial" viewBox="0 0 100 100" aria-hidden="true"></svg>
+          <div id="clockRead">
+            <div class="big readout" id="dayRead">—</div>
+            <div class="ph" id="phaseRead">—</div>
+            <div class="frame readout" id="frameRead">—</div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div class="inst" id="energyInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Energía</h2><span class="sup" id="aliveSup">—</span></div>
+        <div id="energyRow"></div>
+      </div>
+    </div>
+
+    <div class="inst" id="borderInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Frontera</h2><span class="sup" id="borderSup">—</span></div>
+        <div class="diagram">
+          <div class="half a">A · oeste</div>
+          <div class="wall" id="borderWall"></div>
+          <div class="half b" id="borderB">B · este</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inst" id="expoInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Exposición</h2><span class="sup" id="expoSup">todos</span></div>
+        <div class="quad" id="quad"></div>
+        <p class="placard" style="margin-top:9px;white-space:normal;line-height:1.5;letter-spacing:.06em">
+          Ticks vividos en cada cruce. La celda rayada es la que el mundo no deja vivir.
+        </p>
+      </div>
+    </div>
+
+    <div class="inst" id="calInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Calibración</h2><span class="sup" id="calSup">sin probe</span></div>
+        <div class="cal" id="calBody"></div>
+      </div>
+    </div>
+
+    <div class="inst" id="crewInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Tripulación</h2><span class="sup" id="crewSup">—</span></div>
+        <div class="crew" id="crew"></div>
+      </div>
+    </div>
+
+    <div class="inst" id="tapeInst">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face">
+        <div class="instHead"><h2>Registro</h2><span class="sup" id="tapeSup">—</span></div>
+        <div id="tapeList" role="log" aria-label="Registro de acciones"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
-// ---------------------------------------------------------------------------
-// WorldLab viewer — lee JSONL de eventos/snapshots y reproduce la simulación.
-// Cero dependencias.
-// ---------------------------------------------------------------------------
-const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-let meta = null, snapshots = [], events = [], frame = 0, playing = false, timer = null, okOnly = true;
-const CELL = 22;
+"use strict";
+// =============================================================================
+// WorldLab — Panel de corrida.
+// Lee la corrida (.jsonl) y, cuando existen, sus dos archivos hermanos:
+//   <exp>_seed<N>_traces.jsonl  — la decisión del LLM por tick
+//   <exp>_probes.jsonl          — el exit probe (OJO: sin sufijo _seed<N>)
+// Cero dependencias, cero red: tiene que abrir igual desde file:// que servido.
+// =============================================================================
 
-// Marca de agua: el logo es oscuro con trazos claros, así que se dibuja en modo
-// 'screen' — el negro del logo se vuelve transparente y solo brillan los trazos.
-// Así puede ser grande y visible sin tapar un solo dato.
-const logoImg = new Image();
-logoImg.src = 'assets/logo.jpg';
-const LOGO_ALPHA = 0.38;
-const LOGO_SIZE  = 0.66;   // fracción del lado menor del canvas
+const $ = id => document.getElementById(id);
 
-const RES_NAMES  = { food:'comida', water:'agua', wood:'madera', stone:'piedra', iron:'hierro', generic:'recurso' };
-const RES_COLORS = { food:'#5fd68a', water:'#4da3ff', wood:'#c2a358', stone:'#8fa3b8', iron:'#b8a0d8', generic:'#9aa5b1' };
+// --- estado ---------------------------------------------------------------
+let meta = null, snaps = [], events = [], traces = [], probes = [];
+let frame = 0, playing = false, rafId = null, lastT = 0, acc = 0;
+let okOnly = false;          // los fallos son datos: por defecto se ven TODOS
+let showAmounts = false;
+let openAgent = null;
+let runName = '—';
+let derived = { phase:false, region:false, barrier:false, names:false };
 
-// En el mundo experimental los símbolos son opacos (S1..S4). Los nombres legibles
-// vienen del meta del JSONL — SOLO para el visor, nunca para el modelo.
-function rName(rk) {
-  if (meta?.resource_names && meta.resource_names[rk]) return meta.resource_names[rk];
-  return RES_NAMES[rk] || rk;
+const CH = ['#39ff9a','#ffb000','#5ac8fa','#ff6fd8','#c4f24a'];
+const chOf = i => CH[i % CH.length];
+
+// --- utilidades -----------------------------------------------------------
+// Todo lo que viene del .jsonl es texto de un tercero: se escapa siempre.
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const keyOf = e => e.day * 100000 + e.tick;
+
+// El orden de los símbolos fija su forma; se congela al cargar para que un
+// mismo símbolo no cambie de glifo entre fotogramas.
+let symIndex = new Map();
+function symOf(rk){
+  if (!symIndex.has(rk)) symIndex.set(rk, symIndex.size);
+  return symIndex.get(rk) % 6;
 }
-// Escape HTML para todo lo que venga del .jsonl: el repo está publicado y un
-// archivo de un tercero no debe poder ejecutar JavaScript en el visor.
-const esc = s => String(s).replace(/[&<>"']/g, c => (
-  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const RES_COLORS = ['#39ff9a','#5ac8fa','#c4f24a','#ff6fd8','#ffb000','#8fd6ff'];
+const colorOf = rk => RES_COLORS[symOf(rk) % RES_COLORS.length];
 
-function rColor(rk) {
-  if (RES_COLORS[rk]) return RES_COLORS[rk];
-  let h = 0;
-  for (const c of rk) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return `hsl(${h} 58% 58%)`;
+// Los nombres legibles son SOLO del visor. El modelo nunca los ve, así que se
+// muestran como alias del símbolo, jamás en lugar de él.
+function alias(rk){
+  const n = meta && meta.resource_names && meta.resource_names[rk];
+  return n || null;
 }
-const ACTION_VERBS = {
-  move:    ['se movió', 'intentó moverse'],
-  gather:  ['recolectó', 'intentó recolectar'],
-  consume: ['comió', 'intentó comer'],
-  drop:    ['soltó', 'intentó soltar'],
-  pickup:  ['tomó', 'intentó tomar'],
-  give:    ['le entregó', 'intentó entregar'],
-  build:   ['construyó', 'intentó construir'],
-  talk:    ['emitió', 'intentó emitir'],
-  expelled:['fue expulsado', 'expulsión fallida'],
-  death:   ['murió', 'muerte fallida'],
-};
 
-function phaseOf(s) {
-  if (typeof s.phase === 'number') return s.phase;
-  const pt = meta?.phase_ticks, np = meta?.n_phases;
+// --- geometría del mundo (derivada cuando meta no la trae) ----------------
+const W = () => (meta && meta.width) || 30;
+const H = () => (meta && meta.height) || 30;
+const splitX = () => Math.round(((meta && meta.region_split) != null ? meta.region_split : 0.5) * W());
+function phaseOf(s){
+  if (s && typeof s.phase === 'number') return s.phase;
+  const pt = meta && meta.phase_ticks, np = meta && meta.n_phases;
   if (pt && np) return Math.floor(s.tick / pt) % np;
   return null;
 }
-function regionOf(x) {
-  const split = meta?.region_split ?? 0.5;
-  const w = meta?.width || 30;
-  return x < w * split ? 'A' : 'B';
-}
-const phaseName = p => p === 1 ? 'oscura' : (p === 0 ? 'clara' : '—');
-const phaseIcon = p => p === 1 ? '🌙' : (p === 0 ? '☀️' : '');
+const regionOf = x => x < splitX() ? 'A' : 'B';
+const phaseName = p => p === 1 ? 'Oscura' : (p === 0 ? 'Clara' : 'Sin ciclo');
+// El cierre de la frontera NO viene en meta: es una suposición del visor.
+const barrierClosed = p => p === 1;
 
-// ---------------------------------------------------------------------------
-// Panel: qué se está probando. El diagrama 2×2 es la pieza que hace entendible
-// el experimento sin leer una línea de documentación.
-// ---------------------------------------------------------------------------
-const COND_LABELS = {
-  sin_memoria:       'Sin memoria — decide solo con lo que ve ahora',
-  memoria:           'Con memoria — recuerda lo que le pasó antes',
-  oraculo:           'Oráculo — le entregamos las reglas del mundo',
-  baseline_empirico: 'Baseline — política simple, sin modelo de lenguaje',
+// --- iconos dibujados (nada de emoji) -------------------------------------
+const ICON_SUN  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.6"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></svg>';
+const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
+
+// =============================================================================
+// CARGA
+// =============================================================================
+function classify(name){
+  if (/_traces\.jsonl$/i.test(name)) return 'traces';
+  if (/_probes\.jsonl$/i.test(name)) return 'probes';
+  return 'run';
+}
+
+function parseLines(text, name){
+  const out = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++){
+    const ln = lines[i].trim();
+    if (!ln) continue;
+    try { out.push(JSON.parse(ln)); }
+    catch (err){
+      // Una última línea truncada es normal en una corrida interrumpida: se
+      // descarta y se avisa, en vez de tirar el archivo entero.
+      if (i >= lines.length - 2) continue;
+      throw new Error(`línea ${i + 1} de ${esc(name)} no es JSON válido`);
+    }
+  }
+  return out;
+}
+
+async function ingest(files){
+  const byKind = { run:null, traces:null, probes:null };
+  for (const f of files){
+    const k = classify(f.name);
+    if (!byKind[k]) byKind[k] = { name:f.name, text: await f.text() };
+  }
+  applyBundle(byKind);
+}
+
+function applyBundle(b){
+  if (b.run){
+    let recs;
+    try { recs = parseLines(b.run.text, b.run.name); }
+    catch (err){ return bootError('No se pudo leer la corrida', err.message); }
+    const m  = recs.find(r => r.type === 'meta') || null;
+    const sn = recs.filter(r => r.type === 'snapshot');
+    const ev = recs.filter(r => r.type === 'event');
+    if (!sn.length) return bootError(
+      'La corrida no trae snapshots',
+      'El archivo se leyó bien pero no contiene registros type="snapshot", así que no hay nada que reproducir. ¿Es un archivo _traces o _probes?');
+
+    // Estado nuevo: nada del archivo anterior sobrevive.
+    meta = m; snaps = sn; events = ev; traces = []; probes = [];
+    symIndex = new Map(); openAgent = null; frame = 0;
+    snaps.sort((a,b2) => keyOf(a) - keyOf(b2));
+    runName = b.run.name;
+    // El orden de los símbolos se congela por aparición en el primer snapshot.
+    for (const e of (snaps[0].entities || [])) if (e.kind === 'resource') symOf((e.attrs && e.attrs.kind) || 'generic');
+    derived = {
+      phase:   !(meta && meta.phase_ticks && meta.n_phases),
+      region:  !(meta && meta.region_split != null),
+      barrier: true,
+      names:   !!(meta && meta.resource_names)
+    };
+  }
+  if (!snaps.length) return;
+
+  if (b.traces){
+    try { traces = parseLines(b.traces.text, b.traces.name).filter(r => r.type === 'trace'); }
+    catch (err){ traces = []; }
+    traces.sort((a,b2) => keyOf(a) - keyOf(b2));
+  }
+  if (b.probes){
+    try { probes = parseLines(b.probes.text, b.probes.name); }
+    catch (err){ probes = []; }
+  }
+
+  $('boot').hidden = true;
+  $('bootErr').hidden = true;
+  $('cv').hidden = false;
+  $('transport').hidden = false;
+  const sc = $('scrub'); sc.max = snaps.length - 1; sc.value = 0;
+  expoCache = null;
+  fillRunPlate(); buildPhaseTape(); layout(); fillLegend(); goTo(0);
+  // La calibración es una propiedad de la corrida completa, no del fotograma.
+  fillCal();
+}
+
+function bootError(head, detail){
+  stop();
+  $('boot').hidden = false; $('cv').hidden = true; $('transport').hidden = true;
+  const e = $('bootErr'); e.hidden = false;
+  e.innerHTML = `<div class="h">${esc(head)}</div><div class="f">${esc(detail)}</div>`;
+}
+
+// =============================================================================
+// PLACA DE IDENTIDAD + ANUNCIADORES
+// =============================================================================
+const COND = {
+  sin_memoria:'Sin memoria', memoria:'Con memoria',
+  oraculo:'Oráculo', baseline_empirico:'Baseline (sin LLM)'
 };
-function expInfo() {
-  if (!meta?.experiment) return null;
+function expInfo(){
+  if (!meta || !meta.experiment) return {};
   const m = String(meta.experiment).match(/^[a-z0-9]+_([a-z_]+)_(\d+)_s(\d+)$/);
   if (!m) return { raw: meta.experiment };
-  return { cond: m[1], dens: parseInt(m[2], 10) / 100, seed: parseInt(m[3], 10) };
+  return { cond:m[1], dens:parseInt(m[2],10)/100, seed:parseInt(m[3],10) };
 }
-function fillInfo() {
-  const body = document.getElementById('infoBody');
-  const matrix = `
-    <div class="matrix" role="img" aria-label="Tres situaciones vividas y una nunca vivida: región B en fase oscura">
-      <span></span><span class="hd">☀️ clara</span><span class="hd">🌙 oscura</span>
-      <span class="rw" style="color:var(--region-a)">A</span>
-      <span class="cell">la vive</span><span class="cell">la vive</span>
-      <span class="rw" style="color:var(--region-b)">B</span>
-      <span class="cell">la vive</span>
-      <span class="cell held"><span class="q">?</span>nunca</span>
-    </div>`;
-  if (!meta) {
-    body.innerHTML = `
-      <p class="lead">Los recursos hacen cosas distintas según <b>la región</b> (A o B) y
-      <b>la fase</b> del ciclo. Son cuatro combinaciones, pero el mundo está hecho para que
-      un agente solo pueda vivir tres.</p>
-      ${matrix}
-      <p class="caption">Al final se le pregunta por la cuarta. Como nunca estuvo ahí, no hay nada
-      que recordar: solo acierta quien entendió que la región suma una cosa y la fase otra,
-      y las combina.</p>`;
+function fillRunPlate(){
+  const ei = expInfo();
+  $('pRun').textContent   = runName.replace(/\.jsonl$/,'');
+  $('pRun').title         = runName;
+  $('pCond').textContent  = ei.cond ? (COND[ei.cond] || ei.cond) : (ei.raw || 'no declarada');
+  $('pCond').classList.toggle('derived', !ei.cond);
+  $('pWorld').textContent = meta ? `${W()}×${H()} · ${meta.days || '?'} d` : `${W()}×${H()} · derivado`;
+  $('pWorld').classList.toggle('derived', !meta);
+  $('pSeed').textContent  = (meta && meta.seed != null) ? meta.seed : (ei.seed != null ? ei.seed : '—');
+}
+
+// Una lámpara con destino es un botón: lleva al instrumento que la explica.
+// La columna scrollea en pantallas bajas y el resultado del experimento no
+// puede quedar escondido bajo el pliegue.
+function lamp(label, state, title, target){
+  const on = state ? ` data-on="${state}"` : '';
+  if (!target) return `<span class="lamp"${on} title="${esc(title)}"><span class="bulb"></span>${esc(label)}</span>`;
+  return `<button type="button" class="lamp"${on} data-go="${target}" title="${esc(title)}">
+    <span class="bulb"></span>${esc(label)}</button>`;
+}
+function fillAnnun(){
+  const out = [];
+  if (!snaps.length){
+    $('annun').innerHTML = lamp('Sin corrida', null, 'Cargue un archivo .jsonl de una corrida.');
     return;
   }
-  const ei = expInfo();
-  const condTxt = ei?.cond ? (COND_LABELS[ei.cond] || ei.cond) : (ei?.raw || '—');
-  const res = meta.resource_names
-    ? Object.entries(meta.resource_names).map(([k, v]) => `${k} = ${v}`).join(' · ')
-    : 'símbolos opacos';
-  body.innerHTML = `
-    <p class="lead">Los recursos hacen cosas distintas según <b>la región</b> y <b>la fase</b>.
-    Este agente solo puede vivir tres de las cuatro combinaciones.</p>
-    ${matrix}
-    <p class="caption">Al final se le pregunta por la casilla que nunca vivió. No hay nada que
-    recordar: solo acierta quien compuso las dos reglas. Al azar sería ~17%.</p>
-    <dl class="facts">
-      <dt>Condición</dt><dd>${esc(condTxt)}</dd>
-      ${ei?.dens != null ? `<dt>Recursos</dt><dd>${esc(Math.round(ei.dens*100))}% del mapa</dd>` : ''}
-      ${ei?.seed != null ? `<dt>Semilla</dt><dd>${esc(ei.seed)}</dd>` : ''}
-      <dt>Mundo</dt><dd>${esc(meta.width)}×${esc(meta.height)} · ${esc(meta.days)} días</dd>
-      <dt>Ciclo</dt><dd>${esc(meta.phase_ticks)} ticks por fase</dd>
-      <dt>Símbolos</dt><dd>${esc(res)}</dd>
-    </dl>`;
+  const anyDerived = derived.phase || derived.region || derived.barrier;
+  out.push(lamp(derived.phase ? 'Fase derivada' : 'Fase medida',
+    derived.phase ? 'amber' : 'green',
+    derived.phase
+      ? 'meta no trae phase_ticks/n_phases: el visor está infiriendo el ciclo. No es un dato del motor.'
+      : 'La fase viene de meta (phase_ticks + n_phases).', 'clockInst'));
+
+  out.push(lamp(derived.barrier ? 'Barrera supuesta' : 'Barrera medida', 'amber',
+    'meta no declara phase_barriers. El visor asume que la fase oscura cierra la región B. Verifíquelo contra la config de la corrida.', 'borderInst'));
+
+  out.push(lamp(traces.length ? `Trazas ${traces.length}` : 'Sin trazas',
+    traces.length ? 'green' : null,
+    traces.length ? 'Se cargó el archivo _traces: puede abrir la decisión del modelo por agente.'
+                  : 'No se cargó <corrida>_traces.jsonl. Sin él no se ve qué respondió el modelo.', 'crewInst'));
+
+  const held = probes.filter(p => p.never_lived);
+  out.push(lamp(probes.length ? (held.length ? `Probe ${held.length}` : 'Probe sin retenida') : 'Sin probe',
+    probes.length ? (held.length ? 'green' : 'amber') : null,
+    probes.length ? 'Se cargó <experimento>_probes.jsonl: la calibración muestra predicho contra verdad.'
+                  : 'No se cargó <experimento>_probes.jsonl (ojo: ese archivo NO lleva el sufijo _seed<N>). Sin él no hay resultado del experimento.', 'calInst'));
+
+  const under = underexposed();
+  if (under.length) out.push(lamp(`Subexpuesto ×${under.length}`, 'amber',
+    `Agentes con 0 ticks en alguna celda vivible: ${under.join(', ')}. Su probe de esa celda no es interpretable.`, 'expoInst'));
+
+  if (okOnly) out.push(lamp('Filtro activo', 'amber',
+    'El registro está ocultando los intentos rechazados. Un intento rechazado dice tanto del agente como uno logrado.', 'tapeInst'));
+
+  if (!anyDerived) out.push(lamp('Corrida íntegra', 'green', 'Nada esencial está siendo inferido por el visor.'));
+  $('annun').innerHTML = out.join('');
 }
 
-// leyenda construida desde los datos, no hardcodeada
-function fillLegend(agents, kinds) {
-  const leg = document.getElementById('legend');
-  const resPart = [...kinds].sort().map(k =>
-    `<span class="lg"><span class="sw" style="background:${rColor(k)}"></span>${esc(rName(k))}</span>`).join('');
-  const agentPart = agents.map((a, i) =>
-    `<span class="lg"><span class="sw circ" style="background:hsl(${(i*137.5)%360} 70% 58%)"></span>${esc(a.eid)}</span>`).join('');
-  leg.innerHTML =
-    agentPart +
-    (resPart ? `<span class="lg" style="color:var(--dim)">recursos:</span>${resPart}` : '') +
-    `<span class="lg"><span class="sw" style="background:#7a8699"></span>construcción</span>` +
-    `<span class="lg" style="color:var(--dim)">el número sobre un recurso es lo que queda</span>`;
-}
-
-function parseFile(text) {
-  const data = { snapshots: [], events: [] };
-  for (const line of text.split('\n')) {
-    if (!line.trim()) continue;
-    const obj = JSON.parse(line);
-    if (obj.type === 'meta') data.meta = obj;
-    else if (obj.type === 'snapshot') data.snapshots.push(obj);
-    else if (obj.type === 'event') data.events.push(obj);
+// =============================================================================
+// EXPOSICIÓN — ticks vividos por cruce (región × fase)
+// Se calcula sobre TODOS los snapshots, no solo hasta el cursor: es una
+// propiedad de la corrida completa, y de ella depende si el probe sirve.
+// =============================================================================
+let expoCache = null;
+function exposure(){
+  if (expoCache) return expoCache;
+  const per = new Map();
+  for (const s of snaps){
+    const p = phaseOf(s);
+    if (p == null) continue;
+    for (const e of (s.entities || [])){
+      if (e.kind !== 'agent') continue;
+      const alive = ((s.agents && s.agents[e.eid] && s.agents[e.eid].energy) || 0) > 0;
+      if (!alive) continue;
+      if (!per.has(e.eid)) per.set(e.eid, {'A-0':0,'A-1':0,'B-0':0,'B-1':0});
+      per.get(e.eid)[`${regionOf(e.x)}-${p}`]++;
+    }
   }
-  return data;
+  expoCache = per;
+  return per;
 }
-
-function loadFromText(text, name) {
-  let d;
-  try { d = parseFile(text); }
-  catch (err) { showError('El archivo no es un .jsonl válido.'); return; }
-  if (!d.snapshots.length) { showError('El archivo no contiene snapshots de la simulación.'); return; }
-  meta = d.meta; snapshots = d.snapshots; events = d.events;
-  snapshots.sort((a, b) => (a.day*100000+a.tick) - (b.day*100000+b.tick));
-
-  document.getElementById('fileInfo').textContent =
-    `${name} · ${snapshots.length} momentos · ${events.length} eventos`;
-  document.getElementById('emptyState').hidden = true;
-  for (const id of ['cv','status','legend','controls']) document.getElementById(id).hidden = false;
-
-  const scr = document.getElementById('scrub');
-  scr.max = snapshots.length - 1; scr.value = 0;
-  frame = 0;
-  buildPhaseStrip();
-  fillInfo(); render(); updatePanels();
-}
-function showError(msg) {
-  const e = document.getElementById('emptyState');
-  e.hidden = false;
-  e.querySelector('p').innerHTML = `<span style="color:var(--bad)">${esc(msg)}</span>`;
-}
-
-// bandas del ciclo a lo largo de toda la corrida
-function buildPhaseStrip() {
-  const strip = document.getElementById('phaseStrip');
-  strip.innerHTML = snapshots.map(s =>
-    `<i style="flex:1;background:${phaseOf(s) === 1 ? '#1c2333' : '#39445c'}"></i>`
-  ).join('');
-}
-
-function goTo(i) {
-  frame = Math.max(0, Math.min(snapshots.length-1, i));
-  document.getElementById('scrub').value = frame;
-  render(); updatePanels();
-}
-function togglePlay() {
-  playing = !playing;
-  const b = document.getElementById('playBtn');
-  b.textContent = playing ? '⏸' : '▶';
-  b.setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir');
-  clearInterval(timer);
-  if (playing) {
-    timer = setInterval(() => {
-      if (frame >= snapshots.length-1) togglePlay(); else goTo(frame+1);
-    }, 400 / parseFloat(document.getElementById('speed').value));
+function underexposed(){
+  const out = [];
+  for (const [eid, c] of exposure()){
+    // B-1 es la celda retenida por diseño: no cuenta como subexposición.
+    if (c['A-0'] === 0 || c['A-1'] === 0 || c['B-0'] === 0) out.push(eid);
   }
+  return out;
 }
-function toggleOkOnly() {
-  okOnly = !okOnly;
-  const b = document.getElementById('okBtn');
-  b.setAttribute('aria-pressed', String(okOnly));
-  b.textContent = okOnly ? 'solo acciones logradas' : 'todos los intentos';
-  updatePanels();
+function fillQuad(){
+  const per = exposure();
+  const agg = {'A-0':0,'A-1':0,'B-0':0,'B-1':0};
+  const src = openAgent && per.has(openAgent) ? [[openAgent, per.get(openAgent)]] : [...per];
+  for (const [,c] of src) for (const k in agg) agg[k] += c[k];
+  $('expoSup').textContent = openAgent || (src.length ? 'todos' : '—');
+
+  const cell = (k, held) => {
+    const n = agg[k] || 0;
+    if (held) return `<div class="cell held"><span class="n">?</span><span class="u">nunca</span></div>`;
+    return `<div class="cell" data-lit="${n > 0 ? 1 : 0}">
+      <span class="n">${n}</span><span class="u">ticks</span></div>`;
+  };
+  $('quad').innerHTML = `
+    <span></span>
+    <span class="hd">${ICON_SUN}Clara</span>
+    <span class="hd">${ICON_MOON}Oscura</span>
+    <span class="rw" style="color:var(--reg-a)">A</span>${cell('A-0')}${cell('A-1')}
+    <span class="rw" style="color:var(--reg-b)">B</span>${cell('B-0')}${cell('B-1', true)}`;
 }
 
-function render() {
-  const s = snapshots[frame];
-  const w = (meta?.width || 30), h = (meta?.height || 30);
-  cv.width = w * CELL; cv.height = h * CELL;
-  const W = cv.width, H = cv.height;
+// =============================================================================
+// CALIBRACIÓN — el exit probe. La aguja es lo que el agente predijo; el índice
+// ámbar es la verdad del motor. La distancia entre ambos ES el resultado.
+// =============================================================================
+const LEVELS = ['pérdida grande','pérdida media','pérdida chica','ganancia chica','ganancia media','ganancia grande'];
+function fillCal(){
+  const body = $('calBody');
+  const held = probes.filter(p => p.never_lived);
+  if (!probes.length){
+    $('calSup').textContent = 'sin probe';
+    body.innerHTML = `<p class="placard" style="white-space:normal;line-height:1.55;letter-spacing:.06em">
+      No se cargó <b style="color:var(--lum-2)">&lt;experimento&gt;_probes.jsonl</b>.
+      Ese archivo no lleva el sufijo <b style="color:var(--lum-2)">_seed&lt;N&gt;</b> — arrástrelo junto a la corrida.</p>`;
+    return;
+  }
+  if (!held.length){
+    $('calSup').textContent = `${probes.length} probes`;
+    body.innerHTML = `<p class="placard" style="white-space:normal;line-height:1.55;letter-spacing:.06em">
+      Hay probes, pero ninguno marcado <b style="color:var(--lum-2)">never_lived</b>: esta corrida no
+      midió la casilla retenida.</p>`;
+    return;
+  }
+  const under = new Set(underexposed());
+  $('calSup').textContent = `${held.length} · azar ≈17%`;
+  const rows = held.map(p => {
+    const pl = p.predicted_level, tl = p.truth_level;
+    let v = 'v-none', vt = 'sin respuesta';
+    if (p.level_correct)      { v = 'v-ok';   vt = 'compuso'; }
+    else if (p.sign_correct)  { v = 'v-sign'; vt = 'solo el signo'; }
+    else if (pl != null)      { v = 'v-bad';  vt = 'erró'; }
+    const lvs = LEVELS.map((_,i) =>
+      `<span class="lv" data-band="${i < 3 ? 'loss' : 'gain'}"${i === tl ? ' data-truth="1"' : ''}></span>`).join('');
+    const needle = pl != null
+      ? `<span class="needle" style="left:${((pl + .5) / 6 * 100).toFixed(2)}%"></span>` : '';
+    const bug = tl != null
+      ? `<span class="bug" style="left:${((tl + .5) / 6 * 100).toFixed(2)}%"></span>` : '';
+    const warn = under.has(p.eid)
+      ? `<div class="calWarn">nunca vivió una celda base — su predicción no es interpretable</div>` : '';
+    return `<div class="calRow">
+        <span class="cs" style="color:${chOf(agentIndex(p.eid))}">${esc(p.eid)}</span>
+        <span class="calScale" data-answered="${pl != null ? 1 : 0}" role="img"
+          aria-label="${esc(p.eid)}: predijo ${pl != null ? LEVELS[pl] : 'nada'}, la verdad era ${tl != null ? LEVELS[tl] : 'desconocida'}">
+          ${lvs}${bug}${needle}</span>
+        <span class="verdict ${v}">${esc(vt)}</span>
+      </div>${warn}`;
+  }).join('');
+  body.innerHTML = rows + `<div class="calLegend">
+      <span><b>│</b> predijo</span><span><b>▲</b> verdad</span>
+      <span>izquierda pérdida · derecha ganancia</span></div>`;
+}
+
+// =============================================================================
+// RENDER DEL MUNDO
+// El fondo estático (cara, grilla, regiones, marca) se pinta una sola vez en un
+// canvas fuera de pantalla por cada fase; por fotograma solo se dibujan las
+// entidades. Antes eran ~1800 trazos de grilla por fotograma.
+// =============================================================================
+const cv = $('cv'), ctx = cv.getContext('2d');
+const logo = new Image(); logo.src = 'assets/logo.jpg';
+// La marca va grande —ocupa casi toda la cara— pero grabada, no impresa: a esta
+// opacidad se lee como serigrafía del instrumento y no compite con un solo dato.
+const LOGO_FRAC = 0.94;
+const LOGO_ALPHA = 0.13;
+let bgCache = new Map(), cell = 20, dpr = 1;
+
+function layout(){
+  const face = $('worldInst').querySelector('.face');
+  const pad = 18;
+  const availW = Math.max(160, face.clientWidth  - pad * 2);
+  const availH = Math.max(160, face.clientHeight - pad * 2);
+  if (window.innerWidth <= 900){
+    // Apilado: la cara toma la proporción del mundo en vez de estirarse con el
+    // flex del panel, que sin altura de referencia la colapsa a cero.
+    face.style.flex = 'none';
+    face.style.height = (Math.round(availW * H() / W()) + pad * 2) + 'px';
+  } else {
+    face.style.flex = '';
+    face.style.height = '';
+  }
+  const availH2 = Math.max(160, face.clientHeight - pad * 2);
+  cell = Math.max(7, Math.floor(Math.min(availW / W(), availH2 / H())));
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const px = W() * cell, py = H() * cell;
+  cv.style.width = px + 'px'; cv.style.height = py + 'px';
+  cv.width = Math.round(px * dpr); cv.height = Math.round(py * dpr);
+  bgCache = new Map();
+}
+
+function buildBg(phase){
+  const px = W() * cell, py = H() * cell, sx = splitX() * cell;
+  const c = document.createElement('canvas');
+  c.width = cv.width; c.height = cv.height;
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const dark = phase === 1;
+
+  g.fillStyle = dark ? '#06080a' : '#0f1418';
+  g.fillRect(0, 0, px, py);
+  // Los dos campos de región: teñidos, y además rotulados y separados por un muro.
+  g.fillStyle = dark ? 'rgba(90,200,250,.05)' : 'rgba(90,200,250,.085)';
+  g.fillRect(0, 0, sx, py);
+  g.fillStyle = dark ? 'rgba(192,140,255,.035)' : 'rgba(192,140,255,.13)';
+  g.fillRect(sx, 0, px - sx, py);
+
+  // marca grabada en la cara — grande, en 'screen': el negro del logo desaparece
+  if (logo.complete && logo.naturalWidth > 0){
+    const side = Math.round(Math.min(px, py) * LOGO_FRAC);
+    g.save();
+    g.globalCompositeOperation = 'screen';
+    g.globalAlpha = LOGO_ALPHA * (dark ? .62 : 1);
+    g.drawImage(logo, (px - side) / 2, (py - side) / 2, side, side);
+    g.restore();
+  }
+
+  g.strokeStyle = dark ? 'rgba(255,255,255,.035)' : 'rgba(255,255,255,.055)';
+  g.lineWidth = 1;
+  g.beginPath();
+  for (let x = 0; x <= W(); x++){ g.moveTo(x * cell + .5, 0); g.lineTo(x * cell + .5, py); }
+  for (let y = 0; y <= H(); y++){ g.moveTo(0, y * cell + .5); g.lineTo(px, y * cell + .5); }
+  g.stroke();
+
+  // trama de barrera sobre B cuando está cerrada: la región se lee bloqueada
+  if (barrierClosed(phase)){
+    g.save();
+    g.strokeStyle = 'rgba(255,59,48,.20)'; g.lineWidth = 1.5;
+    g.beginPath();
+    for (let i = -py; i < px; i += 9){ g.moveTo(sx + i, 0); g.lineTo(sx + i + py, py); }
+    g.stroke();
+    g.restore();
+  }
+
+  // el muro, con dientes hacia el lado cerrado
+  const closed = barrierClosed(phase);
+  g.strokeStyle = closed ? 'rgba(255,59,48,.95)' : 'rgba(242,245,242,.42)';
+  g.lineWidth = 2; g.setLineDash(closed ? [] : [7,6]);
+  g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, py); g.stroke();
+  g.setLineDash([]);
+  if (closed){
+    g.beginPath();
+    for (let y = 6; y < py; y += 14){ g.moveTo(sx, y); g.lineTo(sx + 6, y + 4); }
+    g.lineWidth = 1.5; g.stroke();
+  }
+
+  // rótulos de campo
+  const lab = Math.max(9, Math.min(13, Math.round(cell * .55)));
+  g.font = `700 ${lab}px 'WL Placard', system-ui`;
+  g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillStyle = 'rgba(90,200,250,.85)';  g.fillText('A · OESTE', 8, 7);
+  g.fillStyle = closed ? 'rgba(255,122,112,.9)' : 'rgba(192,140,255,.85)';
+  g.fillText(closed ? 'B · CERRADA' : 'B · ESTE', sx + 8, 7);
+  return c;
+}
+
+function drawSymbol(g, idx, cx, cy, r, fillFrac){
+  g.beginPath();
+  switch (idx){
+    case 0: g.arc(cx, cy, r, 0, Math.PI * 2); break;
+    case 1: g.moveTo(cx, cy - r); g.lineTo(cx + r * .93, cy + r * .72); g.lineTo(cx - r * .93, cy + r * .72); g.closePath(); break;
+    case 2: g.rect(cx - r * .84, cy - r * .84, r * 1.68, r * 1.68); break;
+    case 3: g.moveTo(cx, cy - r); g.lineTo(cx + r, cy); g.lineTo(cx, cy + r); g.lineTo(cx - r, cy); g.closePath(); break;
+    case 4: for (let i = 0; i < 6; i++){ const a = Math.PI / 3 * i - Math.PI / 2;
+              const px2 = cx + Math.cos(a) * r, py2 = cy + Math.sin(a) * r;
+              i ? g.lineTo(px2, py2) : g.moveTo(px2, py2); } g.closePath(); break;
+    default: g.moveTo(cx, cy + r); g.lineTo(cx + r * .93, cy - r * .72); g.lineTo(cx - r * .93, cy - r * .72); g.closePath();
+  }
+  // el contorno siempre; el relleno indica cuánto queda (gauge de combustible)
+  if (fillFrac > 0){
+    g.save(); g.clip();
+    g.fillRect(cx - r * 1.2, cy + r - r * 2 * fillFrac, r * 2.4, r * 2 * fillFrac);
+    g.restore();
+  }
+  g.stroke();
+}
+
+function render(){
+  const s = snaps[frame];
+  if (!s) return;
   const phase = phaseOf(s);
+  if (!bgCache.has(phase)) bgCache.set(phase, buildBg(phase));
 
-  // fondo según fase — el ciclo se lee sin mirar ninguna etiqueta
-  ctx.fillStyle = phase === 1 ? '#0a0d14' : '#121826';
-  ctx.fillRect(0, 0, W, H);
-
-  // tinte de región: cian a la izquierda (A), violeta a la derecha (B)
-  const splitX = Math.round((meta?.region_split ?? 0.5) * w);
-  ctx.fillStyle = 'rgba(63,208,201,0.045)';  ctx.fillRect(0, 0, splitX*CELL, H);
-  ctx.fillStyle = 'rgba(155,127,232,0.045)'; ctx.fillRect(splitX*CELL, 0, W - splitX*CELL, H);
-
-  // marca de agua: grande, en modo screen (el negro del logo desaparece)
-  if (logoImg.complete && logoImg.naturalWidth > 0) {
-    const side = Math.round(Math.min(W, H) * LOGO_SIZE);
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = LOGO_ALPHA;
-    ctx.drawImage(logoImg, (W - side)/2, (H - side)/2, side, side);
-    ctx.restore();
-  }
-
-  ctx.strokeStyle = phase === 1 ? 'rgba(255,255,255,.045)' : 'rgba(255,255,255,.06)';
-  ctx.lineWidth = 1;
-  for (let x=0; x<=w; x++) { ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,H); ctx.stroke(); }
-  for (let y=0; y<=h; y++) { ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(W,y*CELL); ctx.stroke(); }
-
-  // frontera entre regiones
-  ctx.strokeStyle = phase === 1 ? 'rgba(239,109,109,.75)' : 'rgba(255,255,255,.28)';
-  ctx.lineWidth = 2; ctx.setLineDash(phase === 1 ? [] : [6,5]);
-  ctx.beginPath(); ctx.moveTo(splitX*CELL, 0); ctx.lineTo(splitX*CELL, H); ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.font = '600 12px system-ui'; ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(63,208,201,.7)';  ctx.fillText('REGIÓN A', 9, 17);
-  ctx.fillStyle = 'rgba(155,127,232,.7)'; ctx.fillText('REGIÓN B', splitX*CELL + 9, 17);
-
-  if (phase === 1) {
-    ctx.font = '600 11px system-ui'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(239,109,109,.8)';
-    ctx.fillText('🔒 frontera cerrada — nadie puede entrar a B', splitX*CELL + (W - splitX*CELL)/2, H - 10);
-  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(bgCache.get(phase), 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const ent = s.entities || [];
   const agents = ent.filter(e => e.kind === 'agent');
-  const kinds = new Set();
+  const r = Math.max(2.5, cell * .32);
 
-  for (const e of ent) {
+  for (const e of ent){
     if (e.kind === 'agent') continue;
-    const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
-    if (e.kind === 'resource') {
-      const rk = e.attrs?.kind || 'generic';
-      kinds.add(rk);
-      const amt = Math.round(e.attrs?.amount ?? 0);
-      ctx.fillStyle = rColor(rk);
-      ctx.fillRect(e.x*CELL+4, e.y*CELL+4, CELL-8, CELL-8);
-      if (amt > 0) {
-        ctx.fillStyle = 'rgba(9,11,15,.85)'; ctx.font = '700 9px system-ui'; ctx.textAlign='center';
-        ctx.fillText(amt, px, py+3);
+    const cx = e.x * cell + cell / 2, cy = e.y * cell + cell / 2;
+    if (e.kind === 'resource'){
+      const rk = (e.attrs && e.attrs.kind) || 'generic';
+      const amt = (e.attrs && e.attrs.amount) || 0;
+      const init = (e.attrs && e.attrs.initial_amount) || Math.max(amt, 1);
+      const col = colorOf(rk);
+      ctx.lineWidth = Math.max(1, cell * .075);
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      drawSymbol(ctx, symOf(rk), cx, cy, r, clamp(amt / init, 0, 1));
+      if (showAmounts && cell >= 15 && amt > 0){
+        // La cifra va en una placa bajo el símbolo: encima lo vuelve ilegible y
+        // tapa justo el relleno que dice cuánto queda.
+        const txt = String(Math.round(amt));
+        const fs = Math.max(8, Math.round(cell * .38));
+        ctx.font = `700 ${fs}px 'WL Placard', system-ui`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const w2 = ctx.measureText(txt).width + 5, h2 = fs + 2, by = cy + r + h2 * .55;
+        ctx.fillStyle = 'rgba(6,8,10,.9)';
+        ctx.fillRect(cx - w2 / 2, by - h2 / 2, w2, h2);
+        ctx.fillStyle = col;
+        ctx.fillText(txt, cx, by);
       }
-    } else if (e.kind === 'object') {
-      ctx.fillStyle = '#7a8699'; ctx.fillRect(e.x*CELL+3, e.y*CELL+7, CELL-6, CELL-9);
-      ctx.fillStyle = '#a06a4a';
+    } else if (e.kind === 'object'){
+      // estructura: cuadro con techo, dibujado en el mismo grosor de trazo
+      ctx.strokeStyle = '#9aa6ad'; ctx.lineWidth = Math.max(1, cell * .075);
       ctx.beginPath();
-      ctx.moveTo(e.x*CELL+1, e.y*CELL+8); ctx.lineTo(px, e.y*CELL+1);
-      ctx.lineTo((e.x+1)*CELL-1, e.y*CELL+8); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#252b38'; ctx.fillRect(px-3, (e.y+1)*CELL-6, 6, 6);
+      ctx.rect(cx - r * .85, cy - r * .25, r * 1.7, r * 1.25);
+      ctx.moveTo(cx - r, cy - r * .25); ctx.lineTo(cx, cy - r); ctx.lineTo(cx + r, cy - r * .25);
+      ctx.stroke();
     }
   }
 
-  // agentes siempre encima, para que no queden tapados
-  agents.forEach((e, idx) => {
-    const px = e.x*CELL + CELL/2, py = e.y*CELL + CELL/2;
-    const energy = s.agents?.[e.eid]?.energy ?? 0;
-    ctx.fillStyle = `hsl(${(idx*137.5)%360} 70% 58%)`;
-    ctx.beginPath(); ctx.arc(px, py, CELL*0.38, 0, Math.PI*2); ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = energy <= 0 ? '#ef6d6d' : '#090b0f'; ctx.stroke();
-    const n = e.eid.replace(/[^0-9]/g,'');
-    ctx.font = '700 10px system-ui'; ctx.textAlign='center';
-    ctx.strokeStyle = '#090b0f'; ctx.lineWidth = 3; ctx.strokeText(n, px, py+3);
-    ctx.fillStyle = '#fff'; ctx.fillText(n, px, py+3);
-  });
+  agents.forEach((e, i) => {
+    const cx = e.x * cell + cell / 2, cy = e.y * cell + cell / 2;
+    const info = (s.agents && s.agents[e.eid]) || { energy: 0 };
+    const en = info.energy || 0;
+    const col = chOf(i);
+    const R = Math.max(4, cell * .40);
+    const sel = openAgent === e.eid;
 
-  // barra de estado narrativa
-  const alive = agents.filter(a => (s.agents?.[a.eid]?.energy ?? 0) > 0).length;
-  document.getElementById('nowLabel').textContent =
-    `${phaseIcon(phase)} Día ${s.day} · fase ${phaseName(phase)}`;
-  document.getElementById('chipAlive').innerHTML =
-    `<span class="dot" style="background:${alive === agents.length ? 'var(--ok)' : (alive ? 'var(--warn)' : 'var(--bad)')}"></span>
-     <b>${alive}</b>&nbsp;de ${agents.length} con energía`;
-  document.getElementById('chipBorder').innerHTML = phase === 1
-    ? `<span class="dot" style="background:var(--bad)"></span>frontera a B <b>cerrada</b>`
-    : `<span class="dot" style="background:var(--region-b)"></span>frontera a B <b>abierta</b>`;
-  document.getElementById('chipFrame').textContent = `momento ${frame+1} de ${snapshots.length}`;
-  fillLegend(agents, kinds);
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(6,8,10,.88)'; ctx.fill();
+    // arco de energía: la anilla se completa con la energía, como un gauge
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(en / 100, 0, 1));
+    ctx.strokeStyle = en <= 0 ? '#ff3b30' : col;
+    ctx.lineWidth = Math.max(1.5, cell * .11); ctx.stroke();
+    if (en > 0 && en < 20){
+      ctx.beginPath(); ctx.arc(cx, cy, R + ctx.lineWidth, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,59,48,.7)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    if (sel){
+      ctx.beginPath(); ctx.arc(cx, cy, R + Math.max(3, cell * .18), 0, Math.PI * 2);
+      ctx.strokeStyle = '#f2f5f2'; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (cell >= 13){
+      const n = e.eid.replace(/[^0-9]/g,'') || e.eid.slice(-1);
+      ctx.font = `700 ${Math.round(cell * .42)}px 'WL Placard', system-ui`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = en <= 0 ? '#ff7a70' : '#f2f5f2';
+      ctx.fillText(n, cx, cy + cell * .02);
+    }
+    if (en <= 0){
+      ctx.strokeStyle = '#ff3b30'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - R * .6, cy - R * .6); ctx.lineTo(cx + R * .6, cy + R * .6);
+      ctx.moveTo(cx + R * .6, cy - R * .6); ctx.lineTo(cx - R * .6, cy + R * .6);
+      ctx.stroke();
+    }
+  });
 }
 
-function updatePanels() {
-  const s = snapshots[frame];
-  const list = document.getElementById('agentsList');
-  const agents = (s.entities || []).filter(e => e.kind === 'agent');
-  list.innerHTML = '';
-  agents.forEach((a, idx) => {
-    const info = s.agents?.[a.eid] || { energy: 0, inventory: {} };
-    const inv = Object.entries(info.inventory||{}).filter(([,v]) => v > 0)
-      .map(([k,v]) => `${rName(k)} ×${Math.round(v)}`).join(' · ') || 'sin nada encima';
-    const e = info.energy;
-    const color = e <= 0 ? 'var(--bad)' : (e < 20 ? 'var(--bad)' : (e < 45 ? 'var(--warn)' : 'var(--acc)'));
-    const tag = e <= 0 ? '<span class="tag dead">sin energía</span>'
-              : (e < 20 ? '<span class="tag low">en riesgo</span>' : '');
-    const row = document.createElement('div');
-    row.className = 'agent' + (e <= 0 ? ' dead' : '');
-    row.innerHTML = `
-      <div class="top">
-        <span class="dot" style="background:hsl(${(idx*137.5)%360} 70% 58%)"></span>
-        ${esc(a.eid)} ${tag}
-        <span class="meta">región ${esc(regionOf(a.x))}</span>
-      </div>
-      <div class="bar"><i style="width:${Math.max(0,Math.min(100,e))}%;background:${color}"></i></div>
-      <div class="inv">energía ${Math.round(e)} · ${esc(inv)}</div>`;
-    list.appendChild(row);
-  });
+// =============================================================================
+// LEYENDA — forma + código + alias, en ese orden
+// =============================================================================
+function fillLegend(){
+  const kinds = new Set();
+  for (const s of snaps) { for (const e of (s.entities || [])) if (e.kind === 'resource') kinds.add((e.attrs && e.attrs.kind) || 'generic'); break; }
+  const items = [...kinds].sort().map(k => {
+    const a = alias(k);
+    return `<span class="lgi"><svg viewBox="0 0 24 24" fill="${colorOf(k)}" aria-hidden="true"><use href="#sym-${symOf(k)}"/></svg>
+      <span class="code">${esc(k)}</span>${a ? `<span class="alias">${esc(a)}</span>` : ''}</span>`;
+  }).join('');
+  const note = derived.names
+    ? `<span class="lgi" style="border-color:var(--amber-dim);color:var(--amber)" title="Los nombres legibles vienen de meta.resource_names y existen solo para este visor. El modelo nunca los ve.">alias solo del visor</span>` : '';
+  $('legend').innerHTML = items + note;
+}
 
-  const key = s.day*100000 + s.tick;
-  const logList = document.getElementById('logList');
-  let relevant = events.filter(e => (e.day*100000+e.tick) <= key);
-  if (okOnly) relevant = relevant.filter(e => e.outcome === 'ok');
-  if (!relevant.length) {
-    logList.innerHTML = '<p class="caption">Todavía no ha pasado nada en este momento.</p>';
+// =============================================================================
+// PANELES POR FOTOGRAMA
+// =============================================================================
+function agentIndex(eid){
+  const s = snaps[frame] || snaps[0];
+  const ag = (s.entities || []).filter(e => e.kind === 'agent');
+  const i = ag.findIndex(e => e.eid === eid);
+  return i < 0 ? 0 : i;
+}
+
+function drawClock(tick, phase){
+  const pt = (meta && meta.phase_ticks) || 0;
+  const tpd = (meta && meta.ticks_per_day) || 24;
+  const frac = (tick % tpd) / tpd;
+  const arcs = [];
+  if (pt && meta.n_phases){
+    for (let t = 0; t < tpd; t += pt){
+      const p = Math.floor(t / pt) % meta.n_phases;
+      const a0 = (t / tpd) * 360 - 90, a1 = ((t + pt) / tpd) * 360 - 90;
+      const pol = (a, r) => [50 + r * Math.cos(a * Math.PI / 180), 50 + r * Math.sin(a * Math.PI / 180)];
+      const [x0,y0] = pol(a0, 40), [x1,y1] = pol(a1, 40);
+      const large = (a1 - a0) > 180 ? 1 : 0;
+      arcs.push(`<path d="M50 50 L${x0.toFixed(1)} ${y0.toFixed(1)} A40 40 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z"
+        fill="${p === 1 ? '#0a0d10' : '#1b232a'}"/>`);
+    }
+  } else {
+    arcs.push('<circle cx="50" cy="50" r="40" fill="#12171b"/>');
+  }
+  let ticks = '';
+  for (let i = 0; i < tpd; i++){
+    const a = (i / tpd) * 360 - 90, R1 = i % 6 === 0 ? 31 : 35;
+    const c = Math.cos(a * Math.PI / 180), s2 = Math.sin(a * Math.PI / 180);
+    ticks += `<line x1="${(50 + c * R1).toFixed(1)}" y1="${(50 + s2 * R1).toFixed(1)}"
+      x2="${(50 + c * 40).toFixed(1)}" y2="${(50 + s2 * 40).toFixed(1)}"
+      stroke="${i % 6 === 0 ? '#a7b0ae' : '#4d5459'}" stroke-width="${i % 6 === 0 ? 1.6 : 1}"/>`;
+  }
+  const na = frac * 360 - 90;
+  const nx = 50 + Math.cos(na * Math.PI / 180) * 33, ny = 50 + Math.sin(na * Math.PI / 180) * 33;
+  $('clockDial').innerHTML = `
+    <circle cx="50" cy="50" r="44" fill="#0a0d10" stroke="#2b3238" stroke-width="1.5"/>
+    ${arcs.join('')}${ticks}
+    <line x1="50" y1="50" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#f2f5f2" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="3.4" fill="#2b3238" stroke="#5a646b" stroke-width="1"/>`;
+}
+
+function updateFrame(){
+  const s = snaps[frame];
+  const phase = phaseOf(s);
+  const agents = (s.entities || []).filter(e => e.kind === 'agent');
+  const alive = agents.filter(a => ((s.agents && s.agents[a.eid] && s.agents[a.eid].energy) || 0) > 0);
+
+  // reloj
+  drawClock(s.tick, phase);
+  $('dayRead').textContent = `Día ${s.day}`;
+  $('clockSup').textContent = `tick ${s.tick}`;
+  $('phaseRead').innerHTML = `${phase === 1 ? ICON_MOON : (phase === 0 ? ICON_SUN : '')}
+    <span>${esc(phaseName(phase))}</span>${derived.phase ? '<span class="placard" style="color:var(--amber)">derivada</span>' : ''}`;
+  $('phaseRead').style.color = phase === 1 ? 'var(--reg-b)' : (phase === 0 ? 'var(--amber)' : 'var(--lum-3)');
+  $('frameRead').textContent = `momento ${frame + 1} de ${snaps.length}`;
+  $('worldName').textContent =
+    `El mundo · ${W()}×${H()} · día ${s.day} tick ${s.tick} · fase ${phaseName(phase).toLowerCase()}`;
+
+  // energía
+  $('aliveSup').textContent = `${alive.length} de ${agents.length} con energía`;
+  $('energyRow').innerHTML = agents.map((a, i) => {
+    const en = (s.agents && s.agents[a.eid] && s.agents[a.eid].energy) || 0;
+    const col = en <= 0 ? '#ff3b30' : (en < 20 ? '#ff7a70' : (en < 45 ? '#ffb000' : chOf(i)));
+    return `<div class="tape" data-dead="${en <= 0 ? 1 : 0}">
+      <span class="val readout" style="color:${col}">${Math.round(en)}</span>
+      <div class="col"><span class="redline"></span>
+        <span class="fill" style="transform:scaleY(${(clamp(en,0,100)/100).toFixed(3)});background:${col};opacity:.85"></span></div>
+      <span class="cs">${esc(a.eid)}</span></div>`;
+  }).join('');
+
+  // frontera
+  const closed = barrierClosed(phase);
+  $('borderWall').dataset.closed = closed ? '1' : '0';
+  $('borderB').dataset.closed = closed ? '1' : '0';
+  $('borderB').textContent = closed ? 'B · cerrada' : 'B · este';
+  $('borderSup').textContent = closed ? 'nadie puede entrar a B' : 'paso libre';
+  $('borderSup').style.color = closed ? 'var(--red-txt)' : 'var(--lum-3)';
+
+  // tripulación
+  $('crewSup').textContent = `${agents.length} agentes`;
+  $('crew').innerHTML = agents.map((a, i) => {
+    const info = (s.agents && s.agents[a.eid]) || { energy:0, inventory:{} };
+    const inv = Object.entries(info.inventory || {}).filter(([,v]) => v > 0)
+      .map(([k,v]) => `${k}×${Math.round(v)}`).join(' ') || 'sin carga';
+    const en = info.energy || 0;
+    const st = en <= 0 ? '<span class="warn">sin energía</span>'
+             : (en < 20 ? '<span class="warn">en riesgo</span>' : '');
+    const open = openAgent === a.eid;
+    return `<button class="crewRow" type="button" data-eid="${esc(a.eid)}" aria-expanded="${open}">
+        <span class="l1"><span class="pip" style="background:${chOf(i)}"></span>${esc(a.eid)}
+          <span class="reg">región ${esc(regionOf(a.x))} · ${esc(a.x)},${esc(a.y)}</span></span>
+        <span class="l2">energía ${Math.round(en)} · ${esc(inv)} ${st}</span>
+      </button>${open ? traceBlock(a.eid) : ''}`;
+  }).join('');
+
+  fillQuad();
+  updateTape();
+  fillAnnun();
+  $('tapeCursor').style.left = `${(frame / Math.max(1, snaps.length - 1)) * 100}%`;
+}
+
+function traceBlock(eid){
+  if (!traces.length) return `<div class="trace"><span class="none">Sin archivo de trazas cargado — no se puede mostrar qué respondió el modelo.</span></div>`;
+  const k = keyOf(snaps[frame]);
+  let t = null;
+  for (const r of traces){ if (r.eid === eid && keyOf(r) <= k) t = r; else if (keyOf(r) > k) break; }
+  if (!t) return `<div class="trace"><span class="none">Este agente todavía no había decidido nada en este momento.</span></div>`;
+  const obs = t.observation || {};
+  const vis = (obs.visible || []).filter(v => v.kind === 'resource').length;
+  return `<div class="trace">
+    <div><span class="k">Decidió</span> d${esc(t.day)}·t${esc(t.tick)} · ${esc(t.model || 'modelo no declarado')}${t.reason ? ` · ${esc(t.reason)}` : ''}</div>
+    <div><span class="k">Vio</span> energía ${esc(Math.round(obs.energy || 0))} · región ${esc(obs.region || '—')} ·
+      fase ${esc(obs.phase === 1 ? 'oscura' : (obs.phase === 0 ? 'clara' : '—'))} · ${vis} recursos a la vista</div>
+    <div><span class="k">Propuso</span> ${esc(JSON.stringify(t.proposed_action || {}))}</div>
+    ${t.sleep_ticks != null ? `<div><span class="k">Duerme</span> ${esc(t.sleep_ticks)} ticks</div>` : ''}
+    <div><span class="k">Respuesta cruda</span><pre>${esc(t.raw_response || '—')}</pre></div>
+  </div>`;
+}
+
+// =============================================================================
+// REGISTRO
+// =============================================================================
+const VERB = {
+  move:['se movió','no pudo moverse'], gather:['recolectó','no pudo recolectar'],
+  consume:['consumió','no pudo consumir'], drop:['soltó','no pudo soltar'],
+  pickup:['tomó','no pudo tomar'], give:['entregó','no pudo entregar'],
+  build:['construyó','no pudo construir'], talk:['emitió','no pudo emitir'],
+  expelled:['fue expulsado de B','expulsión fallida'], death:['murió','muerte fallida'],
+  sleep:['durmió','no pudo dormir']
+};
+const REASON = {
+  blocked:'el paso estaba bloqueado', out_of_bounds:'quedaba fuera del mapa',
+  no_energy:'no le quedaba energía', not_adjacent:'estaba demasiado lejos',
+  depleted:'el recurso estaba agotado', not_enough:'no tenía suficiente',
+  cell_occupied:'la celda estaba ocupada', missing_material:'le faltaban materiales',
+  not_a_resource:'eso no es un recurso', no_such_entity:'esa entidad no existe',
+  no_such_agent:'ese agente no existe', not_in_alphabet:'usó símbolos fuera del alfabeto'
+};
+function resChip(rk){
+  return `<svg class="sym" width="11" height="11" viewBox="0 0 24 24" fill="${colorOf(rk)}" aria-hidden="true"><use href="#sym-${symOf(rk)}"/></svg><b>${esc(rk)}</b>`;
+}
+function updateTape(){
+  const k = keyOf(snaps[frame]);
+  let rel = events.filter(e => keyOf(e) <= k);
+  const total = rel.length;
+  if (okOnly) rel = rel.filter(e => e.outcome === 'ok');
+  const hidden = total - rel.length;
+  $('tapeSup').textContent = hidden ? `${rel.length} de ${total} · ${hidden} ocultas` : `${total}`;
+  $('tapeSup').style.color = hidden ? 'var(--amber)' : 'var(--lum-3)';
+
+  const list = $('tapeList');
+  if (!rel.length){
+    list.innerHTML = `<p class="placard" style="padding:9px 2px;white-space:normal">Todavía no ha pasado nada en este momento.</p>`;
     return;
   }
-  logList.innerHTML = '';
-  for (const e of relevant.slice(-40)) {
-    const div = document.createElement('div');
-    div.className = 'logLine ' + (e.outcome === 'ok' ? 'ok' : 'impossible');
-    const [vOk, vFail] = ACTION_VERBS[e.action] || [e.action, e.action + ' (falló)'];
-    const verb = e.outcome === 'ok' ? vOk : vFail;
+  const ags = (snaps[frame].entities || []).filter(e => e.kind === 'agent').map(e => e.eid);
+  list.innerHTML = rel.slice(-60).map(e => {
+    const ok = e.outcome === 'ok';
+    const v = VERB[e.action] || [e.action, `no pudo ${e.action}`];
+    const d = e.detail || {};
     let extra = '';
-    if (e.outcome === 'ok') {
-      if (e.detail?.resource) extra = ` ${rName(e.detail.resource)}${e.detail.amount ? ' ×'+Math.round(e.detail.amount) : ''}`;
-      if (e.detail?.structure) extra = ` ${e.detail.structure}`;
-      if (e.action === 'consume' && e.detail?.energy_gain != null)
-        extra += e.detail.energy_gain >= 0
-          ? ` y ganó ${Math.abs(Math.round(e.detail.energy_gain))} de energía`
-          : ` y perdió ${Math.abs(Math.round(e.detail.energy_gain))} de energía`;
-      if (e.action === 'expelled' && e.detail?.to)
-        extra = ` de la región B al cerrarse la frontera`;
-      if (e.action === 'death' && e.detail?.reason === 'starvation')
-        extra = ' de inanición';
+    if (ok){
+      if (d.resource) extra = ` ${resChip(d.resource)}${d.amount ? ` ×${Math.round(d.amount)}` : ''}`;
+      if (d.structure) extra = ` <b>${esc(d.structure)}</b>`;
+      if (e.action === 'consume' && d.energy_gain != null)
+        extra += d.energy_gain >= 0
+          ? ` <b style="color:var(--green)">+${Math.round(d.energy_gain)}</b> energía`
+          : ` <b style="color:var(--red-txt)">${Math.round(d.energy_gain)}</b> energía`;
+      if (e.action === 'death' && d.reason === 'starvation') extra = ' de inanición';
     } else {
-      const reasons = { blocked:'el camino estaba bloqueado', out_of_bounds:'quedaba fuera del mapa',
-        no_energy:'no le quedaba energía', not_adjacent:'estaba demasiado lejos',
-        depleted:'el recurso estaba agotado', not_enough:'no tenía suficiente',
-        cell_occupied:'el lugar estaba ocupado', missing_material:'le faltaban materiales',
-        not_a_resource:'eso no es un recurso', no_such_entity:'no existe',
-        no_such_agent:'no existe', not_in_alphabet:'usó símbolos inválidos' };
-      extra = ' — ' + (reasons[e.detail?.reason] || e.detail?.reason || 'no se pudo');
+      extra = `: ${esc(REASON[d.reason] || d.reason || 'sin motivo declarado')}`;
     }
-    div.innerHTML = `<span class="badge">d${e.day}·t${e.tick}</span><b>${esc(e.eid)}</b> ${esc(verb)}${esc(extra)}`;
-    logList.appendChild(div);
-  }
-  logList.scrollTop = logList.scrollHeight;
+    const i = ags.indexOf(e.eid);
+    return `<div class="ev" data-out="${ok ? 'ok' : 'fail'}">
+      <span class="t">d${esc(e.day)}·t${esc(e.tick)}</span>
+      <span class="who" style="color:${i >= 0 ? chOf(i) : 'var(--lum-2)'}">${esc(e.eid)}</span>
+      <span class="txt">${esc(v[ok ? 0 : 1])}${extra}</span></div>`;
+  }).join('');
+  list.scrollTop = list.scrollHeight;
 }
 
-// teclado: espacio reproduce, flechas mueven momento a momento
+// =============================================================================
+// TRANSPORTE
+// =============================================================================
+function goTo(i){
+  frame = clamp(i, 0, snaps.length - 1);
+  $('scrub').value = frame;
+  render(); updateFrame();
+}
+function buildPhaseTape(){
+  const t = $('phaseTape');
+  const n = snaps.length;
+  let html = '', runStart = 0, cur = phaseOf(snaps[0]);
+  const push = (p, len) => {
+    const closed = barrierClosed(p);
+    const bg = p === 1
+      ? (closed ? 'repeating-linear-gradient(45deg,rgba(255,59,48,.28) 0 4px,#0c1014 4px 8px)' : '#0c1014')
+      : '#2a343d';
+    html += `<i style="flex:${len};background:${bg}"></i>`;
+  };
+  for (let i = 1; i <= n; i++){
+    const p = i < n ? phaseOf(snaps[i]) : null;
+    if (p !== cur || i === n){ push(cur, i - runStart); runStart = i; cur = p; }
+  }
+  t.innerHTML = html + '<span class="cursor" id="tapeCursor"></span>';
+}
+function tickPlay(ts){
+  if (!playing) return;
+  if (!lastT) lastT = ts;
+  const dt = ts - lastT; lastT = ts;
+  acc += dt * parseFloat($('speed').value);
+  const step = 260;                      // ms por momento a velocidad 1×
+  while (acc >= step){
+    acc -= step;
+    if (frame >= snaps.length - 1){ stop(); return; }
+    goTo(frame + 1);
+  }
+  rafId = requestAnimationFrame(tickPlay);
+}
+function play(){
+  if (!snaps.length || playing) return;
+  playing = true; lastT = 0; acc = 0;
+  $('playIcon').innerHTML = '<path d="M7 4.5h4v15H7zM13 4.5h4v15h-4z"/>';
+  $('playBtn').setAttribute('aria-label','Pausar');
+  rafId = requestAnimationFrame(tickPlay);
+}
+function stop(){
+  playing = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  $('playIcon').innerHTML = '<path d="M7 4.5 20 12 7 19.5z"/>';
+  $('playBtn').setAttribute('aria-label','Reproducir');
+}
+const toggle = () => playing ? stop() : play();
+
+// =============================================================================
+// EVENTOS
+// =============================================================================
+$('loadBtn').onclick = $('bootBtn').onclick = () => $('fileInput').click();
+$('fileInput').addEventListener('change', e => { if (e.target.files.length) ingest([...e.target.files]); e.target.value = ''; });
+$('playBtn').onclick = toggle;
+$('stepB').onclick = () => { stop(); goTo(frame - 1); };
+$('stepF').onclick = () => { stop(); goTo(frame + 1); };
+$('scrub').addEventListener('input', e => { stop(); goTo(parseInt(e.target.value, 10)); });
+$('speed').addEventListener('input', e => { $('speedRead').textContent = `${parseFloat(e.target.value)}×`; });
+$('filterBtn').onclick = e => {
+  okOnly = !okOnly;
+  e.currentTarget.setAttribute('aria-pressed', String(okOnly));
+  e.currentTarget.textContent = okOnly ? 'Solo logradas' : 'Todos los intentos';
+  updateTape(); fillAnnun();
+};
+$('amountBtn').onclick = e => {
+  showAmounts = !showAmounts;
+  e.currentTarget.setAttribute('aria-pressed', String(showAmounts));
+  render();
+};
+$('annun').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-go]'); if (!b) return;
+  const t = $(b.dataset.go); if (!t) return;
+  t.scrollIntoView({ behavior:'smooth', block:'center' });
+  t.animate([{ outline:'2px solid #39ff9a', outlineOffset:'3px' }, { outline:'2px solid transparent', outlineOffset:'3px' }],
+    { duration:900, easing:'cubic-bezier(.2,.9,.3,1)' });
+});
+$('crew').addEventListener('click', ev => {
+  const b = ev.target.closest('.crewRow'); if (!b) return;
+  openAgent = openAgent === b.dataset.eid ? null : b.dataset.eid;
+  updateFrame(); render();
+});
+
 document.addEventListener('keydown', ev => {
-  if (!snapshots.length || /input|textarea/i.test(ev.target.tagName)) return;
-  if (ev.code === 'Space') { ev.preventDefault(); togglePlay(); }
-  else if (ev.key === 'ArrowRight') { ev.preventDefault(); goTo(frame+1); }
-  else if (ev.key === 'ArrowLeft')  { ev.preventDefault(); goTo(frame-1); }
+  if (!snaps.length) return;
+  if (/input|textarea|select/i.test(ev.target.tagName)) return;
+  if (ev.code === 'Space'){ ev.preventDefault(); toggle(); }
+  else if (ev.key === 'ArrowRight'){ ev.preventDefault(); stop(); goTo(frame + (ev.shiftKey ? 10 : 1)); }
+  else if (ev.key === 'ArrowLeft'){ ev.preventDefault(); stop(); goTo(frame - (ev.shiftKey ? 10 : 1)); }
+  else if (ev.key === 'Home'){ ev.preventDefault(); stop(); goTo(0); }
+  else if (ev.key === 'End'){ ev.preventDefault(); stop(); goTo(snaps.length - 1); }
 });
 
-const drop = document.getElementById('drop');
-document.addEventListener('dragover', e => { e.preventDefault(); drop.style.display='flex'; });
-document.addEventListener('dragleave', () => drop.style.display='none');
+// arrastrar y soltar: acepta la corrida y sus hermanos de una sola vez
+let dragDepth = 0;
+const drop = $('drop');
+document.addEventListener('dragenter', e => { e.preventDefault(); if (++dragDepth === 1) drop.dataset.on = '1'; });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; delete drop.dataset.on; } });
 document.addEventListener('drop', e => {
-  e.preventDefault(); drop.style.display='none';
-  const f = e.dataTransfer.files[0];
-  if (f) f.text().then(t => loadFromText(t, f.name));
+  e.preventDefault(); dragDepth = 0; delete drop.dataset.on;
+  const fs = [...(e.dataTransfer.files || [])];
+  if (fs.length) ingest(fs);
 });
-document.getElementById('fileInput').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (f) f.text().then(t => loadFromText(t, f.name));
-});
-document.getElementById('speed').addEventListener('input', () => {
-  if (playing) { playing = false; togglePlay(); }
-});
-logoImg.onload = () => { if (snapshots.length) render(); };
 
-fillInfo();
+let rt = null;
+window.addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if (snaps.length){ layout(); render(); } }, 120);
+});
+logo.onload = () => { if (snaps.length){ bgCache = new Map(); render(); } };
 
-// ?file=ruta.jsonl para enlazar corridas directamente
-(function loadFromQuery() {
-  const q = new URLSearchParams(location.search).get('file');
-  if (!q) return;
-  fetch(q).then(r => r.text()).then(t => loadFromText(t, q.split('/').pop()))
-    .catch(err => showError('No se pudo cargar ' + q));
+// =============================================================================
+// ARRANQUE
+// ?file=<ruta> carga la corrida y busca sus hermanos por nombre.
+//   traces = <exp>_seed<N>_traces.jsonl   ·   probes = <exp>_probes.jsonl
+// =============================================================================
+fillAnnun();
+(async function boot(){
+  const q = new URLSearchParams(location.search);
+  const f = q.get('file'); if (!f) return;
+  const get = async u => { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.text(); };
+  let runText;
+  try { runText = await get(f); }
+  catch (err){ return bootError('No se pudo abrir la corrida', `${f} (${err.message}). Desde file:// el navegador bloquea fetch; sirva la carpeta o arrastre el archivo.`); }
+
+  const base = f.replace(/\.jsonl$/,'');
+  const tracesUrl = q.get('traces') || `${base}_traces.jsonl`;
+  const probesUrl = q.get('probes') || `${base.replace(/_seed\d+$/,'')}_probes.jsonl`;
+  const [tt, pp] = await Promise.all([
+    get(tracesUrl).catch(() => null), get(probesUrl).catch(() => null)
+  ]);
+  applyBundle({
+    run:    { name: f.split('/').pop(), text: runText },
+    traces: tt ? { name: tracesUrl, text: tt } : null,
+    probes: pp ? { name: probesUrl, text: pp } : null
+  });
 })();
+
+// El instrumento no tiene tamaño hasta que el panel se compone: reajustar la
+// celda cuando la cara cambia de tamaño (incluye el primer layout real).
+let roT = null;
+const ro = new ResizeObserver(() => {
+  clearTimeout(roT);
+  roT = setTimeout(() => { if (snaps.length){ layout(); render(); } }, 60);
+});
+ro.observe($('worldInst').querySelector('.face'));
 </script>
 </body>
 </html>

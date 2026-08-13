@@ -11,8 +11,9 @@ EXP_PREFIX="ronda1"
 OUT_DIR="data/silver/ronda1"
 N_MUNDOS=32   # 8 seeds × 4 condiciones × 1 densidad (7%)
 
-# guard anti-doble-instancia
-if pgrep -f "ai.run_pilot --out-dir $OUT_DIR" >/dev/null 2>&1; then
+# guard anti-doble-instancia: el patrón debe ser un substring LITERAL de la
+# línea de comando real (--out-dir no va pegado a ai.run_pilot).
+if pgrep -f "out-dir $OUT_DIR" >/dev/null 2>&1; then
   echo "$(date '+%H:%M:%S') ronda1 ya corriendo — salgo" >> data/silver/ronda1_recurrente.log
   exit 0
 fi
@@ -21,7 +22,7 @@ fi
 N=$(python3 -c "
 import json, os
 p='$OUT_DIR/${EXP_PREFIX}_summary.json'
-print(len(json.load(open(p))) if os.path.exists(p) else 0" 2>/dev/null || echo 0)
+print(len(json.load(open(p))) if os.path.exists(p) else 0)" 2>/dev/null || echo 0)
 if [ "$N" -ge "$N_MUNDOS" ]; then
   echo "$(date '+%Y-%m-%d %H:%M') RONDA 1 COMPLETA ($N/$N_MUNDOS mundos)" >> data/silver/ronda1_recurrente.log
   echo "RONDA 1 COMPLETA: $N/$N_MUNDOS mundos. Resultados en $OUT_DIR/${EXP_PREFIX}_summary.json"
