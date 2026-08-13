@@ -2,7 +2,45 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-022 · 2026-08-12 · Piloto completo (96 mundos, ~70 h) · Comandante · ACTIVA
+## D-022 · 2026-08-13 · Requisito de discriminación de niveles en el probe (Opus, spec v1.1) · Aprobada
+- La celda retenida debe caer en un nivel de magnitud DISTINTO al de las tres vividas.
+- La primera tabla fallaba en 3 de 4 símbolos: S1 empataba con B-clara; S3 y S4
+  tenían las 4 celdas iguales. Solo S2 exigía composición real.
+- Valores recalibrados: S1(+8,-9,-4), S2(-2,+9,+3), S3(0,0,0) control (fuera del
+  score), S4(+1,+6,-9). Test permanente: falla si una edición rompe la separación
+  de niveles. S3 queda EXCLUIDO del score de composición (material, no alimento).
+
+## D-023 · 2026-08-13 · Nacimiento repartido entre regiones (Opus, spec v1.1) · Aprobada
+- Los 5 agentes nacen repartidos (2 en una región, 3 en la otra; lado por seed),
+  NUNCA todos en la misma. El piloto mostró el costo: 92% sub-expuesto con 0
+  consumos en B-clara.
+- La causa de fondo es una TRAMPA DE EXPLOTACIÓN (no falta de días): una política
+  que aprende descubre que S2 es malo en A y deja de probarlo; pero S2 solo revela
+  su valor en B. Nacer repartido entrega experiencia de ambas regiones por
+  construcción. Efecto lateral deseable: asimetría para posible intercambio.
+
+## D-024 · 2026-08-13 · Probe de salida al iniciar la inanición (Opus, spec v1.1) · Aprobada
+- Además de las rondas periódicas, se dispara un probe cuando la energía llega a 0
+  y arranca el contador de inanición — antes de que el agente desaparezca. Captura
+  su estado de conocimiento final en vez de perderlo con él.
+
+## D-025 · 2026-08-13 · Corte de exposición ≥3 consumos por celda (Opus, spec v1.1) · Aprobada
+- Un agente con <3 consumos en alguna celda vivida queda marcado sub-expuesto y su
+  probe retenido se reporta APARTE, fuera del score de composición.
+- Sin el corte, el 0/41 del baseline en la retenida es ambiguo: no era que B-oscura
+  fuese incomponible — nunca había consumido en B. Respondía desde la única región
+  que conocía. La exposición se calcula post-hoc desde el JSONL (los eventos consume
+  ya registran region y phase).
+
+## D-026 · 2026-08-13 · Acciones disponibles en la observación (Opus, spec v1.1) · Aprobada
+- La observación incluye la lista de acciones EJECUTABLES en este instante, con
+  argumentos ya rellenados ({"action":"gather","args":{"target_eid":"e_0447",...}}).
+- NO es prestar world model: se dicen los botones que existen, no qué hacen. La
+  decisión sigue siendo del agente; lo que se elimina es el ruido de saber escribir
+  la API del motor (91-96% de rechazos LLM: gather lejano + consume sin rkind).
+- Se aplica idéntico en las 4 condiciones, o se convierte en ventaja diferencial.
+
+## D-027 · 2026-08-12 · Piloto completo (96 mundos, ~70 h) · Comandante · CUMPLIDA
 Se mantiene el piloto a 100 días con las 3 densidades (12/7/4%) × 4 condiciones
 × 8 seeds. Sin límite de tiempo: la Mac queda dedicada al experimento (no se
 apagará ni se usará para trabajos pesados). Los mundos baseline_empirico (24)
