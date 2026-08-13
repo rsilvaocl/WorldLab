@@ -85,8 +85,18 @@ Pendiente de revisión: "el baseline gasta el 31% de sus acciones chocando
 (`move blocked`, 16.322 veces)... conviene revisar si las 100 `struct_a`
 construidas están tapando celdas de paso."
 
-**Estado: NO resuelto aún — requiere análisis de los JSONL del piloto.**
-Pendiente de esta ronda; no bloquea la ronda 1 (el baseline sobrevive).
+**Revisado (mundo piloto baseline_empirico d=7% seed 1, 1.842 eventos):**
+- `move blocked`: 695/932 moves = **38%** (confirma el orden de magnitud de Opus)
+- **Las struct_a NO son la causa:** solo 4 estructuras al final, agrupadas en
+  (4-7, 21-23) — lejos de la fila de nacimiento (y=15). Ninguna sobre un recurso.
+- **87% de los bloqueos ocurren DESPUÉS del día 4** (primer build): los agentes
+  se agrupan en los cúmulos de recursos y **chocan entre sí** (5 agentes
+  convergiendo a las mismas zonas ricas) + bordes. Es aglomeración por
+  topología de cúmulos, no taponamiento por casas.
+
+**Conclusión:** la observación de Opus NO se confirma como causa principal.
+Los bloqueos son un dato de la dinámica (competencia espacial), no un bug.
+No se toca el baseline; se registra como hallazgo del análisis.
 
 ---
 
