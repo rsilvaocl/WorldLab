@@ -63,7 +63,8 @@ class Simulator:
                  resource_kinds: Optional[List[str]] = None,
                  resource_names: Optional[Dict[str, str]] = None,
                  wake_emergency_energy: float = 15.0,
-                 agent_hooks: Optional[Dict[str, Any]] = None):
+                 agent_hooks: Optional[Dict[str, Any]] = None,
+                 on_starvation_start: Optional[Callable] = None):
         self.config = config
         self.policy = policy          # policy(world, tick) -> (action, kwargs[, trace[, horizonte]])
         self.output_dir = output_dir
@@ -75,9 +76,13 @@ class Simulator:
         self.resource_names = resource_names or {}
         self.wake_emergency_energy = wake_emergency_energy
         self.agent_hooks = agent_hooks or {}   # eid -> objeto con record_outcome(ev)
+        # D-024: callback (aid, world) al primer tick de inanición — probe de
+        # salida antes de que el agente desaparezca del mundo.
+        self.on_starvation_start = on_starvation_start
 
     def _build_world(self, agents: List[Entity], seed: int) -> WorldState:
         world = WorldState(self.config, agents, seed=seed)
+        world.on_starvation_start = self.on_starvation_start
         if self.config.clusters_n > 0:
             world.seed_clusters(self.resource_kinds or ["S1", "S2", "S3", "S4"],
                                 density=self.resource_density)

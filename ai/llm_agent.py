@@ -214,22 +214,41 @@ class LLMAgent:
             return None
 
     def _system_prompt(self) -> str:
-        base = self.system_rules or (
-            "Eres un agente autónomo en un mundo 2D.\n"
-            "Reglas del mundo:\n"
-            "- El mundo valida tus acciones: las imposibles se rechazan.\n"
+        # D-026: el contrato agente-motor (acciones disponibles + mecánica) va
+        # SIEMPRE, incluso con system_rules (oráculo). Antes el oráculo perdía
+        # la regla "dx,dy son pasos de 1 casilla" al reemplazar TODO el prompt
+        # base — por eso proponía move con distancias imposibles (μ=4.45,
+        # 88% >1) y "solo caminaba". No prestar world model: esto no revela
+        # efectos, solo los botones y la mecánica — igual para las 4
+        # condiciones.
+        mechanics = (
+            "Mecánica del mundo (contrato agente-motor):\n"
             "- En tu observación, 'acciones_disponibles' lista SOLO las acciones "
             "ejecutables en este instante, con sus argumentos ya rellenados. "
             "Elige una de ESA lista y respeta sus args. Si una acción no está, "
             "no es posible ahora.\n"
+            "- move da pasos de UNA casilla (dx,dy ∈ {-1,0,1}); mueve de a 1, "
+            "nunca saltes casillas.\n"
             "- gather solo funciona si el recurso está a 1 casilla de distancia (adyacente). "
-            "Si el recurso está más lejos, primero usa move para acercarte (dx,dy son pasos de 1 casilla).\n"
+            "Si el recurso está más lejos, primero usa move para acercarte.\n"
             "- consume convierte inventario en energía; come cuando tengas hambre.\n"
             "- drop/pickup/give funcionan solo en tu celda o casilla adyacente.\n"
-            "- build construye una estructura en una casilla adyacente libre, consumiendo los materiales de su receta (definida en el mundo; tú solo eliges structure, x, y).\n"
+            "- build construye en una casilla adyacente libre, consumiendo los materiales de su receta.\n"
             "- Solo percibes lo que está cerca (radio de visión limitado); lo que no ves, no sabes que existe.\n"
-            "- La comunicación es SIMBÓLICA: talk emite símbolos del alfabeto del mundo (k1..k4), sin significado asignado. Costan energía; hablar solo cuando aporte. Lo que otros dicen llega a tu percepción como 'heard' si están cerca.\n"
-            "Acciones disponibles (JSON): move{dx,dy}, gather{target_eid,amount}, "
+            "- La comunicación es SIMBÓLICA: talk emite símbolos del alfabeto (k1..k4), sin significado. "
+            "Costan energía; hablar solo cuando aporte.\n"
+        )
+        extra = ""
+        if self.system_rules:
+            extra = (
+                "Conocimiento especial del mundo (además de la mecánica de arriba):\n"
+                + self.system_rules + "\n"
+            )
+        base = (
+            "Eres un agente autónomo en un mundo 2D.\n"
+            + mechanics
+            + extra
+            + "Acciones disponibles (JSON): move{dx,dy}, gather{target_eid,amount}, "
             "consume{rkind,amount}, drop{rkind,amount}, pickup{target_eid}, "
             "give{target_eid,rkind,amount}, build{structure,x,y}, talk{message}, rest.\n"
             "Tu objetivo: " + self.goal + "\n"

@@ -144,13 +144,30 @@ def run_world(condition: str, density: float, seed: int, days: int,
     else:
         policy = make_llm_policy(agents)
 
+    # D-024: probe de salida — al iniciar la inanición (energía 0, antes de
+    # desaparecer), capturar el estado de conocimiento final del agente.
+    # Antes, si el agente moría antes del final, su probe se perdía (0/0).
+    exit_probes: List[Dict[str, Any]] = []
+
+    def _on_starvation(aid: str, world: Any) -> None:
+        ag = agents.get(aid)
+        if ag is None or not hasattr(ag, "predict_effect"):
+            return
+        results = run_probe_set(world, ag, str(out_dir),
+                                f"piloto_{condition}_{int(density*100)}_s{seed}",
+                                rkind="S1")
+        for r in results:
+            r["probe_moment"] = "exit_starvation"
+        exit_probes.extend(results)
+
     sim = Simulator(cfg, policy, str(out_dir),
                     f"piloto_{condition}_{int(density*100)}_s{seed}",
                     log_interval=12, resource_density=density,
                     resource_kinds=["S1", "S2", "S3", "S4"],
                     resource_names={"S1": "comida", "S2": "energía",
                                     "S3": "madera", "S4": "piedra"},
-                    agent_hooks=agents)
+                    agent_hooks=agents,
+                    on_starvation_start=_on_starvation)
     res = sim.run(entities, seed=seed)
 
     # probes de composición al final de la vida del agente (mundo terminado)
@@ -163,6 +180,8 @@ def run_world(condition: str, density: float, seed: int, days: int,
         results = run_probe_set(world_for_probe, ag, str(out_dir),
                                 f"piloto_{condition}_{int(density*100)}_s{seed}",
                                 rkind="S1")
+        for r in results:
+            r["probe_moment"] = "final"
         probe_results.extend(results)
 
     # red de detección: ¿alguien vivió la celda retenida? (usa el mundo real)
@@ -186,6 +205,7 @@ def run_world(condition: str, density: float, seed: int, days: int,
         "llm_calls": calls,
         "tokens": tokens,
         "probes": probe_results,
+        "exit_probes": exit_probes,
     }
 
 

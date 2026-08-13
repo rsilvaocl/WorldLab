@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +170,10 @@ class WorldState:
         self.events: List[Event] = []
         self._drop_seq = 0  # contador para eids opacos de recursos soltados
         self.inbox: Dict[str, List[Dict[str, Any]]] = {}  # mensajes oídos por agente
+        # D-024: callback disparado cuando un agente ARRANCA la inanición
+        # (primer tick con energía 0), ANTES de que desaparezca del mundo.
+        # Permite capturar su estado de conocimiento final con un probe.
+        self.on_starvation_start: Optional[Callable[[str, "WorldState"], None]] = None
         # CLONAR entidades iniciales: el motor nunca muta objetos del llamador.
         # Sin esto, reusar la misma lista entre simulaciones (p.ej. en el grid
         # search del baseline) contamina posiciones y colisiona.
@@ -565,6 +569,14 @@ class WorldState:
             if agent.energy <= 0:
                 agent.energy = 0.0
                 agent.starvation_ticks = getattr(agent, "starvation_ticks", 0) + 1
+                # D-024: probe de salida — al PRIMER tick de inanición, antes
+                # de que el agente desaparezca (muerte a los starvation_ticks).
+                if agent.starvation_ticks == 1 and self.on_starvation_start:
+                    try:
+                        self.on_starvation_start(aid, self)
+                    except Exception:
+                        # el probe nunca puede tumbar el mundo
+                        pass
                 if agent.starvation_ticks >= self.config.starvation_ticks:
                     self._kill_agent(aid)
             else:
