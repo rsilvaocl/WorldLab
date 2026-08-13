@@ -87,3 +87,38 @@ def test_optimize_baseline_returns_best():
     assert len(results) == 2
     assert best_params in grid
     assert best_score == max(r["score"] for r in results)
+
+
+def test_horizonte_no_congela_al_agente_al_cruzar_el_dia(tmp_path):
+    """D-018: el horizonte se cuenta en ticks, y el reloj se reinicia cada día.
+
+    BUG: next_think guardaba world.tick + horizonte contra un contador que
+    world_state resetea a 0 al terminar el día (world_state.py:585-588). Un
+    agente que pedía dormir 5 en el tick 6 de un día de 8 quedaba con
+    next_think=11, valor que world.tick NUNCA alcanza — dormido de forma
+    PERMANENTE, salvo que su energía cayera bajo wake_emergency_energy.
+
+    Efecto medido en el piloto: el oráculo solo caminó (1.202 move, 0 consume)
+    y las 3 condiciones LLM murieron. El baseline empírico no devuelve
+    horizonte, así que nunca se congelaba: de ahí que sobreviviera solo él.
+    """
+    cfg = WorldConfig(width=8, height=8, days=3, ticks_per_day=8)
+    cfg.energy_per_unit["food"] = 5.0
+    despertares = []
+
+    def policy(world, aid, tick, rng):
+        despertares.append((world.day, world.tick))
+        # pide dormir 5 SIEMPRE: cruza el fin del día a propósito
+        return "rest", {}, None, 5
+
+    sim = Simulator(cfg, policy, str(tmp_path), "horizonte", log_interval=99)
+    sim.run([Entity(eid="a0", kind="agent", x=1, y=1)], seed=1)
+
+    # 3 días × 8 ticks = 24 ticks, durmiendo 5 => ~5 despertares.
+    # Con el bug: 2 (se congela al primer horizonte que cruza el día).
+    assert len(despertares) >= 4, (
+        f"agente congelado: solo {len(despertares)} despertares en 24 ticks "
+        f"durmiendo 5 -> {despertares}")
+    # y debe seguir despertando en los días 2 y 3, no solo en el primero
+    assert {d for d, _ in despertares} >= {1, 2, 3}, \
+        f"no despertó en todos los días: {sorted({d for d, _ in despertares})}"

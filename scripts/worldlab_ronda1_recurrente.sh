@@ -10,6 +10,18 @@ cd /Users/ruben/Proyectos/worldlab || exit 1
 EXP_PREFIX="ronda1"
 OUT_DIR="data/silver/ronda1"
 N_MUNDOS=32   # 8 seeds × 4 condiciones × 1 densidad (7%)
+GATE="docs/gates/ronda1.gate"
+
+# GATE EN CÓDIGO, no solo en la bitácora. La ronda 1 está bloqueada mientras el
+# techo informado (oráculo) no sobreviva: sin techo, LE no tiene denominador.
+# Un bloqueo que solo vive en un .md se salta agendando el script por error.
+# Para abrir: crear docs/gates/ronda1.gate con la decisión y su fecha (queda
+# versionado en git — la decisión de desbloquear es parte del registro).
+if [ ! -f "$GATE" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M') BLOQUEADA: falta $GATE — no se lanza" >> data/silver/ronda1_recurrente.log
+  echo "RONDA 1 BLOQUEADA: no existe $GATE. Ver docs/BITACORA.md (gate del oráculo)."
+  exit 0
+fi
 
 # guard anti-doble-instancia: el patrón debe ser un substring LITERAL de la
 # línea de comando real (--out-dir no va pegado a ai.run_pilot).

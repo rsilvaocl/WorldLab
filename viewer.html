@@ -822,7 +822,8 @@ function fillAnnun(){
 
   const under = underexposed();
   if (under.length) out.push(lamp(`Subexpuesto ×${under.length}`, 'amber',
-    `Agentes con 0 ticks en alguna celda vivible: ${under.join(', ')}. Su probe de esa celda no es interpretable.`, 'expoInst'));
+    `Agentes con menos de ${MIN_EXPOSURE} consumos exitosos en alguna celda vivible: ${under.join(', ')}. `
+    + `Su probe retenido queda FUERA del score (D-025): no dice que no compusieron, dice que no tenían qué componer.`, 'expoInst'));
 
   if (okOnly) out.push(lamp('Filtro activo', 'amber',
     'El registro está ocultando los intentos rechazados. Un intento rechazado dice tanto del agente como uno logrado.', 'tapeInst'));
@@ -832,24 +833,36 @@ function fillAnnun(){
 }
 
 // =============================================================================
-// EXPOSICIÓN — ticks vividos por cruce (región × fase)
-// Se calcula sobre TODOS los snapshots, no solo hasta el cursor: es una
-// propiedad de la corrida completa, y de ella depende si el probe sirve.
+// EXPOSICIÓN — CONSUMOS OK por cruce (región × fase), umbral 3 (D-025)
+// Definición idéntica a ai/analyze_pilot.py::exposure_per_cell: cuenta eventos
+// consume con outcome 'ok', leyendo region y phase del propio evento.
+//
+// Antes esto contaba TICKS VIVIDOS, y esa es otra cosa: un agente puede pasar
+// 30 ticks en A-clara consumiendo una sola vez. El visor lo habría pintado
+// expuesto mientras analyze_pilot lo excluye del score — el instrumento de
+// auditoría contradiciendo al análisis. Caso real (baseline_empirico_12_s3,
+// a3): ticks A-clara 30 / A-oscura 30 / B-clara 1, pero consumos 1 / 188 / 1.
 // =============================================================================
+const MIN_EXPOSURE = 3;   // D-025: <3 consumos en una celda vivida => sub-expuesto
 let expoCache = null;
 function exposure(){
   if (expoCache) return expoCache;
   const per = new Map();
-  for (const s of snaps){
-    const p = phaseOf(s);
-    if (p == null) continue;
-    for (const e of (s.entities || [])){
-      if (e.kind !== 'agent') continue;
-      const alive = ((s.agents && s.agents[e.eid] && s.agents[e.eid].energy) || 0) > 0;
-      if (!alive) continue;
-      if (!per.has(e.eid)) per.set(e.eid, {'A-0':0,'A-1':0,'B-0':0,'B-1':0});
-      per.get(e.eid)[`${regionOf(e.x)}-${p}`]++;
-    }
+  const cell = eid => {
+    if (!per.has(eid)) per.set(eid, {'A-0':0,'A-1':0,'B-0':0,'B-1':0});
+    return per.get(eid);
+  };
+  // todo agente que aparezca en la corrida existe en el cuadrante, aunque
+  // nunca haya consumido: 0 consumos es el dato, no la ausencia de dato.
+  for (const s of snaps)
+    for (const e of (s.entities || []))
+      if (e.kind === 'agent') cell(e.eid);
+  for (const ev of events){
+    if (ev.action !== 'consume' || ev.outcome !== 'ok') continue;
+    const d = ev.detail || {};
+    const k = `${d.region}-${d.phase}`;
+    const c = cell(ev.eid);
+    if (k in c) c[k]++;
   }
   expoCache = per;
   return per;
@@ -858,7 +871,8 @@ function underexposed(){
   const out = [];
   for (const [eid, c] of exposure()){
     // B-1 es la celda retenida por diseño: no cuenta como subexposición.
-    if (c['A-0'] === 0 || c['A-1'] === 0 || c['B-0'] === 0) out.push(eid);
+    if (c['A-0'] < MIN_EXPOSURE || c['A-1'] < MIN_EXPOSURE || c['B-0'] < MIN_EXPOSURE)
+      out.push(eid);
   }
   return out;
 }
@@ -869,11 +883,17 @@ function fillQuad(){
   for (const [,c] of src) for (const k in agg) agg[k] += c[k];
   $('expoSup').textContent = openAgent || (src.length ? 'todos' : '—');
 
+  // El umbral es por AGENTE (D-025); en la vista agregada se exige que cada
+  // agente del conjunto lo alcance, o la suma taparía a quien no llegó.
+  const nAg = src.length || 1;
   const cell = (k, held) => {
     const n = agg[k] || 0;
     if (held) return `<div class="cell held"><span class="n">?</span><span class="u">nunca</span></div>`;
-    return `<div class="cell" data-lit="${n > 0 ? 1 : 0}">
-      <span class="n">${n}</span><span class="u">ticks</span></div>`;
+    const ok = src.every(([, c]) => c[k] >= MIN_EXPOSURE);
+    return `<div class="cell" data-lit="${ok ? 1 : 0}" title="${
+      ok ? `todos los agentes con ≥${MIN_EXPOSURE} consumos aquí`
+         : `algún agente por debajo de ${MIN_EXPOSURE} consumos: probe no interpretable (D-025)`}">
+      <span class="n">${n}</span><span class="u">consumos${nAg > 1 ? ` · ${nAg} ag` : ''}</span></div>`;
   };
   $('quad').innerHTML = `
     <span></span>
