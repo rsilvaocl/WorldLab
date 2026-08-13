@@ -76,8 +76,17 @@ efectos nuevos, solo los botones — igual en las 4 condiciones (exigencia D-026
 - Pero 7 acciones ok en 6 días = solo move, y `sleep_ticks: 96` (máximo) —
   el oráculo aún no come ni navega hacia recursos en un mundo corto.
 
-**Validación 30 días en curso** (corrida local en background, $0) — veredicto
-real de supervivencia y consumo al terminar.
+**Validación 30 días (oráculo, d=7%, seed 42, fix aplicado, 368s):**
+- Supervivientes: **0/5** — sigue muriendo
+- Acciones ok: **79, imposibles: 0** (el fix de mecánica eliminó los rechazos)
+- **20 probes de salida capturados** (D-024 funcionando: antes 0/0, ahora el
+  conocimiento final del agente se registra antes de morir)
+- **Diagnóstico refinado:** el problema del oráculo ya NO es escribir la API
+  (JSON 100% válido, 0 rechazos). Ahora es **comportamiento de sueño**: elige
+  `sleep_ticks: 96` (máximo = 4 días) y no navega hacia recursos — decide
+  ~1 vez cada 4 días, no come lo suficiente y muere de inanición.
+  Pendiente de diseño para Opus: ¿el horizonte máximo es demasiado permisivo
+  para el oráculo, o su prompt debe priorizar explorar/comer sobre dormir?
 
 ## §2 — Observación secundaria de la bitácora (baseline `move blocked` 31%)
 
