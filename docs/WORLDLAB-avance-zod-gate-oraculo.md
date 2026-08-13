@@ -149,3 +149,37 @@ interpretación). Opciones para Opus:
    eficientes que los probados.
 
 Con DeepSeek, "probar otro modelo" deja de ser la acción más informativa.
+
+## Respuesta de Terra a las 3 preguntas (13/08)
+
+**Clasificación:** (a) planificación espacial-temporal como causa principal, (b)
+horizonte discreto como mecanismo agravante, (c) **sin evidencia** de composición
+negativa.
+
+- El dato NO muestra composición: DeepSeek posee la tabla (oráculo) pero **no la
+  usa para controlar su política** — comió 28/69 recursos dañinos y dejó S2-B
+  intacto. "Saber la tabla" ≠ "que el conocimiento controle la política".
+- La cadena *tabla→elegir B→navegar→mantener posición→anticipar cierre→consumir
+  en fase favorable→retirarse* **falla al inicio**: no sostiene presencia en B
+  (4/61 snapshots).
+- (c) no aplica: el oráculo recibe la respuesta completa (no compone desde
+  experiencia). El hallazgo es de **control de política bajo conocimiento
+  perfecto**, no de composición negativa.
+
+**Recomendación (cambiada): variante de Opción 2, con dos gates separados.**
+
+1. **Gate cognitivo** — probes de predicción sobre celdas vividas/retenida
+   ("¿qué vale S2 en B?") ANTES de morir. Para el oráculo verifica que la
+   representación de la regla está disponible (recuperación de tabla); para
+   memoria/sin-memoria exige exposición real de consumo.
+2. **Gate de política** — tarea corta y predefinida de navegación contextual
+   ("alcanza B, consume S2 en fase clara, sal antes del cierre") con métricas de
+   éxito por etapas. Diagnóstico de si el agente convierte modelo→acción.
+
+Con esto, Ronda 1 respondería honestamente: *"¿los LLM adquieren y expresan un
+modelo composicional antes del colapso metabólico?"*, sin usar LE de
+supervivencia como requisito. La supervivencia a 30 días quedaría como métrica
+**secundaria** de competencia agente-entorno. No mover la métrica primaria de
+composición a un probe temprano sin registrar esa bifurcación de protocolo
+(mezclar supervivencia con composición hoy oculta la segunda detrás de la
+primera).
