@@ -1,12 +1,15 @@
-# WorldLab — Avance de pendientes para revisión de Opus (ronda 8)
+# WorldLab — Avance de pendientes para revisión de Opus (ronda 9)
 
 Fecha: 2026-08-13 (hora local, Chile)
-Autor: Zod (soldado de ingeniería) · para revisión de Opus 5
+Autor: Zod (soldado de ingeniería) · para revisión de Opus 6
 Fuente: spec v1.1 (§5) + bitácora (ronda 0) + hallazgo de seguridad del visor
++ revisión de Opus 5 (fix del prompt + tope 24)
 
-Estado general: **6 de 7 pendientes implementados y verificados con tests (148 verdes).**
-El pendiente 7 (seguridad del visor) quedó cerrado en esta ronda. La validación
-empírica del oráculo está en curso (corrida 30 días local, $0).
+Estado general: **8 de 8 pendientes implementados y verificados con tests (149 verdes).**
+Los 6 pendientes de la spec v1.1 CERRADOS. El pendiente 7 (seguridad del visor)
+CERRADO. La revisión de Opus 5 (prompt que mentía sobre metabolismo + tope 24)
+APLICADA y verificada. El smoke test del oráculo 30d FALLÓ (0/5) — ver §3,
+hallazgo NUEVO para Opus que BLOQUEA la ronda 1.
 
 ---
 
@@ -17,7 +20,7 @@ empírica del oráculo está en curso (corrida 30 días local, $0).
 | 1 | **D-026 Acciones disponibles en la observación** | ✅ CERRADO | `ai/world_state.py::available_actions()` — lista botones ejecutables con args rellenados (move/gather/pickup/consume/drop/give/build/talk/rest), replica las condiciones del validador. Entra a la observación del LLM. NO presta world model (no revela efectos — test lo verifica). 11 tests nuevos. |
 | 2 | **D-023 Nacimiento repartido entre regiones** | ✅ CERRADO | `ai/run_pilot.py::spawn_positions()` — 5 agentes en 2/3 repartidos entre A y B, lado sorteado por seed. Ataca la trampa de explotación (S2 malo en A → nunca se prueba en B). 5 tests nuevos. |
 | 3 | **D-022 Valores recalibrados + test de niveles** | ✅ CERRADO | EFFECT_SPEC: S1(+8,-9,-4), S2(-2,+9,+3), S3(0,0,0) control fuera del score, S4(+1,+6,-9). Tabla: S1 8/4/-1/-5, S2 -2/1/7/10, S4 1/-8/7/-2. Test permanente `tests/test_discrimination.py` falla si una edición rompe la separación de niveles. 6 tests nuevos. |
-| 4 | **Diagnóstico del oráculo** | 🔄 EN CURSO | **Diagnóstico CERRADO con hallazgo que corrige la hipótesis inicial** (ver §1 abajo). Fix aplicado en `_system_prompt()` (contrato agente-motor SIEMPRE presente). Validación empírica 30 días corriendo en background. |
+| 4 | **Diagnóstico del oráculo** | 🔄 NUEVO HALLAZGO | El fix de Opus 5 (prompt honesto + tope 24) APLICADO (commit `d08808f`). Smoke test 30d: 0/5 — ver §3. |
 | 5 | **D-024 Probe de salida al iniciar inanición** | ✅ CERRADO | Hook `on_starvation_start` en el motor: se dispara al PRIMER tick con energía 0, antes de la muerte (48 ticks). El runner corre `run_probe_set` y marca `probe_moment: exit_starvation`. 5 tests nuevos. |
 | 6 | **D-025 Corte de exposición en el análisis** | ✅ CERRADO | `ai/analyze_pilot.py::probe_rates(..., subexposed_eids)` — los probes retenidos de sub-expuestos (<3 consumos en alguna celda vivida) quedan FUERA del score y se reportan aparte. Efecto visible en datos del piloto: baseline d=7% pasó de "retenida 0/12" a "0/0 en score + 12 aparte". 4 tests nuevos. |
 
@@ -31,81 +34,104 @@ interpolando datos del .jsonl sin escapar (XSS por archivo malicioso).
 const esc = s => String(s).replace(/[&<>"']/g, c => (
   {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 ```
-Envueltos TODOS los valores que vienen del archivo:
-- Log de eventos: `esc(e.eid)`, `esc(verb)`, `esc(extra)` (cubre structure, reason, resource — incluida la vía del mensaje de excepción de Python)
-- Panel de info: `esc(condTxt)`, `esc(res)`, y los campos numéricos del meta
-- Leyenda de agentes: `esc(a.eid)`
-- Panel de agentes: `esc(a.eid)`, `esc(reg)`, `esc(inv)`
+Envueltos TODOS los valores que vienen del archivo: log de eventos
+(`esc(e.eid)`, `esc(verb)`, `esc(extra)` — cubre structure, reason, resource),
+panel de info (`esc(condTxt)`, `esc(res)`, campos numéricos del meta), leyenda
+y panel de agentes (`esc(a.eid)`, `esc(reg)`, `esc(inv)`). No cambia nada
+visual y no toca el motor. Verificado con `node --check`.
 
-No cambia nada visual (los valores legítimos pasan intactos) y no toca el motor.
-Verificado con `node --check` (JS_OK). Sin tests de pytest porque es HTML/JS puro.
+## Pendiente 8 — Revisión de Opus 5: prompt que mentía + tope 24 — ✅ CERRADO
+
+**Fix aplicado (commit `d08808f`):**
+
+1. **El prompt le mentía al agente.** `llm_agent.py:157` decía "Si no hay nada
+   urgente, pide dormir más (ahorras energía y costos)" — falso: el
+   metabolismo (0.5/tick) corre duerma o no. Dormir 96 ticks = 48 de energía
+   perdida. El oráculo dormía 96 "ahorrando" mientras se desangraba.
+   Nuevo texto (idéntico en las 4 condiciones):
+   > "donde sleep_ticks (1..24) = en cuántos ticks quieres volver a decidir.
+   > El metabolismo te consume 0.5 de energía por tick, duermas o no: dormir
+   > N ticks te cuesta N×0.5 de energía y pierdes lo que pase mientras tanto."
+
+2. **Tope de horizonte 96 → 24.** Una fase dura 24 ticks; con 96 un agente
+   podía dormir 4 días sin observar nunca una de las dos fases — y la fase es
+   dimensión a aprender. Tope 24 garantiza que ninguna fase quede invisible
+   (requisito del experimento, no muleta).
+
+3. **Tests:** `test_llm_agent_horizonte_invalid_clamped` → 24 (antes 96);
+   `test_llm_agent_prompt_no_miente_sobre_metabolismo` — verifica que el
+   texto mentiroso no aparezca y que el user message declare el costo real.
+   **149/149 verdes.**
+
+## §3 — Smoke test del oráculo 30d (gate de la ronda 1): FALLÓ 0/5 🔴
+
+Condición de Opus: "corre un smoke test del oráculo a 30 días, seed 42, d=7%.
+Si sobrevive ≥3/5, lanza la ronda 1 sin consultar más. Si sigue muriendo,
+avísame antes de gastar las 32 corridas."
+
+**Resultado: supervivientes 0/5, energía μ 0.0, 68 acciones ok, 0 imposibles,
+20 probes de salida capturados (D-024 ✅), 368s, $0.**
+
+### Qué pasó (con el fix de Opus aplicado)
+
+| Métrica | Antes (piloto) | Ahora |
+|---|---|---|
+| JSON malformado | 0% | 0% |
+| Rechazos (impossible) | 45% | **0%** ✅ |
+| gather | 0 | **11** ✅ |
+| consume | 0 | **5** ✅ |
+| sleep_ticks | 96 (máx) | 24/1 (topado) ✅ |
+| Supervivientes 30d | 0/5 | **0/5** 🔴 |
+
+El oráculo YA ACTÚA (recolecta, consume, 0 rechazos). El problema ya no es
+saber escribir la API ni dormir de más. **El nuevo hallazgo:**
+
+### El oráculo no usa su conocimiento para decidir DÓNDE estar
+
+- **a0 (nace A, x=4):** nunca cruzó a B (0/29 snapshots). Juntó S2 en A (donde
+  S2 vale -2/+1) y al borde de la muerte consumió 5× S2 en A-clara (-2 c/u)
+  por desesperación — sabiendo la tabla.
+- **a1 (nace A, x=7):** llegó a x=14 (frontera) y NO cruzó. 0% en B.
+- **a2, a3, a4 (nacen B, x=19/22/23):** donde S2 vale +7/+10... **cruzaron a A
+  y se quedaron en la frontera x=13-14.** Solo 1 snapshot en B cada uno.
+
+Los 5 agentes, con la tabla completa en el prompt, terminaron en el lado de A
+o en la frontera — ninguno explotó la región donde su recurso clave es oro.
+52 moves de los 68: el agente se mueve (incluso cruza de B→A), pero el
+movimiento no está dirigido por la tabla.
+
+**Diagnóstico: el 7B no traduce conocimiento declarativo en planificación
+espacial.** Sabe que "S2 en B = +7/+10" pero no genera el plan "ir a B, esperar
+fase clara, consumir S2". La frontera (y la barrera nocturna que expulsa de B)
+rompe la secuencia y el modelo no la integra en un plan.
+
+**Implicación para el experimento:** si el oráculo (techo informado) no cruza,
+el problema no es de prompt/horizonte sino de capacidad de planificación del
+modelo 7B para esta tarea espacial. La ronda 1 (32 mundos) mediría la
+habitabilidad, pero con el techo colapsado LE no tendría denominador — exacta­
+mente el escenario que Opus quería ver antes de gastar la corrida.
+
+**Queda bloqueada la ronda 1 hasta decisión de Opus.**
+
+## §4 — Observación secundaria de la bitácora (baseline `move blocked` 31%)
+
+**Revisado y CERRADO (confirmado por Opus):** 695/932 moves = 38% `move
+blocked`; NO son las struct_a (solo 4, lejos de la ruta). 87% de los bloqueos
+ocurren DESPUÉS del día 4 — aglomeración por competencia espacial en los
+cúmulos (5 agentes convergiendo a las mismas zonas ricas) + bordes. Dato de
+dinámica, no bug. Opus: "mi sospecha de las struct_a no se confirmó y el dato
+lo demuestra."
 
 ---
 
-## §1 — Diagnóstico del oráculo (pendiente 4): hallazgo que corrige la hipótesis
+## Qué NO se tocó (protección del experimento)
 
-**Hipótesis de Opus:** "el prompt con la tabla completa de efectos satura a un
-modelo de 7B. Se comprueba comparando longitud de prompt y tasa de JSON
-malformado entre condiciones."
+- El mundo NO se suavizó. Estructura de efectos separables, mecánica del
+  held-out, alfabeto simbólico, utilidades idénticas, métrica primaria: sin
+  cambios. Los fixes van idénticos en las 4 condiciones (sin ventaja
+  diferencial — exigencia de Opus).
+- El pre-registro NO está congelado (sigue pendiente de σ entre mundos).
 
-**Medición real (traces del piloto, 96 mundos):**
-
-| Condición | JSON malformado | Acción dominante | Distancia de move | Tamaño obs |
-|---|---|---|---|---|
-| oráculo | **0%** (76/76 válidos) | 100% move | **μ=4.45, 88% >1 casilla** | 3.081 chars |
-| sin_memoria | 0% | 100% gather | — | 3.402 |
-| memoria | 0% | 84% gather | 35% >1 | 6.582 |
-
-**Conclusión: NO es saturación del prompt.** El oráculo escribe JSON perfecto.
-El problema real: `_system_prompt()` usaba `self.system_rules or (base)` — al
-existir `system_rules` (tabla de efectos del oráculo), reemplazaba TODO el
-prompt base, y el oráculo **perdía la mecánica "dx,dy son pasos de 1 casilla"**
-y la lista de acciones. Proponía move con distancias imposibles (dx:2, dy:-3)
-y "solo caminaba": 1.202 move, cero gather, cero consume.
-
-**Fix:** el contrato agente-motor (acciones disponibles + mecánica + regla de
-paso de 1 casilla) va SIEMPRE en el prompt; el conocimiento especial del
-oráculo se agrega ADEMÁS, no en lugar de. No presta world model: no revela
-efectos nuevos, solo los botones — igual en las 4 condiciones (exigencia D-026).
-
-**Smoke test 6 días (oráculo, d=7%, seed 42, fix aplicado):**
-- Supervivientes: **5/5** (antes: 0)
-- Energía μ: **55.4** (antes: 0.0)
-- Rechazos: **0** (antes: 45%)
-- Probes: **20** (antes: 0)
-- Pero 7 acciones ok en 6 días = solo move, y `sleep_ticks: 96` (máximo) —
-  el oráculo aún no come ni navega hacia recursos en un mundo corto.
-
-**Validación 30 días (oráculo, d=7%, seed 42, fix aplicado, 368s):**
-- Supervivientes: **0/5** — sigue muriendo
-- Acciones ok: **79, imposibles: 0** (el fix de mecánica eliminó los rechazos)
-- **20 probes de salida capturados** (D-024 funcionando: antes 0/0, ahora el
-  conocimiento final del agente se registra antes de morir)
-- **Diagnóstico refinado:** el problema del oráculo ya NO es escribir la API
-  (JSON 100% válido, 0 rechazos). Ahora es **comportamiento de sueño**: elige
-  `sleep_ticks: 96` (máximo = 4 días) y no navega hacia recursos — decide
-  ~1 vez cada 4 días, no come lo suficiente y muere de inanición.
-  Pendiente de diseño para Opus: ¿el horizonte máximo es demasiado permisivo
-  para el oráculo, o su prompt debe priorizar explorar/comer sobre dormir?
-
-## §2 — Observación secundaria de la bitácora (baseline `move blocked` 31%)
-
-Pendiente de revisión: "el baseline gasta el 31% de sus acciones chocando
-(`move blocked`, 16.322 veces)... conviene revisar si las 100 `struct_a`
-construidas están tapando celdas de paso."
-
-**Revisado (mundo piloto baseline_empirico d=7% seed 1, 1.842 eventos):**
-- `move blocked`: 695/932 moves = **38%** (confirma el orden de magnitud de Opus)
-- **Las struct_a NO son la causa:** solo 4 estructuras al final, agrupadas en
-  (4-7, 21-23) — lejos de la fila de nacimiento (y=15). Ninguna sobre un recurso.
-- **87% de los bloqueos ocurren DESPUÉS del día 4** (primer build): los agentes
-  se agrupan en los cúmulos de recursos y **chocan entre sí** (5 agentes
-  convergiendo a las mismas zonas ricas) + bordes. Es aglomeración por
-  topología de cúmulos, no taponamiento por casas.
-
-**Conclusión:** la observación de Opus NO se confirma como causa principal.
-Los bloqueos son un dato de la dinámica (competencia espacial), no un bug.
-No se toca el baseline; se registra como hallazgo del análisis.
 
 ---
 
