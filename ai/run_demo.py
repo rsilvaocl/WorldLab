@@ -24,8 +24,8 @@ def main() -> None:
                       phase_ticks=12, clusters_n=8, clusters_radius=3,
                       clusters_per_region=4, regen_per_day=0.5,
                       starvation_ticks=48)
-    EFFECT_SPEC = {"S1": (+8.0, -11.0, -4.0), "S2": (-2.0, +9.0, +3.0),
-                   "S3": (0.0, 0.0, 0.0), "S4": (+1.0, 0.0, -1.0)}
+    EFFECT_SPEC = {"S1": (+8.0, -9.0, -4.0), "S2": (-2.0, +9.0, +3.0),
+                   "S3": (0.0, 0.0, 0.0), "S4": (+1.0, +6.0, -9.0)}
     cfg.consume_effects = build_separable_effects(
         base={s: spec[0] for s, spec in EFFECT_SPEC.items()},
         delta_region={s: {"B": spec[1]} for s, spec in EFFECT_SPEC.items() if spec[1]},

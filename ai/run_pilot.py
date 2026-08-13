@@ -36,8 +36,8 @@ from ai.memory import LiteralMemory
 from ai.model_adapter import LLMClient
 from ai.probe import run_probe_set
 
-EFFECT_SPEC = {"S1": (+8.0, -11.0, -4.0), "S2": (-2.0, +9.0, +3.0),
-               "S3": (0.0, 0.0, 0.0), "S4": (+1.0, 0.0, -1.0)}
+EFFECT_SPEC = {"S1": (+8.0, -9.0, -4.0), "S2": (-2.0, +9.0, +3.0),
+               "S3": (0.0, 0.0, 0.0), "S4": (+1.0, +6.0, -9.0)}
 DENSITIES = {"holgado": 0.12, "justo": 0.07, "hambre": 0.04}
 CONDITIONS = ["sin_memoria", "memoria", "oraculo", "baseline_empirico"]
 
@@ -62,10 +62,10 @@ ORACLE_RULES = (
     "Reglas del mundo (conocimiento de oráculo):\n"
     "- Consumir un recurso cambia tu energía según el símbolo y el CONTEXTO "
     "(región A/B y fase clara(0)/oscura(1)):\n"
-    "  S1: A-clara +8, A-oscura +4, B-clara -3, B-oscura -7\n"
+    "  S1: A-clara +8, A-oscura +4, B-clara -1, B-oscura -5\n"
     "  S2: A-clara -2, A-oscura +1, B-clara +7, B-oscura +10\n"
     "  S3: 0 en todas las celdas\n"
-    "  S4: A-clara +1, A-oscura 0, B-clara 0, B-oscura -1\n"
+    "  S4: A-clara +1, A-oscura -8, B-clara +7, B-oscura -2\n"
     "- En fase oscura (1) la región B es inaccesible: la barrera te expulsa.\n"
     "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
     "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase oscura "

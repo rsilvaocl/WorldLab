@@ -13,10 +13,10 @@ SYMBOLS = ["S1", "S2", "S3", "S4"]
 
 # valores de la especificación §8
 EFFECT_SPEC = {
-    "S1": (+8.0, -11.0, -4.0),
+    "S1": (+8.0,  -9.0, -4.0),
     "S2": (-2.0,  +9.0, +3.0),
     "S3": ( 0.0,   0.0,  0.0),
-    "S4": (+1.0,   0.0, -1.0),
+    "S4": (+1.0,  +6.0, -9.0),
 }
 
 
@@ -47,11 +47,11 @@ def make_world_config(**kw) -> WorldConfig:
 
 def test_spec_effects_separable():
     cfg = make_world_config()
-    # S1: +8 / +4 / -3 / -7 (celda retenida derivable)
+    # S1: +8 / +4 / -1 / -5 (celda retenida derivable, D-022 recalibrado)
     assert cfg.consume_effects[("S1", "A", 0)] == 8.0
     assert cfg.consume_effects[("S1", "A", 1)] == 4.0
-    assert cfg.consume_effects[("S1", "B", 0)] == -3.0
-    assert cfg.consume_effects[("S1", "B", 1)] == -7.0
+    assert cfg.consume_effects[("S1", "B", 0)] == -1.0
+    assert cfg.consume_effects[("S1", "B", 1)] == -5.0
     assert separable_invariant_holds(cfg.consume_effects)
 
 
