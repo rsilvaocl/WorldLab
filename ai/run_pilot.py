@@ -235,6 +235,9 @@ def main() -> None:
     ap.add_argument("--worlds", type=int, default=8, help="mundos (seeds) por celda")
     ap.add_argument("--days", type=int, default=30, help="días simulados por mundo")
     ap.add_argument("--model", default="qwen2.5:7b", help="modelo Ollama/API")
+    ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"],
+                    help="ollama local o API OpenAI-compatible (DeepSeek) — env: "
+                         "WORLDLAB_LLM_API_KEY, WORLDLAB_LLM_BASE_URL, WORLDLAB_LLM_MODEL")
     ap.add_argument("--density", default="all", choices=["all", "12", "7", "4"])
     ap.add_argument("--conditions", default="all", choices=["all", "sin_memoria", "memoria", "oraculo", "baseline_empirico"])
     ap.add_argument("--seeds", default="", help="lista de seeds específica, p.ej. '1,2,3' (override --worlds)")
@@ -255,7 +258,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     model_name = args.model
-    client = LLMClient(backend="ollama", model=model_name)  # local $0
+    client = LLMClient(backend=args.backend, model=model_name)  # ollama local $0 / DeepSeek API
 
     if args.smoke:
         densities = [0.07]
