@@ -96,3 +96,31 @@ en código (`scripts/worldlab_ronda1_recurrente.sh` se niega sin el gate).
 - Otras condiciones (sin_memoria/memoria/baseline) — intactas.
 - `data/silver/ablation_sleep_PRE-FIX_descartado/` — conservado (evidencia).
 - Visor — intacto (el P1 de exposición ya lo arregló Opus; no re-tocado).
+
+## Diagnóstico DeepSeek API (NO concluyente — 1 mundo, a pedido del Comandante)
+
+Pregunta: ¿siguen muriendo al día 11 con un LLM *competente*? Re-smoke con
+`deepseek-chat` vía API (`data/silver/gate_oraculo_ds/`, oráculo 30d seed42
+d=7%, flag `--backend openai` agregado en `0172947`).
+
+| Métrica | qwen2.5:7b (barajado) | **deepseek-chat** |
+|---|---|---|
+| Supervivientes | 0/5 | **0/5** |
+| Muerte | día 11 | día 12 |
+| gather | 50 | **84** |
+| consume | 11 | **69** |
+| move | 136 | 98 |
+| tokens | 341k | 535k (~$0.17) |
+
+**DeepSeek es objetivamente más competente** — come 6× más (69 vs 11 consumes),
+recolecta más (84 vs 50), navega hacia los recursos desde el día 1. **Y muere
+igual (día 12, un día más tarde).**
+
+**Implicación para la decisión del oráculo:** el fallo NO es (solo) del 7B.
+Ni un LLM de gran escala competente sobrevive 30 días a d=7% con metabolismo
+0.3/tick. El baseline empírico sí (11.081 gathers, 4.931 consumes), pero es
+una política determinista optimizada — ningún LLM alcanza esa eficiencia
+energética. Esto REDEFINE el Paso 2: ya no es "qué modelo usa el oráculo"
+sino "¿es el mundo sobrevivible para CUALQUIER LLM a esta duración/densidad?".
+Si el techo informado (oráculo) colapsa, LE no tiene denominador. Decisión
+para Opus.
