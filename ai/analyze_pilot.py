@@ -16,16 +16,17 @@ from __future__ import annotations
 import json
 import statistics
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
-def load_results(out_dir: Path) -> List[Dict[str, Any]]:
-    with open(out_dir / "piloto_summary.json") as f:
+def load_results(out_dir: Path, exp_prefix: str = "piloto") -> List[Dict[str, Any]]:
+    with open(out_dir / f"{exp_prefix}_summary.json") as f:
         return json.load(f)
 
 
 def probe_rates(out_dir: Path, condition: str, density: float, seed: int,
-                subexposed_eids: Optional[set] = None) -> Dict[str, Any]:
+                subexposed_eids: Optional[set] = None,
+                exp_prefix: str = "piloto") -> Dict[str, Any]:
     """Tasa de acierto (level_correct) separando celdas vividas de la retenida.
 
     D-025 (corte de exposición): los probes retenidos de agentes SUB-EXPONENTES
@@ -33,7 +34,7 @@ def probe_rates(out_dir: Path, condition: str, density: float, seed: int,
     de composición — un agente sin experiencia en una celda vivida no tiene de
     dónde componer, y su fallo diría 'faltaban datos', no 'no compuso'.
     """
-    prefix = f"piloto_{condition}_{int(density*100)}_s{seed}"
+    prefix = f"{exp_prefix}_{condition}_{int(density*100)}_s{seed}"
     probes = []
     p = out_dir / f"{prefix}_probes.jsonl"
     if not p.exists():
@@ -92,7 +93,8 @@ def exposure_per_cell(events_path: Path, eid: str) -> Dict[Any, int]:
     return counts
 
 
-def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, Any]:
+def exposure_summary(results: List[Dict[str, Any]], out_dir: Path,
+                     exp_prefix: str = "piloto") -> Dict[str, Any]:
     """¿Cuántos agentes estuvieron SUB-EXPONENTES (<3 consumos) en alguna celda
     vivida? Su probe retenido no dice nada sobre modelado: dice que les faltaban
     datos (Opus: la diferencia entre 'no compuso' y 'no tenía qué componer')."""
@@ -100,10 +102,10 @@ def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, 
     total_agents = 0
     for r in results:
         # el Simulator nombra los eventos: {exp_id}_seed{seed}.jsonl
-        events_path = out_dir / (f"piloto_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
+        events_path = out_dir / (f"{exp_prefix}_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
                                  f"_seed{r['seed']}.jsonl")
         # exponer: los probes de este mundo ya corrieron; reconstruimos por eid
-        prefix = f"piloto_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
+        prefix = f"{exp_prefix}_{r['condition']}_{int(r['density']*100)}_s{r['seed']}"
         probes_path = out_dir / f"{prefix}_probes.jsonl"
         if not probes_path.exists():
             continue
@@ -134,14 +136,25 @@ def exposure_summary(results: List[Dict[str, Any]], out_dir: Path) -> Dict[str, 
 
 
 def main() -> None:
-    out_dir = Path("data/silver/piloto")
-    results = load_results(out_dir)
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out-dir", default="data/silver/piloto",
+                    help="directorio de salida del experimento")
+    ap.add_argument("--exp-prefix", default="piloto",
+                    help="prefijo de archivos (p.ej. 'ronda1' para la ronda 1)")
+    ap.add_argument("--title", default="PILOTO WORLDLAB — resumen para congelar el pre-registro",
+                    help="título del reporte")
+    args = ap.parse_args()
+
+    out_dir = Path(args.out_dir)
+    exp_prefix = args.exp_prefix
+    results = load_results(out_dir, exp_prefix)
     if not results:
-        print("Sin resultados todavía — corre el piloto primero (ai/run_pilot.py).")
+        print(f"Sin resultados en {out_dir} — corre el experimento primero (ai/run_pilot.py).")
         return
 
     print("=" * 78)
-    print("PILOTO WORLDLAB — resumen para congelar el pre-registro")
+    print(args.title)
     print("=" * 78)
 
     # 1. σ del desempeño entre mundos, por condición × densidad
@@ -163,7 +176,7 @@ def main() -> None:
     # D-025: la exposición se calcula PRIMERO — los probes retenidos de
     # agentes sub-expuestos quedan FUERA del score de composición.
     print("\n2b) EXPOSICIÓN POR CELDA (consumos OK por agente en A-clara/A-oscura/B-clara)")
-    expo = exposure_summary(results, out_dir)
+    expo = exposure_summary(results, out_dir, exp_prefix)
     if expo["total_agents"] == 0:
         print("  (sin probes todavía)")
     else:
@@ -175,7 +188,7 @@ def main() -> None:
             print(f"    {se['condition']:12s} d={se['density']:.0%} s={se['seed']} "
                   f"{se['eid']} — celdas bajas: {low_txt}")
         if len(expo["subexposed"]) > 15:
-            print(f"    ... y {len(expo['subexposed'])-15} más (detalle en piloto_analysis.json)")
+            print(f"    ... y {len(expo['subexposed'])-15} más (detalle en {exp_prefix}_analysis.json)")
         if expo["frac_subexposed"] > 0.5:
             print("  ⚠️ MAYORÍA SUB-EXPONENTE: el hallazgo del piloto no es sobre "
                   "modelado — es que 30 días no alcanzan para recorrer el mundo.")
@@ -191,7 +204,8 @@ def main() -> None:
         for r in rs:
             sub_eids = {eid for (c, d, s, eid) in subkeys
                         if c == cond and d == dens and s == r["seed"]}
-            pr = probe_rates(out_dir, cond, dens, r["seed"], subexposed_eids=sub_eids)
+            pr = probe_rates(out_dir, cond, dens, r["seed"],
+                             subexposed_eids=sub_eids, exp_prefix=exp_prefix)
             if not pr:
                 continue
             if pr.get("lived_rate") is not None:
@@ -241,8 +255,8 @@ def main() -> None:
             "fraccion_subexpuestos": expo["frac_subexposed"],
         },
     }
-    (out_dir / "piloto_analysis.json").write_text(json.dumps(report, indent=2, ensure_ascii=False))
-    print("\nAnálisis guardado: data/silver/piloto/piloto_analysis.json")
+    (out_dir / f"{exp_prefix}_analysis.json").write_text(json.dumps(report, indent=2, ensure_ascii=False))
+    print(f"\nAnálisis guardado: {out_dir}/{exp_prefix}_analysis.json")
 
 
 if __name__ == "__main__":

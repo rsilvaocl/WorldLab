@@ -134,7 +134,8 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
 
 
 def run_world(condition: str, density: float, seed: int, days: int,
-              model_name: str, client: LLMClient, out_dir: Path) -> Dict[str, Any]:
+              model_name: str, client: LLMClient, out_dir: Path,
+              exp_prefix: str = "piloto") -> Dict[str, Any]:
     cfg = make_world_config(days)
     agents = make_agents(condition, model_name, client, cfg)
     eids = sorted(agents.keys())
@@ -154,14 +155,14 @@ def run_world(condition: str, density: float, seed: int, days: int,
         if ag is None or not hasattr(ag, "predict_effect"):
             return
         results = run_probe_set(world, ag, str(out_dir),
-                                f"piloto_{condition}_{int(density*100)}_s{seed}",
+                                f"{exp_prefix}_{condition}_{int(density*100)}_s{seed}",
                                 rkind="S1")
         for r in results:
             r["probe_moment"] = "exit_starvation"
         exit_probes.extend(results)
 
     sim = Simulator(cfg, policy, str(out_dir),
-                    f"piloto_{condition}_{int(density*100)}_s{seed}",
+                    f"{exp_prefix}_{condition}_{int(density*100)}_s{seed}",
                     log_interval=12, resource_density=density,
                     resource_kinds=["S1", "S2", "S3", "S4"],
                     resource_names={"S1": "comida", "S2": "energía",
@@ -178,7 +179,7 @@ def run_world(condition: str, density: float, seed: int, days: int,
             continue
         ag = agents[eid]
         results = run_probe_set(world_for_probe, ag, str(out_dir),
-                                f"piloto_{condition}_{int(density*100)}_s{seed}",
+                                f"{exp_prefix}_{condition}_{int(density*100)}_s{seed}",
                                 rkind="S1")
         for r in results:
             r["probe_moment"] = "final"
@@ -230,9 +231,13 @@ def main() -> None:
     ap.add_argument("--smoke", action="store_true", help="prueba de humo: 1 mundo × densidad justa")
     ap.add_argument("--resume", action="store_true",
                     help="retomar: salta mundos ya completados (checkpoint por mundo)")
+    ap.add_argument("--out-dir", default="data/silver/piloto",
+                    help="directorio de salida (cada corrida con params distintos va a dir propio)")
+    ap.add_argument("--exp-prefix", default="piloto",
+                    help="prefijo de archivos de experimento (p.ej. 'ronda1' para la ronda 1)")
     args = ap.parse_args()
 
-    out_dir = Path("data/silver/piloto")
+    out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     model_name = args.model
@@ -257,7 +262,7 @@ def main() -> None:
     t_start = time.time()
 
     # checkpoint: si ya hay summary, cargar lo completado (resume)
-    summary_path = out_dir / "piloto_summary.json"
+    summary_path = out_dir / f"{args.exp_prefix}_summary.json"
     done: set = set()
     if args.resume and summary_path.exists():
         try:
@@ -281,7 +286,8 @@ def main() -> None:
             if (condition, density, seed) in done:
                 continue  # ya completado en una corrida previa
             t0 = time.time()
-            r = run_world(condition, density, seed, days, model_name, client, out_dir)
+            r = run_world(condition, density, seed, days, model_name, client,
+                          out_dir, exp_prefix=args.exp_prefix)
             dt = time.time() - t0
             r["elapsed_s"] = round(dt, 1)
             r["estado"] = "desarrollo_no_confirmatorio"
