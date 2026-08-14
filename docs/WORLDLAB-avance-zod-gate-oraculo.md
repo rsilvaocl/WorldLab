@@ -211,3 +211,39 @@ El control pareado destapa una diferencia por modelo:
 correcto para DeepSeek, pero para el modelo de ronda 1 (qwen) hay un problema
 adicional y previo: no recupera el valor de la regla. Reportar a Opus antes de
 tocar `visible_to`.
+
+## D-030 + D-029 aplicadas (commit 9631283) y verificación barata
+
+**TAREA 1 (tabla única del motor):** `ORACLE_RULES` era string hardcodeado;
+ahora `oracle_rules(cfg)` genera el texto plano desde `cfg.consume_effects`
+(mismo formato que medía `flat_rules`), y `oracle_truth(cfg)` es la ÚNICA
+fuente que usan run_pilot, bench_oraculo y probe_observability. Test
+permanente `test_el_prompt_del_oraculo_coincide_con_el_motor`: las 16 celdas
+del prompt == `world.ground_truth_effect()`.
+
+**TAREA 2 (región visible, D-029):** `visible_to` etiqueta `region` en cada
+entidad visible (percepción, no world model). 4 tests nuevos
+(`tests/test_visible_region.py`): entidad al otro lado de la frontera reporta
+región distinta.
+
+**TAREA 3 (modelo):** las 3 condiciones LLM pasan a `gemma2:9b` (default en
+run_pilot, model_adapter, scripts, extend_pilot).
+
+**Verificación #1 — bench (criterio: 1.0):** `gemma2:9b` = **1.0 en todo**
+(exacto 1.0, regA 1.0, regB 1.0, f0 1.0, f1 1.0, B-oscura 1.0), 2.91 s/llamada,
+carga 9.7 s. La tabla generada del motor se lee perfecta. ✅
+
+**Smoke post-fix (5 días, oráculo, seed 42):** **superv=5/5**, heldout=True,
+117.855 tokens, 7.8 min. Alentador (los 5 sobreviven 5 días).
+
+**Verificación #2 — probe post-fix sobre trazas NUEVAS del smoke:**
+`gemma2:9b` → q1=1.0, **q2=0.083**, q3=0.0. **NO pasa el criterio de Opus
+(bench 1.0 + Q3 alta). Q2 bajo → PARO, no correr el gate.**
+
+**Paradoja para Opus:** el bench (misma tabla, pregunta hipotética explícita)
+da 1.0; el probe (misma tabla + OBSERVACIÓN JSON real delante) da Q2=0.083.
+La diferencia es la observación en el prompt: con el estado real delante
+(posición, energía, inventario, visible con regiones), gemma2 deja de
+responder desde la tabla. Hipótesis: confunde la pregunta con la energía
+actual o el inventario. El gate NO se corre hasta que Opus diga cómo leer
+esto.
