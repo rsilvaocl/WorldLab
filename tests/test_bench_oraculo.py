@@ -13,7 +13,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ai.bench_oraculo import bench_model, cells
-from ai.probe_observability import TRUTH
+from ai.run_pilot import make_world_config, oracle_rules, oracle_truth
+
+_TRUTH = oracle_truth(make_world_config(30))
 
 
 class FakeClient:
@@ -39,16 +41,17 @@ class FakeClient:
             return {"energy_change": self.responde(rkind, region, phase)}
         if self.ciego_a == "fase":
             # colapsa la fase: contesta siempre la celda de fase 0
-            return {"energy_change": TRUTH[(rkind, region, 0)]}
+            return {"energy_change": _TRUTH[(rkind, region, 0)]}
         if self.ciego_a == "region":
-            return {"energy_change": TRUTH[(rkind, "A", phase)]}
-        return {"energy_change": TRUTH[(rkind, region, phase)]}
+            return {"energy_change": _TRUTH[(rkind, "A", phase)]}
+        return {"energy_change": _TRUTH[(rkind, region, phase)]}
 
 
 def _bench(client, monkeypatch, repeats=1):
     import ai.bench_oraculo as mod
     monkeypatch.setattr(mod, "LLMClient", lambda **kw: client)
-    return mod.bench_model(client.model, "ollama", "system", repeats, 60.0)
+    return mod.bench_model(client.model, "ollama", "system", repeats, 60.0,
+                           _TRUTH)
 
 
 def test_las_16_celdas_cubren_las_dos_dimensiones_y_la_retenida():
@@ -117,7 +120,7 @@ def test_nivel_de_magnitud_es_mas_indulgente_que_exacto(monkeypatch):
     """level_acc usa los 6 niveles de D-010: un modelo cercano pero no exacto
     puede servir de techo aunque falle la igualdad estricta."""
     def casi(rkind, region, phase):
-        return TRUTH[(rkind, region, phase)] + 0.4
+        return _TRUTH[(rkind, region, phase)] + 0.4
     r = _bench(FakeClient("casi", responde=casi), monkeypatch)
     assert r["exact_acc"] == 0.0
     assert r["level_acc"] > 0.5
@@ -125,20 +128,47 @@ def test_nivel_de_magnitud_es_mas_indulgente_que_exacto(monkeypatch):
 
 def test_la_tabla_plana_no_agrega_informacion():
     """El aplanado es legibilidad, no información nueva: si agregara un hecho
-    que la tabla actual no tiene, dejaría de ser comparable con el resto de
+    que la tabla del motor no tiene, dejaría de ser comparable con el resto de
     las condiciones y pasaría a ser una intervención sobre el experimento."""
-    from ai.bench_oraculo import flat_rules
-    from ai.run_pilot import ORACLE_RULES
     import re
 
-    flat = flat_rules()
+    flat = oracle_rules(make_world_config(30))
     # las 16 celdas, exactamente, con su valor. re.escape porque "+8" es un
     # cuantificador si se pasa crudo al motor de regex.
-    for (s, r, p), v in TRUTH.items():
+    for (s, r, p), v in _TRUTH.items():
         assert re.search(
-            rf"de {s} en región {r} durante fase {p} \([a-z]+\): {re.escape(f'{v:+d}')} ",
-            flat), f"falta la celda ({s},{r},{p})={v:+d}"
+            rf"de {s} en región {r} durante fase {p} \([a-z]+\): {re.escape(f'{v:+g}')} ",
+            flat), f"falta la celda ({s},{r},{p})={v:+g}"
     assert len(re.findall(r"^- Consumir", flat, re.M)) == 16, "16 celdas, ni una más"
     # y las reglas no-tabulares sobreviven al aplanado
     for clave in ("barrera te expulsa", "regeneran", "struct_a", "superar 100"):
-        assert clave in flat and clave in ORACLE_RULES
+        assert clave in flat
+
+
+def test_el_prompt_del_oraculo_coincide_con_el_motor():
+    """D-030 (1c): para las 16 celdas, lo que dice el prompt del oráculo es
+    world.ground_truth_effect(). Si algún día alguien edita la ontología
+    (EFFECT_SPEC o build_separable_effects) y no la fuente única, este test
+    falla — hoy nada impedía que el oráculo recibiera una tabla que el motor
+    no aplica."""
+    import re
+    from ai.world_state import WorldState
+
+    cfg = make_world_config(days=30)
+    world = WorldState(cfg, [])
+    text = oracle_rules(cfg)
+    truth = oracle_truth(cfg)
+    assert len(truth) == 16
+    for (s, r, p) in sorted(truth):
+        m = re.search(
+            rf"de {s} en región {r} durante fase {p} \([a-z]+\): ([+-]?\d+(?:\.\d+)?) ",
+            text)
+        assert m, f"celda ({s},{r},{p}) no está en el prompt del oráculo"
+        valor_en_prompt = float(m.group(1))
+        # fuente única == motor (ground_truth_effect lee cfg.consume_effects)
+        assert truth[(s, r, p)] == world.ground_truth_effect(s, r, p), \
+            f"oracle_truth ≠ motor en ({s},{r},{p})"
+        # prompt == motor
+        assert valor_en_prompt == world.ground_truth_effect(s, r, p), \
+            f"prompt ≠ motor en ({s},{r},{p}): {valor_en_prompt} vs " \
+            f"{world.ground_truth_effect(s, r, p)}"

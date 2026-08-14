@@ -46,15 +46,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from .model_adapter import LLMClient, ModelError
 
 
-# Tabla del oráculo (misma fuente que ORACLE_RULES en run_pilot).
-TRUTH: Dict[Tuple[str, str, int], float] = {
-    ("S1", "A", 0): +8, ("S1", "A", 1): +4, ("S1", "B", 0): -1, ("S1", "B", 1): -5,
-    ("S2", "A", 0): -2, ("S2", "A", 1): +1, ("S2", "B", 0): +7, ("S2", "B", 1): +10,
-    ("S3", "A", 0): 0,  ("S3", "A", 1): 0,  ("S3", "B", 0): 0,  ("S3", "B", 1): 0,
-    ("S4", "A", 0): +1, ("S4", "A", 1): -8, ("S4", "B", 0): +7, ("S4", "B", 1): -2,
-}
-
-
 # ----------------------------------------------------------------------
 # Ground truth
 
@@ -180,7 +171,7 @@ def load_observations(traces_path: str, n: int, seed: int,
 
 def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         seed: int, split_x: int, rkind: str, out_path: str,
-        skip_first_day: bool) -> Dict[str, Any]:
+        skip_first_day: bool, truth: Dict[Tuple[str, str, int], float]) -> Dict[str, Any]:
     samples = load_observations(traces_path, n, seed, skip_first_day)
     results: List[Dict[str, Any]] = []
 
@@ -190,7 +181,7 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         x = int(pos[0])
         true_region = region_of(x, split_x)
         true_phase = int(obs.get("phase", 0))
-        true_value = TRUTH.get((rkind, true_region, true_phase))
+        true_value = truth.get((rkind, true_region, true_phase))
         true_dx = truth_step_to_B(x, split_x)
 
         row: Dict[str, Any] = {
@@ -294,11 +285,12 @@ def main() -> None:
     args = ap.parse_args()
 
     from .llm_agent import LLMAgent
-    from .run_pilot import ORACLE_RULES
+    from .run_pilot import make_world_config, oracle_rules, oracle_truth
 
     client = LLMClient(backend=args.backend, model=args.model,
                        temperature=0.0, max_tokens=400)
-    rules = ORACLE_RULES if args.condition == "oraculo" else ""
+    cfg = make_world_config(days=30)
+    rules = oracle_rules(cfg) if args.condition == "oraculo" else ""
     stub = LLMAgent("probe", client, goal="sobrevivir y maximizar energía",
                     system_rules=rules)
     system_prompt = stub._system_prompt()
@@ -307,7 +299,8 @@ def main() -> None:
     print(f"probe de observabilidad · {client.describe()} · condición={args.condition} "
           f"· frontera B en x>={split_x}")
     summary = run(args.traces, client, system_prompt, args.n, args.seed,
-                  split_x, args.rkind, args.out, not args.include_day1)
+                  split_x, args.rkind, args.out, not args.include_day1,
+                  oracle_truth(cfg))
     print("\n" + json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"\nLectura: si q1 y q2 son altos y q3_heading_acc ≈ azar (0.25), el "
           f"agente sabe la regla y sabe dónde está, pero no tiene en la "

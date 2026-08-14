@@ -31,11 +31,11 @@ import argparse
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .model_adapter import LLMClient, ModelError
 from .probe import _magnitude_level
-from .probe_observability import TRUTH, _num
+from .probe_observability import _num
 
 SYMBOLS = ("S1", "S2", "S3", "S4")
 REGIONS = ("A", "B")
@@ -45,32 +45,6 @@ PHASE_NAME = {0: "clara", 1: "oscura"}
 
 def cells() -> List[tuple]:
     return [(s, r, p) for s in SYMBOLS for r in REGIONS for p in PHASES]
-
-
-def flat_rules() -> str:
-    """Misma tabla, un hecho por línea, sin indexación posicional.
-
-    ORACLE_RULES da cada símbolo como una fila de 4 valores posicionales
-    ("S2: A-clara -2, A-oscura +1, B-clara +7, B-oscura +10"), lo que exige
-    tres bindings encadenados. Aquí las 16 celdas son 16 líneas. No agrega
-    NADA de información — los mismos 16 hechos — así que no rompe la
-    comparabilidad entre condiciones: es legibilidad, como el barajado del
-    menú (D-029).
-    """
-    lines = [f"- Consumir 1 de {s} en región {r} durante fase {p} "
-             f"({PHASE_NAME[p]}): {TRUTH[(s, r, p)]:+d} de energía"
-             for s in SYMBOLS for r in REGIONS for p in PHASES]
-    return (
-        "Reglas del mundo (conocimiento de oráculo).\n"
-        "Tabla completa de efectos. Busca la línea que coincida EXACTAMENTE "
-        "con el símbolo, la región y la fase que se te pregunten:\n"
-        + "\n".join(lines) + "\n"
-        "- En fase 1 (oscura) la región B es inaccesible: la barrera te expulsa.\n"
-        "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
-        "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase "
-        "oscura si estás adyacente.\n"
-        "- Tu energía no puede superar 100.\n"
-    )
 
 
 def ask_cell(client: LLMClient, system: str, rkind: str, region: str,
@@ -97,7 +71,8 @@ def ask_cell(client: LLMClient, system: str, rkind: str, region: str,
 
 
 def bench_model(model: str, backend: str, system: str, repeats: int,
-                timeout: float) -> Dict[str, Any]:
+                timeout: float,
+                truth: Dict[Tuple[str, str, int], float]) -> Dict[str, Any]:
     client = LLMClient(backend=backend, model=model, temperature=0.0,
                        max_tokens=700, timeout=timeout)
 
@@ -112,14 +87,14 @@ def bench_model(model: str, backend: str, system: str, repeats: int,
     t0 = time.time()
     for _ in range(repeats):
         for rkind, region, phase in cells():
-            truth = TRUTH[(rkind, region, phase)]
+            truth_v = truth[(rkind, region, phase)]
             said, raw = ask_cell(client, system, rkind, region, phase)
             rows.append({
                 "rkind": rkind, "region": region, "phase": phase,
-                "truth": truth, "said": said,
-                "exact": said == truth,
+                "truth": truth_v, "said": said,
+                "exact": said == truth_v,
                 "level_correct": (None if said is None
-                                  else _magnitude_level(said) == _magnitude_level(truth)),
+                                  else _magnitude_level(said) == _magnitude_level(truth_v)),
                 "raw": raw,
             })
     elapsed = time.time() - t0
@@ -151,25 +126,26 @@ def main() -> None:
     ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"])
     ap.add_argument("--repeats", type=int, default=1, help="pasadas sobre las 16 celdas")
     ap.add_argument("--timeout", type=float, default=180.0)
-    ap.add_argument("--rules", default="actual", choices=["actual", "plana"],
-                    help="formato de la tabla en el system prompt (misma info)")
     ap.add_argument("--out", default="data/silver/bench_oraculo/bench.json")
     args = ap.parse_args()
 
     from .llm_agent import LLMAgent
-    from .run_pilot import ORACLE_RULES
+    from .run_pilot import make_world_config, oracle_rules, oracle_truth
 
-    rules = ORACLE_RULES if args.rules == "actual" else flat_rules()
+    cfg = make_world_config(days=30)
+    rules = oracle_rules(cfg)  # tabla plana del motor, única fuente (D-030)
     stub = LLMAgent("bench", LLMClient(backend="ollama", model="x"),
                     goal="sobrevivir y maximizar energía", system_rules=rules)
     system = stub._system_prompt()
+    truth = oracle_truth(cfg)
 
     results = []
     print(f"{'modelo':26} {'exacto':>7} {'nivel':>6} {'regA':>5} {'regB':>5} "
           f"{'f0':>5} {'f1':>5} {'B-osc':>6} {'s/llam':>7} {'carga':>6}")
     for model in [m.strip() for m in args.models.split(",") if m.strip()]:
         try:
-            r = bench_model(model, args.backend, system, args.repeats, args.timeout)
+            r = bench_model(model, args.backend, system, args.repeats, args.timeout,
+                            truth)
         except Exception as e:  # noqa: BLE001
             print(f"{model:26} ERROR: {type(e).__name__}: {str(e)[:60]}")
             continue

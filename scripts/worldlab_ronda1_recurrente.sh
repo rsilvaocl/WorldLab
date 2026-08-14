@@ -43,7 +43,7 @@ fi
 
 echo "$(date '+%H:%M:%S') ciclo nuevo — mundos completados hasta ahora: $N" >> data/silver/ronda1_recurrente.log
 # lanzar en background: el bash termina ya, el python sigue (huérfano, PPID 1)
-.venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model qwen2.5:7b \
+.venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model gemma2:9b \
   --density 7 --out-dir "$OUT_DIR" --exp-prefix "$EXP_PREFIX" --resume \
   >> data/silver/ronda1_progress.log 2>&1 &
 exit 0

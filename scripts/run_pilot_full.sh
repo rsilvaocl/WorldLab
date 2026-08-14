@@ -5,7 +5,7 @@
 cd /Users/ruben/Proyectos/worldlab || exit 1
 {
   echo "=== PILOTO WORLDLAB iniciado: $(date '+%Y-%m-%d %H:%M:%S') ==="
-  .venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model qwen2.5:7b
+  .venv/bin/python -m ai.run_pilot --worlds 8 --days 30 --model gemma2:9b
   echo ""
   echo "=== ANÁLISIS ==="
   .venv/bin/python -m ai.analyze_pilot

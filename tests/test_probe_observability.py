@@ -12,8 +12,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ai.probe_observability import (
-    TRUTH, load_observations, region_of, truth_step_to_B, run,
+    load_observations, region_of, truth_step_to_B, run,
 )
+from ai.run_pilot import make_world_config, oracle_truth
+
+_TRUTH = oracle_truth(make_world_config(30))
 
 
 class ObsFakeClient:
@@ -37,7 +40,7 @@ class ObsFakeClient:
         if '"region"' in user.split("Estado actual:")[0] or "¿en qué región estás" in user:
             return {"region": obs["region"], "reason": "lo dice mi observación"}
         if "cambiaría tu energía" in user:
-            val = TRUTH[("S2", obs["region"], int(obs["phase"]))]
+            val = _TRUTH[("S2", obs["region"], int(obs["phase"]))]
             return {"energy_change": val, "reason": "tabla del oráculo"}
         # rumbo a B: sin información en la observación, adivina
         return {"dx": -1, "dy": 0, "reason": "no sé dónde queda B"}
@@ -104,7 +107,8 @@ def test_agente_ciego_al_rumbo_acierta_q1_q2_y_falla_q3(tmp_path):
     out = str(tmp_path / "probe.jsonl")
 
     summary = run(path, ObsFakeClient(), "system", n=6, seed=42, split_x=15,
-                  rkind="S2", out_path=out, skip_first_day=True)
+                  rkind="S2", out_path=out, skip_first_day=True,
+                  truth=_TRUTH)
 
     assert summary["q1_region_acc"] == 1.0
     assert summary["q2_value_acc"] == 1.0
@@ -116,7 +120,8 @@ def test_escribe_jsonl_y_summary(tmp_path):
     path = write_traces(tmp_path, make_rows())
     out = str(tmp_path / "sub" / "probe.jsonl")
     run(path, ObsFakeClient(), "system", n=3, seed=7, split_x=15,
-        rkind="S2", out_path=out, skip_first_day=True)
+        rkind="S2", out_path=out, skip_first_day=True,
+        truth=_TRUTH)
 
     lines = [json.loads(l) for l in open(out, encoding="utf-8")]
     assert len(lines) == 3
@@ -132,7 +137,7 @@ def test_muestras_dentro_de_B_no_se_puntuan_como_navegacion(tmp_path):
     path = write_traces(tmp_path, rows)
     summary = run(path, ObsFakeClient(), "system", n=1, seed=1, split_x=15,
                   rkind="S2", out_path=str(tmp_path / "p.jsonl"),
-                  skip_first_day=True)
+                  skip_first_day=True, truth=_TRUTH)
     assert summary["q3_scored_n"] == 0
     assert summary["q3_heading_acc"] is None
 
@@ -190,7 +195,8 @@ def test_el_probe_guarda_la_respuesta_cruda(tmp_path):
     path = write_traces(tmp_path, make_rows())
     out = str(tmp_path / "probe.jsonl")
     run(path, ObsFakeClient(), "system", n=2, seed=42, split_x=15,
-        rkind="S2", out_path=out, skip_first_day=True)
+        rkind="S2", out_path=out, skip_first_day=True,
+        truth=_TRUTH)
     rows = [json.loads(l) for l in open(out, encoding="utf-8")]
     for r in rows:
         assert r["q1_raw"] and r["q2_raw"] and r["q3_raw"]

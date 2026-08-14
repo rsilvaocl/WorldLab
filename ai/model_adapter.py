@@ -42,7 +42,7 @@ class LLMClient:
         self.last_usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
 
         if backend == "ollama":
-            self.model = model or os.environ.get("WORLDLAB_OLLAMA_MODEL", "qwen3:8b")
+            self.model = model or os.environ.get("WORLDLAB_OLLAMA_MODEL", "gemma2:9b")
             self.base_url = base_url or "http://localhost:11434/v1"
             self.api_key = api_key or "ollama"
         elif backend == "openai":

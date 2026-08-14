@@ -730,6 +730,10 @@ class WorldState:
             if abs(other.x - ent.x) <= radius and abs(other.y - ent.y) <= radius:
                 info = {"eid": other.eid, "kind": other.kind,
                         "dx": other.x - ent.x, "dy": other.y - ent.y}
+                # D-029: la región de cada entidad visible es PERCEPCIÓN
+                # (identidad visible, D-012), no world model — dónde está algo
+                # no es qué pasa si lo consumís (D-020).
+                info["region"] = self.region(other.x, other.y)
                 if other.kind == "resource":
                     info["rkind"] = other.attrs.get("kind", "generic")
                 elif other.kind == "object":

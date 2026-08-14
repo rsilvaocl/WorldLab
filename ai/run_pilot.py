@@ -23,7 +23,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -58,20 +58,44 @@ def make_world_config(days: int) -> WorldConfig:
     return cfg
 
 
-ORACLE_RULES = (
-    "Reglas del mundo (conocimiento de oráculo):\n"
-    "- Consumir un recurso cambia tu energía según el símbolo y el CONTEXTO "
-    "(región A/B y fase clara(0)/oscura(1)):\n"
-    "  S1: A-clara +8, A-oscura +4, B-clara -1, B-oscura -5\n"
-    "  S2: A-clara -2, A-oscura +1, B-clara +7, B-oscura +10\n"
-    "  S3: 0 en todas las celdas\n"
-    "  S4: A-clara +1, A-oscura -8, B-clara +7, B-oscura -2\n"
-    "- En fase oscura (1) la región B es inaccesible: la barrera te expulsa.\n"
-    "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
-    "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase oscura "
-    "si estás adyacente.\n"
-    "- Tu energía no puede superar 100.\n"
-)
+PHASE_NAME = {0: "clara", 1: "oscura"}
+
+
+def oracle_truth(cfg: WorldConfig) -> Dict[Tuple[str, str, int], float]:
+    """La tabla real del mundo — ÚNICA fuente: cfg.consume_effects (lo que el motor aplica).
+
+    D-030: antes había TRES copias de la tabla (ORACLE_RULES en run_pilot,
+    TRUTH en probe_observability, flat_rules en bench_oraculo) que podían
+    separarse en silencio de la ontología. Todo se deriva de acá.
+    """
+    symbols = sorted({k[0] for k in cfg.consume_effects})
+    return {(s, r, p): cfg.consume_effects[(s, r, p)]
+            for s in symbols for r in ("A", "B") for p in (0, 1)}
+
+
+def oracle_rules(cfg: WorldConfig) -> str:
+    """Reglas del mundo para el oráculo, GENERADAS del motor (cfg.consume_effects).
+
+    Formato plano (D-030): una línea por celda, sin indexación posicional.
+    Es el mismo formato que midió bench_oraculo como 'plana', ahora sin copia
+    manual: si alguien edita la ontología, el prompt del oráculo la sigue.
+    """
+    truth = oracle_truth(cfg)
+    lines = [f"- Consumir 1 de {s} en región {r} durante fase {p} "
+             f"({PHASE_NAME[p]}): {truth[(s, r, p)]:+g} de energía"
+             for s in sorted({k[0] for k in cfg.consume_effects})
+             for r in ("A", "B") for p in (0, 1)]
+    return (
+        "Reglas del mundo (conocimiento de oráculo).\n"
+        "Tabla completa de efectos. Busca la línea que coincida EXACTAMENTE "
+        "con el símbolo, la región y la fase que se te pregunten:\n"
+        + "\n".join(lines) + "\n"
+        "- En fase 1 (oscura) la región B es inaccesible: la barrera te expulsa.\n"
+        "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
+        "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase "
+        "oscura si estás adyacente.\n"
+        "- Tu energía no puede superar 100.\n"
+    )
 
 
 def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity]:
@@ -118,7 +142,7 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
         eid = f"a{i}"
         if condition == "oraculo":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
-                          system_rules=ORACLE_RULES,
+                          system_rules=oracle_rules(world_cfg),
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name, memory=None,
                           force_sleep=force_sleep)
@@ -234,7 +258,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--worlds", type=int, default=8, help="mundos (seeds) por celda")
     ap.add_argument("--days", type=int, default=30, help="días simulados por mundo")
-    ap.add_argument("--model", default="qwen2.5:7b", help="modelo Ollama/API")
+    ap.add_argument("--model", default="gemma2:9b", help="modelo Ollama/API")
     ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"],
                     help="ollama local o API OpenAI-compatible (DeepSeek) — env: "
                          "WORLDLAB_LLM_API_KEY, WORLDLAB_LLM_BASE_URL, WORLDLAB_LLM_MODEL")
