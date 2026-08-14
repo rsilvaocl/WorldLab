@@ -732,6 +732,50 @@ se reporta que falla.
 
 ---
 
+## La fase como entero no se liga; en prosa sí (2026-08-14)
+
+Continuación directa de lo anterior. Si el cuello era ligar la fase, quedaba
+una asimetría sin justificar: **la tabla del oráculo ya escribía la fase en
+prosa** desde D-030 —"durante fase 0 (clara)"— mientras la memoria la llevaba
+como campo entero `"phase": 0`, porque `LiteralMemory` serializa el evento del
+motor tal cual. Nadie decidió esa diferencia.
+
+Medido sobre el banco, misma información, único cambio el render:
+
+| render de la memoria | agregado | A-clara | A-oscura | B-clara | |
+|---|---|---|---|---|---|
+| JSON `"phase": 0` (32 ont.) | **0,663** | 0,521 | 0,490 | 0,979 | NO PASA |
+| prosa `fase 0 (clara)` (32 ont.) | **0,962** | 0,979 | 0,990 | 0,917 | **PASA** |
+
+A-oscura pasa de 0,490 a 0,990. **No es un límite del modelo: un entero suelto
+en un campo JSON no se liga, y la misma fase en prosa sí.**
+
+Consecuencia sobre lo ya registrado: la entrada anterior concluía que "se liga
+la región, no la fase". Hay que leerla acotada — se liga la región **en
+cualquier formato**, y la fase **solo cuando está en prosa**. El fallo de
+binding es real pero es de representación, no de capacidad.
+
+Y expone un confound que arrastrábamos sin verlo: **el oráculo leía prosa y la
+memoria leía JSON**, y la diferencia entre condiciones incluía eso. No lo
+decidió el diseño; salió de cómo serializa el motor.
+
+**Pendiente de decisión, NO aplicado.** El cambio de render no se implementó:
+Terra definió los constructos de memoria y fue explícito en que un cambio de
+representación es un tratamiento declarado, no un arreglo silencioso. Queda a
+su criterio.
+
+**Y el patrón que hay que dejar visible:** llevamos tres representaciones
+probadas —literal, indexada, indexada-en-prosa— y la tercera es la que pasa.
+El argumento de consistencia con el oráculo es bueno, pero *"probamos hasta que
+pasó"* es exactamente lo que esta bitácora existe para que se pueda auditar.
+Queda escrito con esas palabras.
+
+**Qué NO se cambió.** No se aplicó el render nuevo. No se corrió la ronda. Los
+umbrales del gate siguen intactos, el banco congelado y `ecologia-v1` sin
+tocar.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
