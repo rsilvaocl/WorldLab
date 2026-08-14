@@ -592,6 +592,46 @@ no expone B-oscura y `no_heldout_consumption()` sigue limpio.
 
 ---
 
+## Gate de lectura: la memoria literal no es operativamente accesible (2026-08-14)
+
+Terra fijó los umbrales antes de ver datos —**≥0,75 agregado y ≥0,60 en cada
+celda vivida**— y el criterio: si una representación de memoria no pasa
+recuperación de información **vivida**, no se corre ni se interpreta el probe
+retenido para esa representación.
+
+Resultado con `gemma2:9b`, 10 agentes, **90 preguntas** sobre celdas vividas:
+
+| representación | agregado | A-clara | A-oscura | B-clara | |
+|---|---|---|---|---|---|
+| `memoria_literal` | **0,567** | 0,500 | 0,367 | 0,833 | **NO PASA** |
+| `memoria_indexada` | **0,778** | 0,667 | 0,667 | 1,000 | **pasa** |
+
+Estable respecto de la corrida previa de 27 preguntas (0,52 y 0,78): las
+estimaciones casi no se movieron al triplicar el n.
+
+**Honestidad sobre el margen:** `memoria_indexada` pasa por punto estimado, no
+con holgura. A n=90 el IC95% del agregado es ≈[0,69 – 0,86], cuyo extremo
+inferior queda por debajo del umbral; las celdas en 0,667 tienen n=30 y su IC
+baja de 0,60. El gate está formulado como criterio de punto y por punto pasa —
+pero no debe leerse como "la lectura ya no es un problema".
+
+**El resultado sobre la memoria literal es un hallazgo, no un fracaso**, y así
+lo pidió Terra: *la memoria literal cruda no es operativamente accesible para
+estos agentes*. El patrón por celda lo respalda — A-oscura 0,367 contra
+B-clara 0,833, siendo B-clara lo más reciente del log cronológico. Es efecto de
+recencia sobre una lista cruda: el cuello es indexación/lectura, no retención.
+
+`memoria_literal` queda como **ablación reportable**, no como condición central
+de composición.
+
+**Qué NO se cambió.** `memoria_indexada` contiene exclusivamente experiencias
+propias observadas, agrupadas; no promedia (esa aritmética la sigue haciendo el
+agente) y no filtra B-oscura, donde el agente nunca estuvo. No se excluyó
+ningún mundo por fallar lectura: excluir selectivamente sesga el estimando, y
+el gate evalúa la representación, no los casos.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
