@@ -2,7 +2,7 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-034 · 2026-08-14 · La unidad inferencial es la ONTOLOGÍA, no el mundo (Terra) · PROPUESTA
+## D-034 · 2026-08-14 · La unidad inferencial es la ONTOLOGÍA, no el mundo (Terra) · Comandante · Aprobada
 - **Problema medido.** Bajo exposición dirigida (D-033) los seeds dejaron de
   ser observaciones. La Fase E estandariza la experiencia, los efectos del
   mundo son deterministas (D-009/D-015) y con `temperature=0` el prompt y la
