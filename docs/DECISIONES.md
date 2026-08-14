@@ -37,10 +37,29 @@ Formato: fecha · decisión · quién la tomó · estado
   `deepseek-chat` con el que se corrió `gate_oraculo_ds` era exactamente este
   modo — la doc dice que los nombres viejos mapean a non-thinking/thinking de
   `deepseek-v4-flash`.
-- **Costo y tiempo.** ~1,2 s/decisión ⇒ **≈3 h** de ronda 1 secuencial y
-  **US$1-2**. El ahorro real no es el horario valle (los descuentos por horario
-  terminaron el 2025-09-05; el precio de v4 es plano) sino el **cache hit**
-  ($0.028/M contra $0.14/M), que depende de mantener el system prompt estable.
+- **Costo y tiempo (medido, no estimado).** ~1,2 s/decisión ⇒ **≈3 h** de ronda 1
+  secuencial. Consumo por decisión: **1613 tok de input con cache HIT, 204 de
+  cache MISS, 30 de output** — 88,8% de tasa de acierto de caché, porque el
+  system prompt (mecánica + tabla del oráculo) es estable y domina el prompt.
+  Ronda 1 completa = 24 mundos (8 seeds × 3 condiciones LLM):
+
+  | escenario | hoy | valle (desde 16/08) | pico (desde 16/08) |
+  |---|---|---|---|
+  | mueren ~día 12 | $0.35 | **$0.64** | $1.28 |
+  | sobreviven 30 días | $0.90 | **$1.64** | $3.29 |
+
+  **CORRECCIÓN a una afirmación previa mía**: escribí que los descuentos por
+  horario habían terminado el 2025-09-05 y que el precio de v4 era plano. Era
+  cierto hasta ahora y deja de serlo: DeepSeek **reintroduce facturación
+  pico/valle el 16/08/2026 a las 16:00 UTC**, con el valle a la mitad del pico.
+  Flash pasa de $0.14/$0.0028/$0.28 (in/cache/out) a $0.22/$0.0070/$0.66 en
+  valle y $0.44/$0.014/$1.32 en pico.
+  - **Pico**: 01:00–04:00 y 06:00–10:00 UTC = **21:00–00:00 y 02:00–06:00 en
+    Chile** (UTC−4 en agosto). O sea el pico cae de noche: correr en horario
+    laboral chileno ya es valle.
+  - La palanca que más pesa sigue siendo el **cache hit**: mantener el system
+    prompt estable byte a byte. Cualquier cambio que lo rompa (p. ej. meter la
+    fecha o el seed en el system) multiplica el costo por ~5.
 - **Nombres.** `deepseek-chat` y `deepseek-reasoner` se descontinúan; el default
   de `model_adapter` pasa a `deepseek-v4-flash`.
 - **Lo que NO resuelve.** El rumbo a B solo es deducible dentro del radio de
