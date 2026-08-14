@@ -486,18 +486,24 @@ seeds fijas y sin LLM. La tabla actual falla los tres:
 El gate 2 devuelve exactamente el 3,3% que Terra citó del piloto: el
 instrumento calibra contra un dato conocido de antemano.
 
-**Hallazgo del gate 1, nuevo:** el mundo ya es marginal para el TECHO
-informado. Cero seeds de doce alcanzan 4/5 supervivientes con la política
-determinista. Veníamos exigiendo 3/5 a los LLM en un mundo donde el techo
-tampoco llega.
+**Hallazgo del gate 1, nuevo** (redactado con la precisión que exigió Terra):
+*el baseline determinista informado, dentro de la familia y los parámetros
+evaluados, no acredita viabilidad robusta bajo el gate pre-registrado* — cero
+seeds de doce alcanzan 4/5 supervivientes. Eso **no** demuestra que el mundo
+sea duro para cualquier política: sin un planificador óptimo no corresponde
+llamarle "techo" ni atribuir el fallo al mundo en general. Lo que sí invalida
+es el uso de ese agente como techo/denominador de LE **de supervivencia**.
 
-**Búsqueda de tabla: 400 candidatas, ninguna pasa.** Con δ_región y δ_fase
-variados y todas las invariantes intactas (separabilidad, D-022, B-oscura
-bloqueada, S3 control), la mejor fracción D-025 alcanzada es **0,08 contra un
-umbral de 0,75** — un factor de diez. Se descartó el confound obvio: ampliar
-el radio de planificación de la política informada (5 → 10 → 20) no mejora la
-exposición y empeora la longevidad, así que el cuello no es la miopía del
-baseline.
+**Búsqueda de tabla: 400 candidatas evaluadas, ninguna pasa.** Con δ_región y
+δ_fase variados y todas las invariantes intactas (separabilidad, D-022,
+B-oscura bloqueada, S3 control), la mejor fracción D-025 alcanzada es **0,08
+contra un umbral de 0,75** — un factor de diez. El alcance del resultado, otra
+vez con la precisión de Terra: **ninguna de las 400 candidatas evaluadas, bajo
+ESTA dinámica y ESTA familia de política, alcanza el umbral.** Es evidencia
+suficiente para detener el tuning de tabla; no es una imposibilidad matemática
+universal. Se descartó el confound obvio: ampliar el radio de planificación de
+la política informada (5 → 10 → 20) no mejora la exposición y empeora la
+longevidad, así que el cuello no es la miopía del baseline.
 
 **Dónde se rompe, medido.** Patrón de exposición sobre 60 trayectorias
 (12 seeds × 5 agentes) con la mejor candidata:

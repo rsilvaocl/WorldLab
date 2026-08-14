@@ -2,6 +2,50 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-033 · 2026-08-14 · Bifurcación de protocolo: composición bajo exposición DIRIGIDA (Terra) · PROPUESTA
+- **Cambio de pregunta, declarado y no disimulado.** El protocolo de
+  composición pasa a medir **composición bajo exposición controlada**, NO
+  adquisición autónoma de exposición. Es una bifurcación explícita: sin
+  registrarla, el resultado de composición se leería como si el agente hubiera
+  descubierto las tres celdas por su cuenta.
+- **Por qué.** El gate de mundo (D-032 + `ai/gate_mundo.py`) midió que la
+  exposición a B-clara no emerge de esta ecología: 400 candidatas de tabla
+  evaluadas, mejor fracción D-025 = 0,08 contra un umbral de 0,75; 38 de 60
+  trayectorias se asientan en A y no visitan B ni una vez, con B-clara pagando
+  +10 contra +8 de A-clara; y ampliar el radio de planificación del baseline
+  (5→10→20) no lo mueve. Alcance exacto del resultado: **ninguna de las 400
+  candidatas evaluadas, bajo esta dinámica y esta familia de política**, no una
+  imposibilidad universal. Es evidencia suficiente para **congelar el tuning de
+  tabla**.
+- **Tres fases.**
+  1. **Fase E — exposición dirigida**, idéntica en las 4 condiciones. Cada
+     agente recibe experiencias REALES de consumo en A-clara, A-oscura y
+     B-clara para cada símbolo puntuado. B-oscura sigue bloqueada.
+     **Restricción crítica de Terra**: la exposición NO puede depender de que
+     el LLM elija bien. Si recibir el dato exigiera acertar `gather`/`consume`,
+     se reintroduce ruido de API y de planificación dentro de la fase que
+     existe justamente para eliminarlo. El motor GARANTIZA las experiencias y
+     registra sus outcomes.
+  2. **Fase P — probe retenido.** Forced-choice sobre B-oscura, evaluado solo
+     tras completar la exposición. Aquí vive la métrica de composición.
+  3. **Fase S — ecología autónoma**, separada y SECUNDARIA. Mantiene el mundo
+     actual con D-023/D-017 intactas; reporta supervivencia, navegación y
+     exposición espontánea, y **no condiciona** el score de composición.
+- **`sin_memoria` es el control negativo esperado** de la Fase E: recibe las
+  mismas experiencias y no puede retenerlas.
+- **Qué NO se toca.** La ontología queda congelada (la búsqueda evaluó
+  candidatas, no adoptó ninguna). D-023 y D-017 quedan intactas: no se
+  modifican hasta que exista una hipótesis específica sobre dinámica, no un
+  genérico "hagamos que B se visite más". Los umbrales del gate de mundo no se
+  bajan después de haber visto que fallan.
+- **Consecuencia sobre LE.** El baseline determinista informado no acredita
+  viabilidad robusta bajo el gate pre-registrado (0/12 seeds con 4/5), así que
+  **queda invalidado como techo/denominador de LE de supervivencia**. Es un
+  problema separado y NO bloquea el protocolo de composición. Para la parte
+  ecológica futura hará falta un planificador más fuerte, o reformular la
+  métrica como comparación entre políticas en vez de porcentaje respecto de un
+  óptimo no demostrado.
+
 ## D-032 · 2026-08-14 · Geometría de las regiones EXPLÍCITA, común a las 4 condiciones (Opus, revisada por Terra) · Aprobada
 - **Problema.** El oráculo sabe que S2 en B vale +7 (clara) y +10 (oscura) y no
   puede encontrar B. Tras D-029 cada entidad visible trae su región, pero el
