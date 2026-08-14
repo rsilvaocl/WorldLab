@@ -183,3 +183,31 @@ supervivencia como requisito. La supervivencia a 30 días quedaría como métric
 composición a un probe temprano sin registrar esa bifurcación de protocolo
 (mezclar supervivencia con composición hoy oculta la segunda detrás de la
 primera).
+
+## Resultado del probe de observabilidad (Paso 1, pareado, seed 42)
+
+Corrida CORREGIDA: ambos modelos sobre LAS MISMAS 12 observaciones de
+`gate_oraculo2` (`--seed 42`, muestreo determinista — la primaria es qwen, el
+control es DeepSeek).
+
+| Métrica | qwen2.5:7b (medición) | deepseek-chat (control) |
+|---|---|---|
+| q1_region_acc | 1.0 | 1.0 |
+| q2_value_acc | **0.0** | **1.0** |
+| q3_heading_acc | 0.0 | 0.0 |
+
+**Lectura según el criterio de Opus:** `q2_value_acc` de qwen es **BAJA (0.0)**
+→ problema de **lectura/recuperación**, NO el hueco de instrumento (Q3)
+diagnosticado. **PARO — NO aplico el fix de `visible_to`** (Paso 2 no se abre).
+
+El control pareado destapa una diferencia por modelo:
+- **DeepSeek** recupera el valor (Q2=1) y sabe dónde está (Q1=1), pero no deduce
+  el rumbo (Q3=0) → para DeepSeek SÍ es el hueco de instrumento (Q3).
+- **qwen** sabe dónde está (Q1=1) pero **ni recupera el valor de la regla**
+  (Q2=0) → el fallo del 7B es ANTERIOR: lectura/recuperación de la tabla que
+  recibe en el prompt.
+
+**Conclusión:** el diagnóstico de Opus (región no observable en `visible_to`) es
+correcto para DeepSeek, pero para el modelo de ronda 1 (qwen) hay un problema
+adicional y previo: no recupera el valor de la regla. Reportar a Opus antes de
+tocar `visible_to`.
