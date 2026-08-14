@@ -2,6 +2,56 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-029 · 2026-08-13 · La región es OBSERVABLE solo bajo los pies: tercer bug de instrumento (Opus) · PROPUESTA
+- **Hallazgo.** El oráculo recibe la tabla indexada por (símbolo, REGIÓN, fase),
+  pero su observación reporta `region` SOLO de la celda donde está parado.
+  Las entidades visibles (`visible_to`, radio 6) traen `dx, dy, rkind` y NINGUNA
+  etiqueta de región. La frontera (`x >= int(width*region_split)`) no aparece en
+  ninguna parte del prompt ni de la observación. Y el oráculo corre con
+  `memory=None` (run_pilot.py:123): cada decisión es una llamada sin estado.
+  **Consecuencia formal: desde una sola observación no existe función que lleve
+  de `position` a "B queda al este".** El agente no puede deducir el rumbo aunque
+  sepa la tabla de memoria. No es que no use el conocimiento — es que el
+  conocimiento está indexado por una variable que no puede localizar.
+- **Evidencia (corrida `gate_oraculo_ds`, deepseek-chat, seed42).**
+  3 de 5 agentes NACEN en B (a2 x=18, a3 x=21, a4 x=23; D-023 funcionando).
+  En la primera fase oscura (día 1, tick 12) la barrera los expulsa a x=13-14
+  (D-017 funcionando). **Nunca vuelven**: 1 solo cruce de frontera en toda la
+  corrida (a2, día 2, x=14→15, reexpulsado). Tras la expulsión derivan hacia el
+  oeste hasta congelarse (a3: 21→14→13→12→11→10; a4: 23→13→12→11→10).
+  Direcciones de move: (0,-1)×44, (0,1)×34, (-1,0)×13, **(1,0)×5** — se alejan de
+  B 2.6× más de lo que se acercan, estando a UN paso. Los 69 consumos: 100% en A.
+  El "4/61 snapshots en B" de Terra no es "no cruza a B": es "fue expulsado de B
+  y no tiene con qué volver".
+- **Reinterpretación.** La lectura de Terra ("posee la tabla pero no la usa para
+  controlar su política") NO está sostenida por estos datos. La cadena
+  tabla→elegir B→navegar no falla en el eslabón cognitivo: falla porque el
+  eslabón de navegación pide información ausente de la observación. Es la misma
+  clase de defecto que el reloj y que el orden fijo del menú — el tercero.
+- **Decisión.** Ronda 1 sigue bloqueada. NO se rediseña el protocolo, NO se
+  suaviza el mundo y NO se cambia de modelo hasta cerrar la observabilidad:
+  1. Correr `ai/probe_observability.py` sobre las trazas reales (replay de
+     observaciones vividas, 3 preguntas sin estado: región actual / valor aquí /
+     rumbo a B). Firma esperada si el diagnóstico es correcto: Q1 y Q2 altas,
+     Q3 en el azar (0.25).
+  2. Si se confirma, exponer la región como PERCEPCIÓN (no como world model):
+     etiquetar con su región cada entidad visible en `visible_to`. Es coherente
+     con D-012 (identidad visible, propiedades ocultas) y con D-020 (no se
+     presta ningún efecto: dónde estás no es qué pasa si comes). Aplicado
+     idéntico en las 4 condiciones. Re-correr el gate.
+  3. Recién con el gate re-corrido sobre instrumento limpio se decide si la
+     supervivencia a 30 días es un prerrequisito legítimo del probe de
+     composición (los dos gates de Terra quedan en espera, no descartados).
+- **Paso 2 del handoff (qué es el oráculo) queda CERRADO sin cambiar de modelo.**
+  El oráculo sigue siendo `qwen2.5:7b`: cambiarlo rompe la comparabilidad entre
+  condiciones, que es lo único que el diseño mide. `DeterministicAgent` se corre
+  en paralelo como techo informado no-LLM (D-019), nunca como "el oráculo".
+  `qwen3:4b` ya fue descartado empíricamente (13/08).
+- **Secundario a verificar.** `can_move` (world_state.py:337) no valida
+  |dx|+|dy| ≤ 1 mientras el system prompt afirma "pasos de UNA casilla": el
+  motor aceptó 2 saltos multi-celda ((1,-2) y (-3,-5)) fuera del menú. Impacto
+  medido bajo (2/98 moves), pero el contrato dice una cosa y el motor otra.
+
 ## D-028 · 2026-08-13 · El visor distingue lo medido de lo derivado · Comandante · Aprobada
 - `viewer.html` deja de ser reproductor y pasa a panel de instrumentos: anunciadores
   en verde (medido por el motor) vs ámbar (derivado por el visor: fase inferida,
