@@ -177,7 +177,26 @@ def test_la_formula_de_N_es_la_de_terra():
 
 def test_el_piso_de_16_seeds_se_respeta():
     assert n_requerido(0.01) == 16
-    assert n_requerido(0.0) == 16
+    assert n_requerido(0.5) == 43
+
+
+def test_sigma_cero_NO_devuelve_el_piso_sino_que_marca_degenerado():
+    """Fallo silencioso real, encontrado en el piloto del 14/08.
+
+    La Fase E estandariza la exposición: el contenido de la memoria es idéntico
+    en todo seed y con temperature=0 la respuesta también. σ_Δ salió 0,0 exacto
+    en 8 seeds. Devolver el piso de 16 haría pasar por respuesta válida la
+    señal de que el mundo no es la unidad estadística.
+    """
+    plan = plan_de_potencia([-0.333] * 8)
+    assert plan["degenerado"] is True
+    assert plan["n_requerido"] is None
+    assert "unidad estadística" in plan["motivo"]
+
+    # con varianza real sí devuelve un N
+    normal = plan_de_potencia([0.1, 0.4, 0.2, 0.5, 0.0, 0.3], seed=1)
+    assert normal.get("degenerado") is None
+    assert normal["n_requerido"] >= 16
 
 
 def test_usa_el_limite_superior_del_bootstrap_no_la_media():

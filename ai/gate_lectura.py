@@ -151,8 +151,28 @@ def n_requerido(sigma: float, mde: float = MDE) -> int:
 
 def plan_de_potencia(diferencias: Sequence[float], mde: float = MDE,
                      seed: int = 0) -> Dict[str, Any]:
-    """Estimación completa a partir de las diferencias pareadas del smoke."""
+    """Estimación completa a partir de las diferencias pareadas del piloto.
+
+    σ_Δ == 0 NO devuelve el piso de 16: sería un fallo silencioso. Una varianza
+    exactamente nula entre mundos no es "muy poca varianza", es la señal de que
+    el seed no está variando nada que el probe pueda ver — y entonces el mundo
+    no es la unidad estadística. Ocurrió de verdad: la Fase E estandariza la
+    exposición, así que el contenido de la memoria es idéntico en todo seed y
+    con temperature=0 la respuesta también. N no está definido en ese caso.
+    """
     s = sigma_bootstrap_p80(diferencias, seed=seed)
+    if s["sigma_puntual"] == 0.0:
+        return {
+            "n_seeds_observadas": len(diferencias),
+            "diferencia_media": round(sum(diferencias) / len(diferencias), 4),
+            **s,
+            "mde": mde, "alpha": ALPHA, "potencia": POTENCIA,
+            "n_requerido": None,
+            "degenerado": True,
+            "motivo": ("σ_Δ = 0 exacto: los seeds no difieren en nada que el "
+                       "probe observe. El mundo no es la unidad estadística "
+                       "bajo exposición dirigida; N no está definido."),
+        }
     return {
         "n_seeds_observadas": len(diferencias),
         "diferencia_media": round(sum(diferencias) / len(diferencias), 4),
