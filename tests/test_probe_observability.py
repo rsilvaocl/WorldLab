@@ -36,7 +36,9 @@ class ObsFakeClient:
     def chat_json(self, messages):
         user = messages[-1]["content"]
         self.calls.append(user)
-        obs = json.loads(user.split("Estado actual:\n", 1)[1].split("\n\n", 1)[0])
+        # el JSON es la PRIMERA línea tras "Estado actual:"; después viene la
+        # línea de contexto en prosa (LLMAgent.context_line) y luego la pregunta
+        obs = json.loads(user.split("Estado actual:\n", 1)[1].split("\n", 1)[0])
         if '"region"' in user.split("Estado actual:")[0] or "¿en qué región estás" in user:
             return {"region": obs["region"], "reason": "lo dice mi observación"}
         if "cambiaría tu energía" in user:
@@ -56,14 +58,24 @@ def write_traces(tmp_path, rows):
 
 
 def make_rows():
+    """Observaciones con el rumbo DEDUCIBLE: cada una ve una entidad de B.
+
+    Las x elegidas dejan la frontera (x=15) dentro del radio de visión 6, que
+    es la única situación en que Q3 tiene respuesta posible tras D-029. Si el
+    agente no ve ninguna entidad de la otra región, el rumbo sigue siendo
+    indeducible y el probe no lo puntúa.
+    """
     rows = []
     for day in range(2, 8):
-        for i, x in enumerate((4, 10, 14)):
+        for i, x in enumerate((10, 12, 14)):
             rows.append({
                 "type": "trace", "eid": f"a{i}", "day": day, "tick": 0,
                 "observation": {"day": day, "tick": 0, "energy": 50.0,
                                 "position": [x, 12], "region": "A", "phase": 0,
-                                "inventory": {}, "visible": [], "heard": [],
+                                "inventory": {}, "heard": [],
+                                "visible": [{"dx": 15 - x, "dy": 0, "eid": "r_b",
+                                             "kind": "resource", "region": "B",
+                                             "rkind": "S2"}],
                                 "acciones_disponibles": []},
             })
     return rows
@@ -201,3 +213,69 @@ def test_el_probe_guarda_la_respuesta_cruda(tmp_path):
     for r in rows:
         assert r["q1_raw"] and r["q2_raw"] and r["q3_raw"]
         assert "reason" in r["q2_raw"]
+
+
+# ----------------------------------------------------------------------
+# Defecto encontrado al auditar el probe post-fix (D-029 aplicado, 2026-08-13):
+# Q3 se puntuaba sobre las 12 muestras cuando solo 3 eran contestables. Tras
+# D-029 cada entidad visible trae su región, pero el radio de visión es 6: si
+# ninguna entidad de la otra región está a la vista, el rumbo sigue siendo
+# indeducible y puntuarlo mide otra vez una pregunta imposible.
+
+def _obs(x, visible):
+    return {"day": 3, "tick": 0, "energy": 50.0, "position": [x, 12],
+            "region": "A", "phase": 0, "inventory": {}, "heard": [],
+            "acciones_disponibles": [], "visible": visible}
+
+
+def test_q3_solo_puntua_donde_el_rumbo_es_deducible(tmp_path):
+    rows = [
+        # sin vecinos de B a la vista: indeducible, NO se puntúa
+        {"type": "trace", "eid": "a0", "day": 3, "tick": 0,
+         "observation": _obs(4, [{"dx": -1, "dy": 0, "eid": "r1",
+                                  "kind": "resource", "region": "A"}])},
+        # con un recurso de B visible: deducible, SÍ se puntúa
+        {"type": "trace", "eid": "a1", "day": 3, "tick": 0,
+         "observation": _obs(13, [{"dx": 5, "dy": -6, "eid": "r2",
+                                   "kind": "resource", "region": "B"}])},
+    ]
+    path = write_traces(tmp_path, rows)
+    summary = run(path, ObsFakeClient(), "system", n=2, seed=1, split_x=15,
+                  rkind="S2", out_path=str(tmp_path / "p.jsonl"),
+                  skip_first_day=True, truth=_TRUTH)
+
+    assert summary["q3_scored_n"] == 1, "solo la muestra con B a la vista puntúa"
+    assert summary["q3_derivable_n"] == 1
+    # el cliente falso siempre contesta oeste => falla la única puntuable
+    assert summary["q3_heading_acc"] == 0.0
+    # y la tasa sobre todas existe aparte, para ver cuánto alcanza el gradiente
+    assert summary["q3_heading_acc_todas"] == 0.0
+
+    filas = [json.loads(l) for l in open(tmp_path / "p.jsonl", encoding="utf-8")]
+    por_x = {f["position"][0]: f for f in filas}
+    assert por_x[4]["q3_derivable"] is False
+    assert por_x[13]["q3_derivable"] is True
+    assert por_x[13]["q3_dx_vecinos_otra_region"] == [5]
+
+
+def test_el_probe_arma_el_prompt_igual_que_el_agente(tmp_path):
+    """Si el probe y el bucle de acción construyen el mensaje distinto, el
+    probe deja de medir las condiciones del agente y mide las suyas."""
+    from ai.llm_agent import LLMAgent
+    path = write_traces(tmp_path, make_rows())
+    client = ObsFakeClient()
+    run(path, client, "system", n=1, seed=1, split_x=15, rkind="S2",
+        out_path=str(tmp_path / "p.jsonl"), skip_first_day=True, truth=_TRUTH)
+    esperado = LLMAgent.context_line({"region": "A", "phase": 0})
+    assert esperado == "Estás en la región A, en la fase 0 (clara)."
+    assert all(esperado in c for c in client.calls), (
+        "cada llamada del probe debe llevar la misma línea de contexto que el agente")
+
+
+def test_context_line_no_inventa_nada_que_no_este_en_la_observacion():
+    from ai.llm_agent import LLMAgent
+    assert LLMAgent.context_line({"region": "B", "phase": 1}) == \
+        "Estás en la región B, en la fase 1 (oscura)."
+    # solo reafirma campos existentes: sin region/phase no fabrica valores
+    linea = LLMAgent.context_line({})
+    assert "región ," in linea and "fase 0 (clara)" in linea

@@ -162,6 +162,17 @@ def main() -> None:
     print(f"\nescrito: {args.out}")
     print("Criterio: un oráculo utilizable necesita las DOS dimensiones "
           "(regA≈regB y f0≈f1) y la celda retenida; el promedio solo no basta.")
+    print(
+        "\nATENCIÓN — este banco mide SOLO el brazo ESTÁTICO: la región y la\n"
+        "fase van en el TEXTO de la pregunta, que es la condición de\n"
+        "predict_effect (D-010, métrica primaria). El BUCLE DE ACCIÓN es otra\n"
+        "condición: ahí el contexto viene en la observación y el modelo tiene\n"
+        "que ligar 'aquí'. Los dos brazos NO ordenan igual — gemma2:9b da 1.0\n"
+        "acá y 0.083 en el contextual, mientras llama3.1:8b da 0.875 y 0.75.\n"
+        "NO elijas modelo con este banco solo. Corré también:\n"
+        "  python -m ai.probe_observability --traces <trazas_post_D029> \\\n"
+        "      --backend ollama --model <modelo> --n 12 --seed 42\n"
+        "y exigí q2_value_acc alta ADEMÁS de lo de arriba.")
 
 
 if __name__ == "__main__":

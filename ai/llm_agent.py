@@ -168,6 +168,28 @@ class LLMAgent:
         es en predict_effect() — pregunta sin decir nada (forced-choice)."""
         return {"risk_note": "world model NO prestado (el agente no recibe predicciones)"}
 
+    @staticmethod
+    def context_line(observation: Dict[str, Any]) -> str:
+        """Reafirma en prosa la región y la fase que YA están en la observación.
+
+        No agrega información: son los campos `region` y `phase` del mismo
+        JSON, repetidos en texto. Es legibilidad, de la misma clase que el
+        barajado del menú (D-029) y la tabla plana (D-030), y va idéntico en
+        las 4 condiciones.
+
+        Por qué hace falta: `gemma2:9b` recupera la tabla perfecto cuando la
+        región viene en el TEXTO de la pregunta (bench 16/16) y aplica un
+        desfase consistente de +2 filas cuando la región viene solo en el
+        JSON — contesta la etiqueta de una celda con el valor de otra
+        ("región A ... fase 0 (clara): +7", línea que no existe). El bucle de
+        acción es el caso "región solo en el JSON", así que sin esta línea el
+        agente come veneno creyendo que gana +7.
+        """
+        region = observation.get("region", "")
+        phase = int(observation.get("phase", 0))
+        nombre = "clara" if phase == 0 else "oscura"
+        return f"Estás en la región {region}, en la fase {phase} ({nombre})."
+
     def _ask_model(self, observation: Dict[str, Any],
                    energy_per_tick: float = 0.5) -> Tuple[str, Dict[str, Any], str]:
         system = self._system_prompt()
@@ -177,6 +199,7 @@ class LLMAgent:
         met = round(float(energy_per_tick), 3)
         user = (
             "Estado actual:\n" + json.dumps(observation, ensure_ascii=False) +
+            "\n" + self.context_line(observation) +
             "\n\nResponde SOLO con JSON: {\"action\": \"...\", \"args\": {...}, \"sleep_ticks\": N}\n"
             "donde sleep_ticks (1..24) = en cuántos ticks quieres volver a decidir. "
             f"El metabolismo te consume {met} de energía por tick, duermas o no: "

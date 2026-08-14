@@ -101,9 +101,17 @@ def q_heading(_obs: Dict[str, Any]) -> Tuple[str, str, str]:
 
 def _ask(client: LLMClient, system_prompt: str, obs: Dict[str, Any],
          schema: str, question: str) -> Tuple[Optional[Dict[str, Any]], str]:
-    """Una llamada sin estado: mismo system prompt + observación real + pregunta."""
+    """Una llamada sin estado: mismo system prompt + observación real + pregunta.
+
+    El mensaje se arma EXACTAMENTE como el del bucle de acción (misma
+    `LLMAgent.context_line`): si el probe y el agente construyen el prompt
+    distinto, el probe deja de medir las condiciones del agente y mide las
+    suyas.
+    """
+    from .llm_agent import LLMAgent
     user = (
         "Estado actual:\n" + json.dumps(obs, ensure_ascii=False) +
+        "\n" + LLMAgent.context_line(obs) +
         "\n\n" + question + "\n" + schema
     )
     try:
@@ -222,13 +230,24 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         row["q3_dx_said"] = said_dx
         row["q3_dy_said"] = said_dy
         row["q3_dx_truth"] = true_dx
+        # ¿El rumbo es DEDUCIBLE de esta observación? Tras D-029 cada entidad
+        # visible trae su región, pero el radio de visión es 6: si ninguna
+        # entidad de la otra región está a la vista, no hay de dónde inferir
+        # hacia qué lado queda B, y puntuar la respuesta mediría de nuevo una
+        # pregunta imposible — el error que este mismo probe existe para no
+        # cometer. Se registran las dos tasas: sobre lo deducible (la que
+        # decide) y sobre todo (la que dice cuánto alcanza el gradiente local).
+        vecinos_otra_region = [v for v in obs.get("visible", [])
+                               if v.get("region") not in (None, true_region)]
+        row["q3_derivable"] = bool(vecinos_otra_region)
+        row["q3_dx_vecinos_otra_region"] = sorted(v["dx"] for v in vecinos_otra_region)
         if true_dx is None:
             # ya estaba en B: no se puntúa como navegación
             row["q3_correct"] = None
             row["q3_scored"] = False
         else:
             row["q3_correct"] = (said_dx is not None and said_dx > 0)
-            row["q3_scored"] = True
+            row["q3_scored"] = row["q3_derivable"]
         row["q3_error"] = err or None
         row["q3_reason"] = (raw or {}).get("reason")
 
@@ -241,6 +260,11 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         vals = [r[key] for r in results if r.get(key) is not None]
         return round(sum(1 for v in vals if v) / len(vals), 3) if vals else None
 
+    def _rate_over(rows: List[Dict[str, Any]], keep) -> Optional[float]:
+        vals = [r["q3_correct"] for r in rows
+                if keep(r) and r.get("q3_correct") is not None]
+        return round(sum(1 for v in vals if v) / len(vals), 3) if vals else None
+
     summary = {
         "traces": traces_path,
         "model": client.describe(),
@@ -250,8 +274,15 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         "q1_region_acc": rate("q1_correct"),
         "q2_value_acc": rate("q2_correct"),
         "q2_sign_acc": rate("q2_sign_correct"),
-        "q3_heading_acc": rate("q3_correct"),
+        # LA tasa que decide: solo donde el rumbo era deducible de la observación.
+        "q3_heading_acc": _rate_over(results, lambda r: r.get("q3_scored")),
         "q3_scored_n": sum(1 for r in results if r.get("q3_scored")),
+        # Diagnóstico aparte: sobre TODAS las muestras con destino (aunque no
+        # fuera deducible). Si esta es mucho menor que la anterior, el problema
+        # no es el modelo — es que el gradiente local no alcanza desde lejos.
+        "q3_heading_acc_todas": _rate_over(
+            results, lambda r: r.get("q3_dx_truth") is not None),
+        "q3_derivable_n": sum(1 for r in results if r.get("q3_derivable")),
         "chance_q1": 0.5,
         "chance_q3": 0.25,
     }
