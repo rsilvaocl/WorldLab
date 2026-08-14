@@ -2,6 +2,71 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · PROPUESTA
+- **Decisión.** Las tres condiciones LLM (`sin_memoria`, `memoria`, `oraculo`)
+  pasan de `qwen2.5:7b` a **`gemma2:9b`**, y la tabla del oráculo pasa al
+  formato plano (16 líneas, un hecho por celda). `baseline_empirico` no usa
+  LLM (D-019) y queda igual. Las dos mitades van juntas: `gemma2:9b` con la
+  tabla ACTUAL da 0.812, con la plana da 1.0.
+- **Por qué se reabre el Paso 2 del handoff, que yo mismo había cerrado.**
+  El cierre anterior ("no cambies de modelo, rompe la comparabilidad") era un
+  argumento sobre competencia de SUPERVIVENCIA y sigue en pie para eso. Este
+  es otro: un modelo que no liga una de las dos dimensiones experimentales no
+  produce medición interpretable en NINGUNA condición. Y la comparabilidad se
+  preserva intacta si el cambio va a las tres condiciones LLM a la vez —
+  la restricción es entre condiciones dentro de la ronda, no entre rondas.
+- **Evidencia** (`ai/bench_oraculo.py`, 16 celdas = 4 símbolos × 2 regiones ×
+  2 fases, calentamiento excluido). Azar de referencia para `level_acc`:
+  **0.375** (estrategia trivial "contestar siempre el nivel modal"; 0.167
+  uniforme). Con tabla plana:
+
+  | modelo | nivel | región A/B | fase 0/1 | B-oscura | s/decisión |
+  |---|---|---|---|---|---|
+  | **gemma2:9b** | **1.0** | 1.0 / 1.0 | 1.0 / 1.0 | **1.0** | 7.17 |
+  | llama3.1:8b | 0.875 | .88 / .88 | 1.0 / .75 | 0.75 | 3.22 |
+  | hermes3:8b | 0.812 | .63 / 1.0 | .88 / .75 | 1.0 | 3.15 |
+  | qwen2.5:7b (actual) | 0.688 | .63 / .75 | .88 / .50 | 0.75 | 3.27 |
+
+  `gemma2:9b` es el único con 1.0 en las dos dimensiones Y en la celda
+  retenida, estable en 3 pasadas (48 llamadas). Con la tabla ACTUAL,
+  `qwen2.5:7b` marca 0.50 contra un azar de 0.375: **el oráculo vigente está
+  en la estrategia trivial**, y `granite3.3:8b` cae exactamente en el azar.
+- **Por qué importa más allá del brazo oráculo.** La fase es una de las dos
+  dimensiones de D-014 y el probe de composición (D-005/D-010) pregunta por
+  B-oscura, que exige componer región Y fase. Con `qwen2.5:7b` un 0% en
+  B-oscura no es interpretable: no se distingue "no compuso" de "no puede
+  indexar por fase". Eso contamina la métrica primaria en las cuatro
+  condiciones, no solo en el techo.
+- **La tabla plana NO agrega información**: los mismos 16 hechos de
+  ORACLE_RULES, una línea por celda, sin indexación posicional. Es
+  legibilidad, de la misma clase que el barajado del menú (D-029). Test
+  permanente (`test_la_tabla_plana_no_agrega_informacion`) que falla si algún
+  día se le cuela un hecho que ORACLE_RULES no tiene — si eso pasara dejaría
+  de ser comparable y pasaría a ser intervención sobre el experimento.
+- **Costo.** 7.17 s/decisión contra 3.27 del actual (medido con el prompt de
+  producción, ~1870 tokens, carga en frío excluida). Ronda 1: **16,7 h** si
+  los agentes mueren hacia el día 12 como hasta ahora, **43 h** como cota alta
+  si sobreviven los 30 días. Contra las ~70 h que ya tomó el piloto y con la
+  infra recurrente construida, es asumible. `gemma2:9b` ocupa 5,4 GB y entra
+  holgado en los 16 GB del M2.
+- **Plan B declarado: `hermes3:8b`** (3.15 s/decisión, mismo costo que hoy).
+  Nivel 0.812 — peor promedio que llama3.1:8b — pero **12/12 en B-oscura**,
+  donde llama falla 3/12. Si hay que aceptar un techo con fugas, conviene que
+  las fugas queden lejos de la celda que mide la métrica primaria. Invocarlo
+  obliga a declarar en la bitácora que el techo tiene error propio.
+  Restituir: `OLLAMA_HOST=127.0.0.1:11434 ollama pull hermes3:8b`.
+- **Descartado y por qué.** `gemma4-qat:12b-64k`: 1.0 pero 26.79 s/decisión
+  (62-160 h de ronda) — inviable, y mi cifra previa de 23.2 s estaba inflada
+  por incluir la carga en frío. `granite3.3:8b`: en el azar. `qwen3:8b`:
+  9/12 inconsistente. `qwen2.5:7b-instruct-q8_0`: 0.562, la cuantización no
+  era la causa. `hermes3:8b` con tabla actual: 0.312, **bajo el azar** — su
+  especialización en tool-calling/JSON es ortogonal al fallo, que es de
+  indexación y no de formato de salida (los cuatro modelos entregan 0 JSON
+  malformados sobre el prompt real).
+- **Lo que esta decisión NO resuelve.** El hueco de `visible_to` (D-029) sigue
+  abierto: `gemma2:9b` sabe la tabla y sigue sin poder ver dónde queda B. Son
+  huecos independientes y los dos se cierran ANTES de gastar el gate.
+
 ## D-029 · 2026-08-13 · La región es OBSERVABLE solo bajo los pies: tercer bug de instrumento (Opus) · Comandante · Aprobada
 - **Hallazgo.** El oráculo recibe la tabla indexada por (símbolo, REGIÓN, fase),
   pero su observación reporta `region` SOLO de la celda donde está parado.
