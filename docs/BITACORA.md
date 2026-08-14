@@ -363,6 +363,71 @@ extrapola a US$0,69 a precios de hoy y US$1,24 en valle desde el 16/08.
 
 ---
 
+## Gate `gate_oraculo5` — el primer hallazgo que NO es un bug de instrumento (2026-08-14)
+
+Con la geometría común de D-032 aplicada y verificada en el prompt de la
+corrida (`- El mundo mide 30x30. La región A es la mitad OESTE (x < 15)…`) y
+las etiquetas de región presentes en las observaciones (10/10 entidades).
+
+**Resultado: 0/5, y CERO cruces de frontera** — uno menos que sin geometría.
+Decirle al agente dónde está B no lo hizo ir a B. Ese es el tercer brazo del
+criterio pre-registrado en D-032, y obliga a mirar el porqué en vez de seguir
+arreglando el andamiaje.
+
+### Hallazgo 1 — el agente tiene razón: A domina a B
+
+Se le preguntó directamente, sobre observaciones reales de la corrida
+(gate de política de Terra, 10 muestras con hambre): **dice que NO hay que ir
+a B, 10 de 10 veces**, y su razón es correcta:
+
+| | A-clara | A-oscura | B-clara | B-oscura |
+|---|---|---|---|---|
+| S1 | **+8** | **+4** | −1 | −5 |
+| S2 | −2 | +1 | **+7** | +10 |
+| S4 | +1 | −8 | **+7** | −2 |
+
+Quedarse en A rinde **+8 en clara y +4 en oscura, con S1, en AMBAS fases**. Ir
+a B rinde +7 y **solo en fase clara**, porque B-oscura está bloqueada por la
+barrera (D-017). **A domina a B: no cruzar es la política correcta.** El
+agente cita la barrera y los valores de la tabla textualmente.
+
+Consecuencia de diseño, no de agente: el probe de composición exige haber
+vivido B-clara, y la estructura de pagos del propio mundo hace irracional
+visitarla. **D-023 (nacer repartido) empuja hacia B, D-017 expulsa, y la
+ontología quita toda razón de volver.** Por eso ni la política reactiva
+optimizada llega al 3,3% de consumos en B-clara: no es miopía suya, es que B
+no paga.
+
+### Hallazgo 2 — explotación miope con conocimiento y percepción perfectos
+
+Lo que sí es un fallo del agente, y está limpio de instrumento:
+
+- **Comió S2 68 veces y S1 CERO veces** (gate4: 101 S2 contra 18 S1).
+- S2 en A-clara vale **−2**. S1 en A-clara vale **+8**.
+- En esas mismas observaciones **S1 estaba VISIBLE a 5 pasos**, con S2
+  adyacente a 0-1 pasos.
+- El agente **dice** que S1 vale +8 y que hay S1 cerca. Y come el S2 de al lado.
+
+No es falta de conocimiento (tiene la tabla y la recita), ni de percepción (ve
+el S1), ni de comida: hay **80 unidades de S1 en A = 640 de energía**, contra
+un déficit metabólico de **116** en 30 días. El mundo es holgadamente
+sobrevivible quedándose quieto en A y caminando cinco pasos.
+
+El fallo es **no ejecutar navegación de varios pasos hacia una recompensa
+mejor conocida y visible**: consume lo adyacente aunque sepa que le resta
+energía. Esto es control de política bajo conocimiento perfecto — el hallazgo
+cognitivo genuino que el criterio pre-registrado anticipaba como tercer brazo.
+
+**Límite de la evidencia, declarado**: 1 mundo, 1 seed, 5 agentes. Sostiene la
+descripción del mecanismo, NO una tasa poblacional. Antes de reportarlo hay
+que replicar sobre varias seeds — cuesta US$0,03 por mundo.
+
+**Qué NO se cambió.** El mundo sigue intacto. No se tocó la ontología para que
+B "pagara mejor" — eso contaminaría la interpretación y es exactamente lo que
+la bitácora existe para impedir. No se abrió ronda 1.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
