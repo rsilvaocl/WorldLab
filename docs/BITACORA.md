@@ -472,6 +472,60 @@ la bitácora existe para impedir. No se abrió ronda 1.
 
 ---
 
+## Rediseñar la tabla NO alcanza (2026-08-14)
+
+Implementado el gate de Terra (`ai/gate_mundo.py`) con sus umbrales, sobre 12
+seeds fijas y sin LLM. La tabla actual falla los tres:
+
+| gate | resultado | umbral |
+|---|---|---|
+| 1 · viabilidad | longevidad 0,746 · **0/12** seeds con 4/5 | ≥0,80 · ≥9/12 |
+| 2 · exposición | **3,3%** de trayectorias con D-025 | ≥75% |
+| 3 · B importa | Δlongevidad 0,056 | ≥0,20 |
+
+El gate 2 devuelve exactamente el 3,3% que Terra citó del piloto: el
+instrumento calibra contra un dato conocido de antemano.
+
+**Hallazgo del gate 1, nuevo:** el mundo ya es marginal para el TECHO
+informado. Cero seeds de doce alcanzan 4/5 supervivientes con la política
+determinista. Veníamos exigiendo 3/5 a los LLM en un mundo donde el techo
+tampoco llega.
+
+**Búsqueda de tabla: 400 candidatas, ninguna pasa.** Con δ_región y δ_fase
+variados y todas las invariantes intactas (separabilidad, D-022, B-oscura
+bloqueada, S3 control), la mejor fracción D-025 alcanzada es **0,08 contra un
+umbral de 0,75** — un factor de diez. Se descartó el confound obvio: ampliar
+el radio de planificación de la política informada (5 → 10 → 20) no mejora la
+exposición y empeora la longevidad, así que el cuello no es la miopía del
+baseline.
+
+**Dónde se rompe, medido.** Patrón de exposición sobre 60 trayectorias
+(12 seeds × 5 agentes) con la mejor candidata:
+
+| trayectorias | celdas con al menos un consumo |
+|---|---|
+| **38** | A-clara + A-oscura (**nunca B-clara**) |
+| 7 | solo A-clara |
+| 7 | ninguna |
+| **3** | **las tres (D-025 completo)** |
+| 5 | otras combinaciones |
+
+38 de 60 se asientan en A y no visitan B ni una vez, aun con B-clara pagando
++10 contra +8 de A-clara. El problema no está en cuánto paga B: está en la
+dinámica que lleva a los agentes a asentarse en A —spawn, expulsión por
+barrera y re-asentamiento— y ninguna tabla de pagos la corrige.
+
+**Consecuencia:** se cumple la condición que el propio Terra puso para
+reabrir D-023/D-017 ("solo si tras la geometría común sigue sin haber
+exposición a B-clara"). La decisión vuelve a él con evidencia, no con
+conjetura.
+
+**Qué NO se cambió.** No se tocó la ontología: la búsqueda evalúa candidatas,
+no las adopta. No se aflojó ningún umbral del gate — están congelados en un
+test. No se abrió ronda 1.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
