@@ -72,9 +72,11 @@ def ask_cell(client: LLMClient, system: str, rkind: str, region: str,
 
 def bench_model(model: str, backend: str, system: str, repeats: int,
                 timeout: float,
-                truth: Dict[Tuple[str, str, int], float]) -> Dict[str, Any]:
+                truth: Dict[Tuple[str, str, int], float],
+                max_tokens: int = 2000,
+                thinking: Optional[bool] = None) -> Dict[str, Any]:
     client = LLMClient(backend=backend, model=model, temperature=0.0,
-                       max_tokens=700, timeout=timeout)
+                       max_tokens=max_tokens, timeout=timeout, thinking=thinking)
 
     # calentamiento FUERA del cronómetro: la primera llamada carga el modelo a
     # memoria y en un 12B eso son decenas de segundos que no se pagan en
@@ -126,6 +128,14 @@ def main() -> None:
     ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"])
     ap.add_argument("--repeats", type=int, default=1, help="pasadas sobre las 16 celdas")
     ap.add_argument("--timeout", type=float, default=180.0)
+    ap.add_argument("--max-tokens", type=int, default=2000,
+                    help="tope de salida. Un modelo de RAZONAMIENTO gasta el\n"
+                         "presupuesto pensando antes de emitir `content`: con un tope\n"
+                         "bajo devuelve vacio y se lee como 'no sabe'. Fue lo que\n"
+                         "descarto a qwen3:4b el 13/08 y lo que dio Q3=0/3 falso a\n"
+                         "deepseek-v4-flash.")
+    ap.add_argument("--no-thinking", action="store_true",
+                    help="DeepSeek v4: desactiva el modo razonamiento. Con el\n                         prompt real del agente, razonar cuesta 58.5 s y 5076\n                         tokens por decision contra 1.2 s y 29 sin razonar.")
     ap.add_argument("--out", default="data/silver/bench_oraculo/bench.json")
     args = ap.parse_args()
 
@@ -145,7 +155,8 @@ def main() -> None:
     for model in [m.strip() for m in args.models.split(",") if m.strip()]:
         try:
             r = bench_model(model, args.backend, system, args.repeats, args.timeout,
-                            truth)
+                            truth, args.max_tokens,
+                            False if args.no_thinking else None)
         except Exception as e:  # noqa: BLE001
             print(f"{model:26} ERROR: {type(e).__name__}: {str(e)[:60]}")
             continue

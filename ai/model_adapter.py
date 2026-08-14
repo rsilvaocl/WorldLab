@@ -33,12 +33,23 @@ class LLMClient:
     def __init__(self, backend: str = "ollama", model: Optional[str] = None,
                  base_url: Optional[str] = None, api_key: Optional[str] = None,
                  temperature: float = 0.7, timeout: float = 60.0,
-                 max_retries: int = 2, max_tokens: Optional[int] = None):
+                 max_retries: int = 2, max_tokens: Optional[int] = None,
+                 thinking: Optional[bool] = None):
         self.backend = backend
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
         self.max_tokens = max_tokens
+        # Modo de razonamiento (DeepSeek v4). None = default del proveedor.
+        # False envía {"thinking": {"type": "disabled"}}.
+        #
+        # Por qué importa: los v4 razonan por defecto. Sobre el prompt real del
+        # agente (~1870 tokens) eso da 4376 tokens de salida y 52 s por
+        # decisión — 30x el costo y el tiempo. El `deepseek-chat` con el que se
+        # corrió gate_oraculo_ds ERA v4-flash en modo NO pensante (la doc lo
+        # dice: los nombres viejos mapean a non-thinking/thinking de v4-flash),
+        # y esa es la configuración que midió 12/12 en el brazo contextual.
+        self.thinking = thinking
         self.last_usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
 
         if backend == "ollama":
@@ -46,7 +57,7 @@ class LLMClient:
             self.base_url = base_url or "http://localhost:11434/v1"
             self.api_key = api_key or "ollama"
         elif backend == "openai":
-            self.model = model or os.environ.get("WORLDLAB_LLM_MODEL", "deepseek-chat")
+            self.model = model or os.environ.get("WORLDLAB_LLM_MODEL", "deepseek-v4-flash")
             self.base_url = base_url or os.environ.get("WORLDLAB_LLM_BASE_URL",
                                                        "https://api.deepseek.com/v1")
             self.api_key = api_key or os.environ.get("WORLDLAB_LLM_API_KEY", "")
@@ -66,6 +77,8 @@ class LLMClient:
         }
         if self.max_tokens:
             payload["max_tokens"] = self.max_tokens
+        if self.thinking is not None:
+            payload["thinking"] = {"type": "enabled" if self.thinking else "disabled"}
         body = json.dumps(payload).encode()
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",

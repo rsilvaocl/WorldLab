@@ -282,7 +282,19 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     model_name = args.model
-    client = LLMClient(backend=args.backend, model=model_name)  # ollama local $0 / DeepSeek API
+    # D-031: en DeepSeek v4 el razonamiento va DESACTIVADO. Sobre el prompt
+    # real del agente, razonar cuesta 58.5 s y 5076 tokens de salida por
+    # decision contra 1.2 s y 29 sin razonar — 49x el tiempo — y no mejora
+    # nada: sin razonar mide 1.0 en los dos brazos, con razonamiento 2/3
+    # en Q3. El `deepseek-chat` de gate_oraculo_ds ERA este mismo modo.
+    if args.thinking:
+        thinking = True
+    elif args.backend == "openai":
+        thinking = False          # DeepSeek v4: razonamiento apagado por defecto
+    else:
+        thinking = None           # ollama: se respeta el default del modelo
+    client = LLMClient(backend=args.backend, model=model_name,
+                       thinking=thinking)  # ollama local $0 / DeepSeek API
 
     if args.smoke:
         densities = [0.07]

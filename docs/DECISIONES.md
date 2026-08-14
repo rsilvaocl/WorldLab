@@ -2,7 +2,56 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · Comandante · Aprobada
+## D-031 · 2026-08-14 · `deepseek-v4-flash` SIN razonamiento, en dos brazos (Opus) · Comandante · Aprobada
+- **Decisión.** Las tres condiciones LLM corren con **`deepseek-v4-flash` y el
+  modo de razonamiento DESACTIVADO** (`thinking: {"type": "disabled"}`).
+  Reemplaza la elección de `gemma2:9b` de D-030, que se hizo con un criterio
+  insuficiente. `baseline_empirico` no usa LLM (D-019) y no cambia.
+- **Por qué cae `gemma2:9b`.** El banco de D-030 mide un solo brazo. Hay DOS:
+  - **estático** — región y fase en el TEXTO de la pregunta. Es la condición
+    de `predict_effect` (D-010, métrica primaria).
+  - **contextual** — región y fase solo en la observación; el modelo tiene que
+    ligar "aquí". Es la condición del BUCLE DE ACCIÓN, donde el agente vive.
+
+  No ordenan igual, y ahí estuvo el error:
+
+  | modelo | estático | contextual Q2 | Q3 (deducible) |
+  |---|---|---|---|
+  | **deepseek-v4-flash sin razonar** | **1.0** | **1.0** | **3/3** |
+  | deepseek-v4-flash razonando | 1.0 | 1.0 | 2/3 |
+  | qwen3:4b | 1.0 | 1.0 | 0/3 |
+  | gemma2:9b | 1.0 | **0.083** | 0/3 |
+  | llama3.1:8b | 0.875 | 0.75 | 2/3 |
+  | hermes3:8b | 0.812 | 0.417 | 0/3 |
+  | qwen2.5:7b | 0.688 | 0.0 | 0/3 |
+
+  `gemma2:9b` no "maximiza": cita la etiqueta de una celda con el valor de otra
+  dos filas abajo ("región A … fase 0 (clara): +7", línea que NO existe en el
+  prompt). Confirmado en conducta: su smoke dio **0 consumos**, 20 moves, 17 de
+  ellos al oeste. El "5/5 supervivientes a 5 días" era luz verde falsa — con
+  ~100 de energía inicial y 0.3/tick todavía no necesitaban comer.
+- **Por qué el razonamiento va apagado.** Los v4 razonan por defecto. Sobre el
+  prompt real del agente (~1870 tokens) eso cuesta **58,5 s y 5076 tokens de
+  salida por decisión**, contra **1,2 s y 29 tokens** sin razonar: 49× el
+  tiempo y 175× la salida, y encima mide PEOR en Q3 (2/3 vs 3/3). El
+  `deepseek-chat` con el que se corrió `gate_oraculo_ds` era exactamente este
+  modo — la doc dice que los nombres viejos mapean a non-thinking/thinking de
+  `deepseek-v4-flash`.
+- **Costo y tiempo.** ~1,2 s/decisión ⇒ **≈3 h** de ronda 1 secuencial y
+  **US$1-2**. El ahorro real no es el horario valle (los descuentos por horario
+  terminaron el 2025-09-05; el precio de v4 es plano) sino el **cache hit**
+  ($0.028/M contra $0.14/M), que depende de mantener el system prompt estable.
+- **Nombres.** `deepseek-chat` y `deepseek-reasoner` se descontinúan; el default
+  de `model_adapter` pasa a `deepseek-v4-flash`.
+- **Lo que NO resuelve.** El rumbo a B solo es deducible dentro del radio de
+  visión 6: en 9 de 12 muestras del probe no hay ninguna entidad de la otra
+  región a la vista, y ahí ningún modelo puede inferir nada. `q3_heading_acc`
+  = 1.0 sobre lo deducible y 0.25 sobre todo lo confirma. Queda ABIERTO y se
+  decide antes del gate.
+
+## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · Comandante · Aprobada · **SUPERSEDIDA por D-031 en la elección de modelo**
+- Vigente: la tabla plana generada del motor y el criterio de las dos
+  dimensiones. Caduca: `gemma2:9b` como modelo (ver D-031).
 - **Decisión.** Las tres condiciones LLM (`sin_memoria`, `memoria`, `oraculo`)
   pasan de `qwen2.5:7b` a **`gemma2:9b`**, y la tabla del oráculo pasa al
   formato plano (16 líneas, un hecho por celda). `baseline_empirico` no usa

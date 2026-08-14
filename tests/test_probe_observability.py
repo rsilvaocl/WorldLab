@@ -279,3 +279,41 @@ def test_context_line_no_inventa_nada_que_no_este_en_la_observacion():
     # solo reafirma campos existentes: sin region/phase no fabrica valores
     linea = LLMAgent.context_line({})
     assert "región ," in linea and "fase 0 (clara)" in linea
+
+
+def test_thinking_se_traduce_al_payload_de_la_api():
+    """DeepSeek v4 razona por defecto. Sobre el prompt real del agente eso son
+    58.5 s y 5076 tokens de salida por decisión contra 1.2 s y 29 sin razonar,
+    sin ninguna ganancia de precisión (D-031). El flag tiene que llegar al
+    payload o la corrida cuesta 49x sin que nadie lo note."""
+    from ai.model_adapter import LLMClient
+    import json as _json
+
+    capturado = {}
+
+    class FakeReq:
+        def __init__(self, url, data=None, headers=None, method=None):
+            capturado["payload"] = _json.loads(data.decode())
+
+    c = LLMClient(backend="ollama", model="x", thinking=False)
+    assert c.thinking is False
+    c2 = LLMClient(backend="ollama", model="x")
+    assert c2.thinking is None, "sin especificar, se respeta el default del proveedor"
+
+    import ai.model_adapter as mod
+    orig = mod.urllib.request.Request
+    mod.urllib.request.Request = FakeReq
+    try:
+        for th, esperado in ((False, "disabled"), (True, "enabled"), (None, None)):
+            capturado.clear()
+            cli = LLMClient(backend="ollama", model="x", thinking=th)
+            try:
+                cli.chat_json([{"role": "user", "content": "hola"}])
+            except Exception:
+                pass   # la request falsa no responde; solo interesa el payload
+            if esperado is None:
+                assert "thinking" not in capturado["payload"]
+            else:
+                assert capturado["payload"]["thinking"] == {"type": esperado}
+    finally:
+        mod.urllib.request.Request = orig

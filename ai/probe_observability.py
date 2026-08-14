@@ -312,6 +312,16 @@ def main() -> None:
     ap.add_argument("--include-day1", action="store_true",
                     help="incluir el día 1 (por defecto se salta: los agentes "
                          "aún no fueron expulsados de B)")
+    ap.add_argument("--max-tokens", type=int, default=2000,
+                    help="tope de salida. Los modelos de RAZONAMIENTO gastan el "
+                         "presupuesto pensando ANTES de emitir `content`: con 400, "
+                         "deepseek-v4-flash devolvió content vacío en las 12 "
+                         "llamadas de Q3 (la pregunta espacial, la más larga) y "
+                         "0 en Q1/Q2. Un tope bajo se lee como 'el modelo no sabe' "
+                         "cuando es 'no lo dejamos terminar' — el defecto que ya "
+                         "descartó a qwen3:4b. run_pilot NO pone tope.")
+    ap.add_argument("--no-thinking", action="store_true",
+                    help="DeepSeek v4: desactiva el modo razonamiento (ver bench).")
     ap.add_argument("--out", default="data/silver/probe_observabilidad/probe.jsonl")
     args = ap.parse_args()
 
@@ -319,7 +329,8 @@ def main() -> None:
     from .run_pilot import make_world_config, oracle_rules, oracle_truth
 
     client = LLMClient(backend=args.backend, model=args.model,
-                       temperature=0.0, max_tokens=400)
+                       temperature=0.0, max_tokens=args.max_tokens,
+                       thinking=False if args.no_thinking else None)
     cfg = make_world_config(days=30)
     rules = oracle_rules(cfg) if args.condition == "oraculo" else ""
     stub = LLMAgent("probe", client, goal="sobrevivir y maximizar energía",
