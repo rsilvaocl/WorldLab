@@ -2,7 +2,7 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · PROPUESTA
+## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · Comandante · Aprobada
 - **Decisión.** Las tres condiciones LLM (`sin_memoria`, `memoria`, `oraculo`)
   pasan de `qwen2.5:7b` a **`gemma2:9b`**, y la tabla del oráculo pasa al
   formato plano (16 líneas, un hecho por celda). `baseline_empirico` no usa

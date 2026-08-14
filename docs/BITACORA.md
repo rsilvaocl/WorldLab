@@ -224,6 +224,52 @@ observaciones reales del trace y separa lectura, recuperación de tabla y rumbo.
 
 ---
 
+## El oráculo no podía leer su propia tabla (2026-08-13)
+
+Al auditar el probe de observabilidad apareció un cuarto defecto, de otra
+familia que los tres de instrumento: **`qwen2.5:7b` no recupera la regla que
+recibe textual en el prompt**. Medido sobre las 16 celdas del mundo con
+`ai/bench_oraculo.py`, marca 0.50 de acierto por nivel contra un azar de
+referencia de **0.375** — la estrategia trivial de contestar siempre el nivel
+modal. El techo informado estaba, en la práctica, en el azar.
+
+El corte por dimensión es lo que importa: liga símbolo y región, y **colapsa
+la fase**. Con la tabla escrita una celda por línea verbaliza *"en región A
+durante fase 1 (oscura)"* y acto seguido emite el valor de la fase 0. Nombra
+la celda correcta en palabras y copia la fila equivocada.
+
+Qué implica para lo ya registrado, sin adornos:
+
+- La fase es una de las dos dimensiones de D-014, y el probe de composición
+  (D-005/D-010) pregunta por B-oscura, que exige componer región Y fase. Un
+  0% de `qwen2.5:7b` en la celda retenida **no es interpretable**: no se
+  distingue "no compuso" de "no puede indexar por fase".
+- Eso no afecta solo al brazo oráculo. Contamina la **métrica primaria en las
+  cuatro condiciones**, porque las otras tres tienen que inferir lo que el
+  oráculo ni siquiera logra copiar.
+- Se suma un defecto propio del andamiaje: `{"energy_change": +1}` es JSON
+  inválido, y le pedíamos al modelo "el número con signo". El que obedecía
+  quedaba registrado como `null`, indistinguible de no haber contestado. Los
+  probes en disco tienen 15-25% de nulos en las corridas de oráculo qwen.
+  Arreglado y con test permanente; los crudos de esas corridas no se
+  guardaban, así que esa fracción no es recuperable.
+
+**Qué NO se cambió.** No se tocó el mundo: densidades, efectos, barrera,
+metabolismo y ontología siguen intactos. No se aflojó el probe ni se cambió
+la métrica. La tabla plana **no agrega información** — son los mismos 16
+hechos de ORACLE_RULES sin indexación posicional, con test permanente que
+falla si algún día se le cuela un hecho que la tabla actual no tenga. No se
+abrió ronda 1.
+
+Cómo se encontró: no por sospechar del modelo, sino porque el control pareado
+del probe separó dos fallos que el promedio confundía — DeepSeek recupera la
+tabla perfecto y aun así no sabe dónde queda B; qwen ni siquiera llega a esa
+pregunta. Instrumento: `ai/bench_oraculo.py` (D-030), con el desagregado por
+región, por fase y por celda retenida, porque el promedio escondía el
+hallazgo (6/12 tapando 6/6 y 0/6).
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
