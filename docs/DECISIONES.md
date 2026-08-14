@@ -2,6 +2,55 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-034 · 2026-08-14 · La unidad inferencial es la ONTOLOGÍA, no el mundo (Terra) · PROPUESTA
+- **Problema medido.** Bajo exposición dirigida (D-033) los seeds dejaron de
+  ser observaciones. La Fase E estandariza la experiencia, los efectos del
+  mundo son deterministas (D-009/D-015) y con `temperature=0` el prompt y la
+  respuesta son idénticos en todo seed: **σ_Δ = 0,0 EXACTO en 8 seeds**, con
+  una sola huella de memoria en 4 seeds comprobados. No es poca varianza —
+  ocho seeds son ocho ejecuciones del mismo ítem.
+- **Por qué no valen las salidas fáciles** (criterio de Terra): repetir ítems
+  idénticos no crea ensayos independientes; los agentes tampoco son
+  respondientes independientes si reciben prompts byte-idénticos con
+  decodificación determinista; y subir `temperature` mediría ruido de
+  decoding, que puede ser sensibilidad secundaria pero no fuente principal de
+  inferencia.
+- **Decisión.** Mantener la Fase E exactamente estandarizada y hacer variar la
+  **ONTOLOGÍA**. Se evalúa sobre un banco pre-generado de 32 tablas
+  separables; cada una produce prompts, memorias y respuestas materialmente
+  distintos con la exposición igual de controlada. La unidad inferencial es la
+  ontología, no el seed ni el agente.
+- **Dos familias declaradas**, ninguna reemplaza a la otra:
+  - `ecologia-v1` — supervivencia y navegación sobre la tabla actual
+    congelada, **sin pretensión de composición poblacional**.
+  - `composicion-bank-v1` — el banco, para generalización composicional.
+- **La regla que lo hace honesto.** El banco se genera y se **congela en disco
+  ANTES de cualquier llamada a un modelo**, y el archivo va versionado
+  (`data/banco/composicion_bank_v1.json`; nótese que `data/silver` y
+  `data/gold` están en `.gitignore` y `data/banco` no, a propósito). No se
+  selecciona ni se descarta una tabla según las respuestas de nadie. Es
+  regenerable desde su seed, con test que lo verifica.
+- **Cada ontología cumple, verificado antes de la primera llamada:**
+  separabilidad, B-oscura retenida y nunca expuesta, D-022 (nivel de magnitud
+  retenido distinto del de las tres vividas), mismos símbolos y geometría, S3
+  control plano en cero.
+- **El nivel de azar de este banco NO es 1/6.** Como se puntúa por nivel de
+  magnitud, la referencia correcta es la **mejor estrategia constante**:
+  contestar siempre el mismo nivel. En este banco rinde **0,219** (tope 0,40),
+  con los niveles retenidos repartidos 11/20/12/18/21/14. Un banco donde
+  contestar siempre lo mismo funcione no mide composición, y el validador lo
+  rechaza.
+- **Inferencia.** Outcome por ontología: proporción de probes B-oscura
+  correctos. Contraste pareado `memoria_indexada − sin_memoria`. Prueba
+  principal: **permutación pareada** sobre las 32 diferencias (sin asumir
+  normalidad); IC **bootstrap remuestreando ontologías**.
+- **Precondición.** `memoria_indexada` debe pasar antes su gate de lectura. Si
+  no lo pasa, no se la compara contra corrupta ni contra `sin_memoria` como
+  composición: se reporta como fallo de accesibilidad del recuerdo.
+- **Qué NO se hace.** No se fija N con los 8 seeds del piloto degenerado. No se
+  sube `temperature` para fabricar varianza. No se toca la ontología de
+  `ecologia-v1`, que queda congelada.
+
 ## D-033 · 2026-08-14 · Bifurcación de protocolo: composición bajo exposición DIRIGIDA (Terra) · Comandante · Aprobada
 - **Cambio de pregunta, declarado y no disimulado.** El protocolo de
   composición pasa a medir **composición bajo exposición controlada**, NO

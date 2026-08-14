@@ -632,6 +632,47 @@ el gate evalúa la representación, no los casos.
 
 ---
 
+## El piloto de potencia falló, y el motivo era el diseño (2026-08-14)
+
+Para congelar N hacía falta σ_Δ, la desviación de las diferencias pareadas
+`memoria_indexada − sin_memoria` por seed. El piloto de 8 seeds devolvió
+**σ_Δ = 0,0 EXACTO**: los ocho dieron valores idénticos (0,000 contra 0,333,
+diferencia −0,333 en todos).
+
+Causa verificada, no supuesta: **una sola huella de memoria en 4 seeds**
+comprobados. La Fase E entrega las mismas 9 celdas con los mismos valores en
+todo seed —porque los efectos del mundo son deterministas (D-009/D-015) y la
+exposición está estandarizada por construcción— y con `temperature=0` el
+prompt idéntico produce la respuesta idéntica.
+
+**Ocho seeds no eran ocho observaciones: eran ocho ejecuciones del mismo
+ítem.** El seed dejó de ser fuente de varianza para el probe de composición, y
+eso es una consecuencia directa de D-033 que ni Terra ni yo anticipamos al
+escribirla: estandarizar la exposición era el punto de la Fase E, y su precio
+es eliminar la variabilidad entre mundos.
+
+**Fallo silencioso propio, corregido.** Con σ=0 mi `n_requerido` devolvía 16
+—el piso— como si fuera una respuesta válida. Habríamos corrido 16 seeds
+creyendo tener potencia 0,90 sobre un diseño sin varianza. Ahora marca
+`degenerado`, devuelve `None` y explica el motivo, con test que lo fija.
+
+**Observación sin valor estadístico:** `memoria_indexada` 0/3 contra
+`sin_memoria` 1/3 en la celda retenida, replicado 8 veces con varianza cero.
+Son ocho copias de una observación, **n efectivo = 1**. Llama la atención que
+la memoria vaya en contra —coincide con el smoke previo (0,00 vs 0,33)— pero
+no se reporta como resultado.
+
+**Salida (D-034, Terra):** mantener la Fase E estandarizada y hacer variar la
+ONTOLOGÍA. Banco de 32 tablas separables congelado en disco antes de cualquier
+llamada a un modelo. La unidad inferencial vuelve a ser legítima sin fabricar
+ruido subiendo `temperature`.
+
+**Qué NO se cambió.** No se fijó N con los 8 seeds degenerados. No se subió
+`temperature` para inventar varianza. La ontología de `ecologia-v1` sigue
+congelada.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
