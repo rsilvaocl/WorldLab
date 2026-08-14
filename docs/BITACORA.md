@@ -422,6 +422,50 @@ cognitivo genuino que el criterio pre-registrado anticipaba como tercer brazo.
 descripción del mecanismo, NO una tasa poblacional. Antes de reportarlo hay
 que replicar sobre varias seeds — cuesta US$0,03 por mundo.
 
+### CORRECCIÓN (mismo día): el hallazgo 2 NO se sostiene
+
+La réplica sobre seeds 7/13/21 y la matriz contrafactual que exigió Terra lo
+refutaron. Se deja escrito el hallazgo original arriba, sin editar, porque el
+error importa más que la conclusión.
+
+**Réplica, 4 seeds:**
+
+| seed | superv. | S1 (+8) | S2 (−2) | neto | cruces | B-clara |
+|---|---|---|---|---|---|---|
+| 42 | 0/5 | **0** | **68** | −19 | 0 | 0 |
+| 13 | 2/5 | **119** | 0 | +612 | 0 | 0 |
+| 21 | 2/5 | 71 | 42 | +295 | 1 | 1 |
+| 7 | 2/5 | 57 | 14 | +241 | 1 | 0 |
+
+Fuera de la seed 42, el agente come el recurso BUENO 247 veces contra 56 el
+malo. **La "miopía" era un artefacto de la seed 42**, donde el spawn dejó a
+los agentes lejos de los cúmulos de S1. Habíamos gateado cuatro rondas sobre
+una única seed, y resultó ser una tirada patológica.
+
+**Matriz contrafactual** (estados construidos con el motor real, el menú de
+acciones sale de `available_actions`, 6 posiciones por escenario):
+
+| escenario | elige S1 (+8) | elige S2 (−2) |
+|---|---|---|
+| A · ambos en inventario | **6/6** | 0/6 |
+| B · ambos adyacentes | **6/6** | 0/6 |
+| C · el bueno a 5 pasos | 0/6 | **6/6** |
+
+Disociación limpia: **la selección es perfecta (12/12) y la planificación
+falla (0/6)**. Por el criterio que Terra fijó antes de correrla —"falla solo
+en C ⇒ es horizonte/costo de planificación y NO es reportable como fallo de
+política"— el hallazgo 2 queda **refutado como fallo de control de política**.
+Lo que sí queda establecido, y es más estrecho: el agente no emprende
+navegación de varios pasos hacia una recompensa mejor que ve y sabe valorar.
+
+**Supervivencia real: 0, 2, 2, 2 de 5.** No es el 0/5 uniforme que creíamos.
+Ningún mundo alcanza el umbral de 3/5, así que el gate sigue sin pasar, pero
+el techo informado no está colapsado: está a un agente de distancia.
+
+**Lección metodológica**: gatear sobre una sola seed produjo cuatro rondas de
+diagnóstico sobre una tirada atípica. Los gates futuros corren ≥3 seeds antes
+de concluir nada.
+
 **Qué NO se cambió.** El mundo sigue intacto. No se tocó la ontología para que
 B "pagara mejor" — eso contaminaría la interpretación y es exactamente lo que
 la bitácora existe para impedir. No se abrió ronda 1.
