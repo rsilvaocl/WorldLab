@@ -2,7 +2,7 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-029 · 2026-08-13 · La región es OBSERVABLE solo bajo los pies: tercer bug de instrumento (Opus) · PROPUESTA
+## D-029 · 2026-08-13 · La región es OBSERVABLE solo bajo los pies: tercer bug de instrumento (Opus) · Comandante · Aprobada
 - **Hallazgo.** El oráculo recibe la tabla indexada por (símbolo, REGIÓN, fase),
   pero su observación reporta `region` SOLO de la celda donde está parado.
   Las entidades visibles (`visible_to`, radio 6) traen `dx, dy, rkind` y NINGUNA

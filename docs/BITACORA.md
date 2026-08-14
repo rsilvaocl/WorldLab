@@ -175,16 +175,68 @@ hipótesis sobre el modelo.
 
 ---
 
+## Tercer bug de instrumento — la región no es observable a distancia (2026-08-13)
+
+**El oráculo recibe la tabla indexada por una variable que no puede localizar.**
+Las reglas le dicen qué vale cada símbolo en (región, fase); su observación reporta
+`region` **solo de la celda donde está parado**. `visible_to` (radio 6) devuelve
+`dx, dy, rkind` sin etiqueta de región, y la frontera —`x >= int(width*region_split)`—
+no aparece ni en el prompt ni en la observación. Como el oráculo corre con
+`memory=None`, cada decisión es una llamada sin estado: **desde una sola observación
+no existe función que lleve de `position` a "B queda al este"**. No es que el agente
+no use el conocimiento; es que el conocimiento está indexado por algo que no puede ver.
+
+Evidencia en `data/silver/gate_oraculo_ds` (deepseek-chat, 30d, seed42, d=7%):
+
+- **3 de 5 agentes nacen en B** (a2 x=18, a3 x=21, a4 x=23) — D-023 funcionando.
+- La primera fase oscura (día 1, tick 12) los expulsa a x=13-14 — D-017 funcionando.
+- **Nunca vuelven.** Un solo cruce de frontera en toda la corrida (a2, día 2,
+  x=14→15, reexpulsado). Después derivan al oeste hasta congelarse: a3 21→14→13→12→11→10,
+  a4 23→13→12→11→10.
+- Direcciones de `move`: (0,−1)×44, (0,1)×34, (−1,0)×13, **(1,0)×5** — se alejan de B
+  2,6× más de lo que se acercan, estando a **un paso**. Los 69 consumos: 100% en A.
+
+Qué implica para lo ya registrado, sin adornos:
+
+- La lectura **"posee la tabla pero no la usa para controlar su política"** no está
+  sostenida por estos datos. El "4/61 snapshots en B" no es *no cruza a B*: es
+  **fue expulsado de B y no tiene con qué volver**.
+- El diagnóstico **"el mundo es inviable para un agente LLM que decide vía llamadas
+  discretas"** se apoya en corridas donde la región de destino era inobservable. Puede
+  ser cierto, pero está sin medir — igual que pasó con el reloj.
+- Es el **tercer** defecto de instrumento (reloj, orden fijo del menú, región), y los
+  tres se disfrazaron de límite del modelo. El patrón ya es la lección: antes de
+  aceptar un "el modelo no puede", verificar que la información necesaria esté en la
+  observación.
+
+**Qué NO se cambió.** No se cambió de modelo (el oráculo sigue siendo `qwen2.5:7b`:
+cambiarlo rompe la comparabilidad, que es lo único que el diseño mide). No se
+suavizó el mundo — densidades, efectos, barrera y metabolismo intactos. No se
+rediseñó el protocolo: los dos gates propuestos por Terra (cognitivo + política)
+quedan en espera, no descartados, hasta tener el gate re-corrido sobre instrumento
+limpio. No se abrió ronda 1.
+
+Cómo se encontró: no por leer el resumen del gate, sino por reconstruir las
+trayectorias por snapshot desde el log crudo y notar que los agentes **empezaban**
+en B. La pregunta "¿por qué no cruza?" era la pregunta equivocada; la correcta era
+"¿cómo salió de ahí?". Instrumento: `ai/probe_observability.py` (D-029) replaya
+observaciones reales del trace y separa lectura, recuperación de tabla y rumbo.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
 **Configuración prevista:** 30 días, densidad única 7%, con D-022 a D-026 aplicados.
 32 mundos (8 seeds × 4 condiciones), directorio propio `data/silver/ronda1`.
 
-**Bloqueo vigente:** el smoke test 30d del oráculo falló 0/5 — el techo informado no
-cruza a B teniendo la tabla completa en el prompt (ver §3 de
-`docs/WORLDLAB-avance-para-opus.md`). Con el techo colapsado, LE no tiene denominador.
-Se lanza cuando exista decisión sobre ese punto.
+**Bloqueo vigente (actualizado 2026-08-13):** el smoke test 30d del oráculo falló 0/5,
+pero la causa registrada antes —"el techo informado no cruza a B teniendo la tabla
+completa en el prompt" (§3 de `docs/WORLDLAB-avance-para-opus.md`)— quedó **invalidada**
+por el tercer bug de instrumento: la región no es observable a distancia (D-029). Con
+el techo colapsado LE sigue sin denominador, pero el 0/5 no es interpretable hasta
+correr el probe de observabilidad y, si confirma, re-correr el gate con la región
+expuesta como percepción en las 4 condiciones.
 
 **Infra lista:** `scripts/worldlab_ronda1_recurrente.sh`, agendable cada 2 h; idempotente
 (guard anti-doble-instancia + `--resume` por checkpoint de mundo).
