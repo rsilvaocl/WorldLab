@@ -270,6 +270,52 @@ hallazgo (6/12 tapando 6/6 y 0/6).
 
 ---
 
+## Elegimos un modelo con medio criterio (2026-08-14)
+
+D-030 eligió `gemma2:9b` porque marcaba 1.0 en el banco de las 16 celdas. El
+banco medía **un solo brazo**. Hay dos, y no ordenan igual:
+
+- **estático** — región y fase en el TEXTO de la pregunta. Es la condición de
+  `predict_effect` (D-010), la métrica primaria.
+- **contextual** — región y fase solo en la observación. Es la condición del
+  BUCLE DE ACCIÓN, donde el agente efectivamente vive.
+
+`gemma2:9b` da 1.0 en el primero y **0.083** en el segundo. Cita la etiqueta de
+una celda con el valor de otra dos filas abajo ("región A … fase 0 (clara):
++7", línea que no existe en su prompt). Y se confirmó en conducta antes de
+gastar el gate: su smoke dio **0 consumos, 20 moves, 17 de ellos al oeste**.
+
+**El smoke de 5 días no detectó nada, y esa es la lección.** Marcó 5/5
+supervivientes: con ~100 de energía inicial y 0.3 por tick, a 5 días todavía no
+hacía falta comer. Un criterio de supervivencia corto no distingue "funciona"
+de "todavía no se murió". Los smokes de validación tienen que mirar conducta
+(consumos, cruces, direcciones), no el contador de vivos.
+
+Qué implica para lo ya registrado:
+
+- Se descartaron modelos por un artefacto nuestro. `qwen3:4b` se rechazó el
+  13/08 porque "con `max_tokens` bajo el `content` queda vacío" — eso era el
+  tope que poníamos nosotros, no el modelo. Con presupuesto suficiente marca
+  1.0 en los dos brazos. (Queda fuera igual: 77,5 s por decisión.)
+- El mismo artefacto dio un Q3 = 0/3 falso a `deepseek-v4-flash`.
+- `q3_heading_acc` se calculaba sobre 12 muestras cuando solo 3 eran
+  contestables: tras D-029 las entidades visibles traen región, pero el radio
+  de visión es 6 y en 9 de 12 no había ninguna entidad de la otra región a la
+  vista. Se puntuaban como fallos preguntas imposibles — el error que ese
+  probe existe para no cometer.
+
+**Qué NO se cambió.** El mundo sigue intacto: densidades, efectos, barrera,
+metabolismo, ontología. No se tocó el probe de composición ni la métrica
+primaria. No se abrió ronda 1. Y NO se aflojó el criterio para que entrara un
+modelo: se agregó un brazo, que es lo contrario.
+
+Cómo se encontró: porque Zod paró en vez de correr el gate con un q2 malo, y
+porque el probe guardaba las respuestas crudas — sin el crudo, "0.083" era
+indistinguible de un fallo de parser y habríamos reformulado la pregunta hasta
+que el número subiera.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
