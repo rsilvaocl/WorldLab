@@ -121,3 +121,24 @@ def test_nivel_de_magnitud_es_mas_indulgente_que_exacto(monkeypatch):
     r = _bench(FakeClient("casi", responde=casi), monkeypatch)
     assert r["exact_acc"] == 0.0
     assert r["level_acc"] > 0.5
+
+
+def test_la_tabla_plana_no_agrega_informacion():
+    """El aplanado es legibilidad, no información nueva: si agregara un hecho
+    que la tabla actual no tiene, dejaría de ser comparable con el resto de
+    las condiciones y pasaría a ser una intervención sobre el experimento."""
+    from ai.bench_oraculo import flat_rules
+    from ai.run_pilot import ORACLE_RULES
+    import re
+
+    flat = flat_rules()
+    # las 16 celdas, exactamente, con su valor. re.escape porque "+8" es un
+    # cuantificador si se pasa crudo al motor de regex.
+    for (s, r, p), v in TRUTH.items():
+        assert re.search(
+            rf"de {s} en región {r} durante fase {p} \([a-z]+\): {re.escape(f'{v:+d}')} ",
+            flat), f"falta la celda ({s},{r},{p})={v:+d}"
+    assert len(re.findall(r"^- Consumir", flat, re.M)) == 16, "16 celdas, ni una más"
+    # y las reglas no-tabulares sobreviven al aplanado
+    for clave in ("barrera te expulsa", "regeneran", "struct_a", "superar 100"):
+        assert clave in flat and clave in ORACLE_RULES

@@ -47,6 +47,32 @@ def cells() -> List[tuple]:
     return [(s, r, p) for s in SYMBOLS for r in REGIONS for p in PHASES]
 
 
+def flat_rules() -> str:
+    """Misma tabla, un hecho por línea, sin indexación posicional.
+
+    ORACLE_RULES da cada símbolo como una fila de 4 valores posicionales
+    ("S2: A-clara -2, A-oscura +1, B-clara +7, B-oscura +10"), lo que exige
+    tres bindings encadenados. Aquí las 16 celdas son 16 líneas. No agrega
+    NADA de información — los mismos 16 hechos — así que no rompe la
+    comparabilidad entre condiciones: es legibilidad, como el barajado del
+    menú (D-029).
+    """
+    lines = [f"- Consumir 1 de {s} en región {r} durante fase {p} "
+             f"({PHASE_NAME[p]}): {TRUTH[(s, r, p)]:+d} de energía"
+             for s in SYMBOLS for r in REGIONS for p in PHASES]
+    return (
+        "Reglas del mundo (conocimiento de oráculo).\n"
+        "Tabla completa de efectos. Busca la línea que coincida EXACTAMENTE "
+        "con el símbolo, la región y la fase que se te pregunten:\n"
+        + "\n".join(lines) + "\n"
+        "- En fase 1 (oscura) la región B es inaccesible: la barrera te expulsa.\n"
+        "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
+        "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase "
+        "oscura si estás adyacente.\n"
+        "- Tu energía no puede superar 100.\n"
+    )
+
+
 def ask_cell(client: LLMClient, system: str, rkind: str, region: str,
              phase: int) -> tuple:
     """Misma pregunta que LLMAgent.predict_effect (D-010), palabra por palabra."""
@@ -125,14 +151,17 @@ def main() -> None:
     ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"])
     ap.add_argument("--repeats", type=int, default=1, help="pasadas sobre las 16 celdas")
     ap.add_argument("--timeout", type=float, default=180.0)
+    ap.add_argument("--rules", default="actual", choices=["actual", "plana"],
+                    help="formato de la tabla en el system prompt (misma info)")
     ap.add_argument("--out", default="data/silver/bench_oraculo/bench.json")
     args = ap.parse_args()
 
     from .llm_agent import LLMAgent
     from .run_pilot import ORACLE_RULES
 
+    rules = ORACLE_RULES if args.rules == "actual" else flat_rules()
     stub = LLMAgent("bench", LLMClient(backend="ollama", model="x"),
-                    goal="sobrevivir y maximizar energía", system_rules=ORACLE_RULES)
+                    goal="sobrevivir y maximizar energía", system_rules=rules)
     system = stub._system_prompt()
 
     results = []
