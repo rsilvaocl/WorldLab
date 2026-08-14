@@ -673,6 +673,65 @@ congelada.
 
 ---
 
+## El cuello es ligar la FASE, no la memoria (2026-08-14)
+
+El gate de lectura falló sobre el banco de 32 ontologías, y al perseguir el
+porqué apareció el mecanismo — el hallazgo más concreto de la sesión.
+
+### El gate falla, y la medición de una sola tabla era optimista
+
+| representación | agregado | A-clara | A-oscura | B-clara | |
+|---|---|---|---|---|---|
+| `memoria_indexada` | **0,663** | 0,521 | 0,490 | **0,979** | NO PASA |
+| `memoria_literal` | 0,656 | 0,573 | 0,469 | 0,927 | NO PASA |
+
+288 preguntas, 32 ontologías, `gemma2:9b`. Umbrales de Terra: ≥0,75 agregado y
+≥0,60 por celda. **Ninguna representación pasa**, así que por D-034 la ronda de
+composición NO se corre.
+
+El 0,778 medido antes era sobre **una sola ontología** — la tabla congelada de
+`ecologia-v1`. Sobre 32 cae a 0,663 y la ventaja de indexada sobre literal
+**desaparece** (0,663 vs 0,656). Es el error de la seed 42 repetido: una
+instancia única dio una estimación optimista. Esta vez el diseño lo detectó
+antes de gastar la ronda.
+
+### No es posición
+
+`B-clara` se mantiene en ~1,0 con las filas del render en orden normal (0,958)
+y en orden invertido (1,0). Descartado el artefacto de formato posicional. Los
+niveles de magnitud del banco están repartidos en las tres celdas (25-30%
+modal), así que tampoco se acierta por ser adivinable.
+
+### El mecanismo: se liga la región, no la fase
+
+Memorias de DOS celdas, 16 ontologías, solo S2:
+
+| las dos celdas se distinguen por… | acierto |
+|---|---|
+| **REGIÓN** (misma fase) | **32/32 = 1,000** |
+| **FASE** (misma región) | **21/32 = 0,656** |
+
+Ligar la región es perfecto; ligar la fase, degradado. Eso explica el patrón
+entero del gate: `B-clara` es la **única celda con región B**, recuperable con
+una sola clave, y por eso da 0,98; `A-clara` y `A-oscura` comparten región y
+exigen ligar **también** la fase, y por eso caen a ~0,50.
+
+**Es el mismo fallo que abrió la sesión.** `qwen2.5:7b` con la tabla del
+oráculo daba 6/6 en fase 0 y 0/6 en fase 1 — "liga símbolo y región, colapsa la
+fase". Reaparece con otro modelo, otra representación y otra tarea.
+
+**Por qué importa más allá de la memoria:** la fase es una de las dos
+dimensiones de D-014, y el probe retenido exige componer región **y** fase. Si
+la fase no se liga, un cero en B-oscura no mide fallo de composición: mide
+fallo de binding. La distinción decide qué se puede afirmar.
+
+**Qué NO se cambió.** No se corrió la ronda de composición. No se bajaron los
+umbrales del gate. El banco sigue congelado y la ontología de `ecologia-v1`
+intacta. `memoria_indexada` no se "arregló" para que pasara: se midió, falló, y
+se reporta que falla.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
