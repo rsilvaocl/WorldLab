@@ -532,6 +532,66 @@ test. No se abrió ronda 1.
 
 ---
 
+## El probe nunca llevó la manipulación experimental (2026-08-14)
+
+**Quinto bug de instrumento, y el único que cae sobre la métrica primaria.**
+
+`predict_effect` —el probe de composición, D-010— construía un prompt desnudo:
+sin `system_rules` y sin `memory`. Capturados los mensajes, las tres
+condiciones LLM recibían textos **byte-idénticos**: 118 caracteres de system y
+221 de user. El oráculo nunca tuvo su tabla al responder el probe. `memoria`
+nunca tuvo sus recuerdos.
+
+Es decir: **el probe de composición nunca pudo distinguir las condiciones.**
+Todo resultado de composición anterior mide lo mismo — un modelo desnudo
+adivinando. No es que las condiciones rindieran parecido: es que eran la misma
+condición en el instante en que se las medía.
+
+Y habría vuelto inútil la Fase E recién aprobada: entregar experiencias a mano
+a una memoria que después nadie lee.
+
+Corregido: el probe lleva ahora exactamente lo que define a cada condición —
+el oráculo su tabla, `memoria` su registro literal (región, fase, recurso,
+`energy_gain`), `sin_memoria` nada. No se agregó mecánica ni geometría: la
+pregunta ya nombra símbolo, región y fase. Siete tests fijan que los tres
+prompts sean distintos, que cada condición reciba lo suyo y solo lo suyo, y
+que el valor de B-oscura no se filtre a quien no lo tiene por su condición.
+
+### Smoke del protocolo D-033 (Fase E + Fase P)
+
+Primera corrida con el instrumento reparado. **3 agentes por condición, 9
+probes retenidos por condición: es un smoke de instrumento, NO un resultado.**
+
+| condición | celdas vividas | celda RETENIDA (B-oscura) |
+|---|---|---|
+| oráculo | **27/27 = 1,00** | **9/9 = 1,00** |
+| memoria | 14/27 = 0,52 | 0/9 = 0,00 |
+| sin_memoria | 2/27 = 0,07 | 3/9 = 0,33 |
+
+(azar por nivel de magnitud ≈ 1/6 = 0,17)
+
+Lo que este smoke establece —y es lo único que establece— es que **el
+instrumento discrimina**. Las tres condiciones se separan limpiamente en las
+celdas vividas: 1,00 / 0,52 / 0,07. Eso nunca había ocurrido en el proyecto.
+
+Lo que NO establece: nada sobre composición. Con 9 probes retenidos por
+condición, el 0,00 de `memoria` y el 0,33 de `sin_memoria` son indistinguibles
+del azar. La diferencia entre ambos tiene el signo contrario al esperado, lo
+que a este n es exactamente lo que el ruido produce.
+
+Dato que sí merece seguimiento: `memoria` acierta solo 0,52 en celdas que
+acaba de vivir y que tiene **escritas literalmente en su prompt**. Recuperar
+un `(símbolo, región, fase)` de una lista de 27 entradas es una tarea de
+lectura, no de memoria — y es el mismo patrón de fallo de indexación que
+qwen2.5:7b mostró con la tabla del oráculo. Si se confirma, el techo de
+`memoria` estaría limitado por lectura y no por retención.
+
+**Qué NO se cambió.** La ontología sigue congelada. D-023 y D-017 intactas. No
+se tocó la definición del probe ni la métrica de magnitud (D-010). La Fase E
+no expone B-oscura y `no_heldout_consumption()` sigue limpio.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
