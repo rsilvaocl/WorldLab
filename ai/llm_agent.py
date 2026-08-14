@@ -239,16 +239,35 @@ class LLMAgent:
         cree que pasaría si consumiera `rkind` en (region, phase), SIN ejecutar
         nada. Para la situación retenida (nunca vivida) solo puede acertar
         componiendo reglas aprendidas. Devuelve el cambio de energía predicho."""
-        system = (
-            "Eres un agente autónomo en un mundo 2D. "
-            "Responde SOLO con JSON: {\"energy_change\": <número con signo>, \"reason\": \"...\"}"
-        )
-        user = (
+        # El probe DEBE llevar lo que la condición le da al agente. Antes
+        # construía un prompt desnudo: sin system_rules y sin memoria, las tres
+        # condiciones recibían mensajes BYTE-IDÉNTICOS (118 y 221 caracteres) y
+        # el probe no podía distinguirlas — medía a un modelo adivinando, no la
+        # manipulación experimental. Es el bloque que define cada condición:
+        #   oraculo     -> su tabla (system_rules)
+        #   memoria     -> su registro literal de eventos vividos
+        #   sin_memoria -> nada, que es justamente su condición
+        # No se agrega mecánica ni geometría: la pregunta ya nombra el símbolo,
+        # la región y la fase, así que el resto sería ruido.
+        system = "Eres un agente autónomo en un mundo 2D. "
+        if self.system_rules:
+            system += ("\nConocimiento especial del mundo:\n"
+                       + self.system_rules + "\n")
+        system += ('Responde SOLO con JSON: '
+                   '{"energy_change": <número con signo>, "reason": "..."}')
+
+        partes = []
+        if self.memory is not None:
+            partes.append(
+                "Tu registro literal de lo que te pasó (acción, región, fase, "
+                "resultado):\n"
+                + json.dumps(self.memory.render(), ensure_ascii=False))
+        partes.append(
             f"PREGUNTA HIPOTÉTICA (no es una acción, solo responde):\n"
             f"Si consumieras 1 unidad del recurso '{rkind}' estando en la región "
             f"{region} durante la fase {'oscura' if phase == 1 else 'clara'}, "
-            f"¿cuánto cambiaría tu energía? Da el número con signo (+ sube, - baja, 0 nada)."
-        )
+            f"¿cuánto cambiaría tu energía? Da el número con signo (+ sube, - baja, 0 nada).")
+        user = "\n\n".join(partes)
         try:
             raw = self.client.chat_json([
                 {"role": "system", "content": system},

@@ -2,7 +2,7 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-033 · 2026-08-14 · Bifurcación de protocolo: composición bajo exposición DIRIGIDA (Terra) · PROPUESTA
+## D-033 · 2026-08-14 · Bifurcación de protocolo: composición bajo exposición DIRIGIDA (Terra) · Comandante · Aprobada
 - **Cambio de pregunta, declarado y no disimulado.** El protocolo de
   composición pasa a medir **composición bajo exposición controlada**, NO
   adquisición autónoma de exposición. Es una bifurcación explícita: sin
