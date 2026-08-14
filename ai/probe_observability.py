@@ -126,10 +126,19 @@ def _ask(client: LLMClient, system_prompt: str, obs: Dict[str, Any],
 
 
 def _num(v: Any) -> Optional[float]:
+    """Número de una respuesta, sin confundir el índice de un símbolo con un valor.
+
+    El lookbehind es el punto: `re.search(r"[-+]?\\d+", "S2: -2")` devuelve
+    **2** (el dígito de 'S2'), no −2. Un modelo que contesta "S2: -2" tenía
+    razón y quedaba registrado como equivocado. Se exige que el número no
+    venga pegado a una letra o a otro dígito.
+    """
+    if isinstance(v, bool):
+        return None
     if isinstance(v, (int, float)):
         return float(v)
     if isinstance(v, str):
-        m = re.search(r"[-+]?\d+(?:\.\d+)?", v)
+        m = re.search(r"(?<![A-Za-z0-9])[-+]?\d+(?:\.\d+)?", v)
         if m:
             return float(m.group())
     return None
@@ -197,10 +206,12 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         row["q1_region_said"] = said
         row["q1_correct"] = (str(said).strip().upper() == true_region) if raw else None
         row["q1_error"] = err or None
+        row["q1_raw"] = raw
 
         # Q2 — valor aquí (control de recuperación de la tabla)
         _, schema, question = q_value(obs, rkind)
         raw, err = _ask(client, system_prompt, obs, schema, question)
+        row["q2_raw"] = raw
         said_v = _num((raw or {}).get("energy_change"))
         row["q2_value_said"] = said_v
         row["q2_value_truth"] = true_value
@@ -214,6 +225,7 @@ def run(traces_path: str, client: LLMClient, system_prompt: str, n: int,
         # Q3 — rumbo a B (el diagnóstico)
         _, schema, question = q_heading(obs)
         raw, err = _ask(client, system_prompt, obs, schema, question)
+        row["q3_raw"] = raw
         said_dx = _num((raw or {}).get("dx"))
         said_dy = _num((raw or {}).get("dy"))
         row["q3_dx_said"] = said_dx

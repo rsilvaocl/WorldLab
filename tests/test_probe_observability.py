@@ -135,3 +135,63 @@ def test_muestras_dentro_de_B_no_se_puntuan_como_navegacion(tmp_path):
                   skip_first_day=True)
     assert summary["q3_scored_n"] == 0
     assert summary["q3_heading_acc"] is None
+
+
+# ----------------------------------------------------------------------
+# Defectos del instrumento encontrados al auditar la primera corrida del probe
+# (2026-08-13). Los tres convertían una respuesta correcta en "no contestó" o
+# en "contestó mal". Quedan fijados para que no vuelvan.
+
+def test_num_no_confunde_el_indice_del_simbolo_con_el_valor():
+    """`re.search(r"[-+]?\\d+", "S2: -2")` devuelve 2, no -2.
+
+    Un modelo que contestaba "S2: -2" tenía razón y se registraba equivocado.
+    """
+    from ai.probe_observability import _num
+    assert _num("S2: -2") == -2.0
+    assert _num("S2 en A-clara vale -2") == -2.0
+    assert _num("S1: +8") == 8.0
+    assert _num("-2") == -2.0
+    assert _num(-2) == -2.0
+    assert _num("+1") == 1.0
+    assert _num("sin dato") is None
+    assert _num(True) is None, "un bool no es un cambio de energía"
+
+
+def test_json_con_signo_mas_explicito_se_parsea():
+    """Le PEDIMOS al modelo "el número con signo" y JSON no admite `+1`.
+
+    El modelo que obedecía la instrucción producía JSON inválido y su
+    predicción — posiblemente correcta — se guardaba como null, indistinguible
+    de no haber contestado. Afecta a predict_effect (D-010), que es la
+    medición primaria del experimento.
+    """
+    from ai.model_adapter import LLMClient
+    assert LLMClient._extract_json('{"energy_change": +1}') == {"energy_change": 1}
+    assert LLMClient._extract_json(
+        '{"energy_change": +9, "reason": "x"}') == {"energy_change": 9, "reason": "x"}
+    # sigue funcionando lo que ya funcionaba
+    assert LLMClient._extract_json('{"energy_change": -2}') == {"energy_change": -2}
+    assert LLMClient._extract_json(
+        '```json\n{"action": "rest"}\n```') == {"action": "rest"}
+
+
+def test_el_signo_mas_dentro_de_una_cadena_no_se_toca():
+    """La reparación es de posición de VALOR, no un reemplazo global."""
+    from ai.model_adapter import LLMClient
+    out = LLMClient._extract_json('{"energy_change": +1, "reason": "sube +1 por tick"}')
+    assert out["energy_change"] == 1
+    assert out["reason"] == "sube +1 por tick", "el texto libre no se altera"
+
+
+def test_el_probe_guarda_la_respuesta_cruda(tmp_path):
+    """Sin el crudo no se puede distinguir 'el modelo dijo mal' de 'el parser
+    lo rompió' — que es exactamente la duda que abrió esta auditoría."""
+    path = write_traces(tmp_path, make_rows())
+    out = str(tmp_path / "probe.jsonl")
+    run(path, ObsFakeClient(), "system", n=2, seed=42, split_x=15,
+        rkind="S2", out_path=out, skip_first_day=True)
+    rows = [json.loads(l) for l in open(out, encoding="utf-8")]
+    for r in rows:
+        assert r["q1_raw"] and r["q2_raw"] and r["q3_raw"]
+        assert "reason" in r["q2_raw"]

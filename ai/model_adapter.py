@@ -95,18 +95,37 @@ class LLMClient:
         raise ModelError(f"fallo tras {self.max_retries + 1} intentos: {last_err}")
 
     @staticmethod
+    def _plus_signed_numbers(text: str) -> str:
+        """Repara `+N` en posición de VALOR: JSON no admite el signo + delante
+        de un número, pero nosotros se lo pedimos explícitamente al modelo
+        ("da el número con signo", predict_effect / probes). Un modelo que
+        OBEDECE la instrucción produce `{"energy_change": +1}` — JSON inválido
+        — y su respuesta, posiblemente correcta, se registraba como
+        `predicted_energy_change: null`, indistinguible de "no contestó".
+
+        Solo se toca el `+` que sigue inmediatamente a `:`, `[` o `,` (posición
+        de valor). Un `+` dentro de una cadena ("sube +1 de energía") no
+        califica: el carácter previo es una letra o una comilla, no un
+        delimitador.
+        """
+        return re.sub(r"([:\[,])(\s*)\+(?=\d)", r"\1\2", text)
+
+    @staticmethod
     def _extract_json(content: str) -> Dict[str, Any]:
         """Extrae el primer objeto JSON del texto (tolera markdown/ruido)."""
         content = content.strip()
         # quitar fences de markdown
         content = re.sub(r"^```(?:json)?\s*", "", content)
         content = re.sub(r"\s*```$", "", content)
-        try:
-            obj = json.loads(content)
-            if isinstance(obj, dict):
-                return obj
-        except json.JSONDecodeError:
-            pass
+        # el signo + explícito solo se repara si el parseo limpio falla
+        for candidate in (content, LLMClient._plus_signed_numbers(content)):
+            try:
+                obj = json.loads(candidate)
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError:
+                continue
+        content = LLMClient._plus_signed_numbers(content)
         # buscar el primer {...} balanceado
         start = content.find("{")
         if start == -1:
