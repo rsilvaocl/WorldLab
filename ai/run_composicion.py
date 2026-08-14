@@ -60,7 +60,42 @@ from ai.world_state import Entity, WorldState
 CONDICIONES: Tuple[str, ...] = (
     "memoria_indexada", "memoria_indexada_corrupta", "sin_memoria")
 BANCO_PATH = Path(__file__).resolve().parent.parent / "data" / "banco" / "composicion_bank_v1.json"
+GATE_DEFAULT = "data/silver/gate_lectura_banco_memoria_indexada.json"
 GOAL = "sobrevivir y maximizar energía"
+
+
+# ---------------------------------------------------------------------------
+# Precondición (guard duro)
+
+def verificar_gate(path: str) -> Dict[str, Any]:
+    """Precondición de D-034: exige un archivo de gate de lectura con pasa=true.
+
+    Sin esto, cualquiera lanza 1728 llamadas saltándose el gate. Aborta con
+    SystemExit y mensaje claro si el archivo no existe, no es JSON, o tiene
+    pasa=false. La representación que la ronda va a correr es memoria_indexada,
+    así que el gate debe corresponder a ella.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise SystemExit(
+            f"GATE FALTANTE: no existe '{path}'. La ronda de composición exige "
+            f"un gate de lectura de memoria_indexada con pasa=true (D-034). "
+            f"Córrelo primero y vuelve a intentar con --gate-file.")
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        raise SystemExit(f"GATE INVÁLIDO: '{path}' no se pudo leer como JSON: {e}")
+    pasa = d.get("pasa")
+    if pasa is not True:
+        agg = d.get("exactitud_agregada")
+        cells = d.get("por_celda", {})
+        raise SystemExit(
+            f"GATE NO PASÓ: '{path}' tiene pasa={pasa!r}. Ronda BLOQUEADA por "
+            f"D-034: la representación de memoria no supera el gate de lectura "
+            f"(exactitud agregada {agg}, por celda {cells}; umbrales >=0.75 "
+            f"agregado y >=0.60 por celda). Se reporta como fallo de "
+            f"accesibilidad del recuerdo — no se corre la ronda.")
+    return d
 
 
 # ---------------------------------------------------------------------------
@@ -225,9 +260,16 @@ def main() -> None:
     ap.add_argument("--seed-base", type=int, default=20260814)
     ap.add_argument("--smoke", action="store_true",
                     help="solo la primera ontología (verificación del instrumento)")
+    ap.add_argument("--gate-file", default=GATE_DEFAULT,
+                    help="archivo JSON del gate de lectura (pasa=true) que "
+                         "habilita la ronda. Requerido por D-034.")
     ap.add_argument("--resume", action="store_true",
                     help="salta ontologías ya registradas en el summary")
     args = ap.parse_args()
+
+    # PRECONDICIÓN (D-034): sin gate con pasa=true no se corre la ronda.
+    # Guard duro: aborta antes de tocar el banco o gastar una sola llamada.
+    verificar_gate(args.gate_file)
 
     banco = cargar(str(BANCO_PATH))
     if args.ontologias:
