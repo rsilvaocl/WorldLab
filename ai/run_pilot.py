@@ -204,7 +204,9 @@ def run_world(condition: str, density: float, seed: int, days: int,
               exp_prefix: str = "piloto",
               force_sleep: Optional[int] = None) -> Dict[str, Any]:
     cfg = make_world_config(days)
-    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep, geometry=geometry)
+    # la geometría la arma make_agents desde cfg: no se pasa desde afuera, para
+    # que ningún llamador pueda darle una distinta a una condición (D-032)
+    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep)
     eids = sorted(agents.keys())
     entities = spawn_positions(eids, cfg, seed)
     if condition == "baseline_empirico":

@@ -93,3 +93,32 @@ def test_la_geometria_no_revela_ningun_efecto():
             assert f"{v:+g}" not in g, f"la geometría filtra el efecto de {s}-{r}-{p}"
     for palabra in ("energía", "consumir", "consume", "vale", "gana"):
         assert palabra.lower() not in g.lower(), f"la geometría menciona '{palabra}'"
+
+
+def test_run_world_arranca_sin_NameError(monkeypatch, tmp_path):
+    """Cobertura del LLAMADOR, no solo de make_agents.
+
+    El primer intento de D-032 pasó los 5 tests de arriba y murió en la corrida
+    real: un reemplazo de texto había metido `geometry=geometry` también en la
+    llamada a make_agents dentro de run_world, donde esa variable no existe.
+    Los tests llamaban a make_agents directo y no tocaban ese camino.
+    """
+    import ai.run_pilot as rp
+    llamadas = {}
+
+    def fake_make_agents(condition, model_name, client, world_cfg, force_sleep=None):
+        llamadas["ok"] = True
+        return {}
+
+    def fake_sim(*a, **k):
+        raise RuntimeError("corte deliberado: ya pasamos make_agents")
+
+    monkeypatch.setattr(rp, "make_agents", fake_make_agents)
+    monkeypatch.setattr(rp, "Simulator", fake_sim)
+    try:
+        rp.run_world("oraculo", 0.07, 42, 30, "m", _client(), str(tmp_path))
+    except NameError:
+        raise AssertionError("run_world referencia una variable inexistente")
+    except Exception:
+        pass
+    assert llamadas.get("ok"), "run_world nunca llegó a construir los agentes"
