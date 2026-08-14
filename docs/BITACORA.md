@@ -316,6 +316,53 @@ que el número subiera.
 
 ---
 
+## Gate `gate_oraculo4` — 0/5, pero la causa quedó aislada (2026-08-14)
+
+Primer gate con el instrumento limpio: región etiquetada en cada entidad
+visible (D-029), tabla del oráculo plana y generada del motor (D-030),
+`deepseek-v4-flash` sin razonamiento (D-031), más la línea de contexto y el fix
+del JSON con `+1`. Mismo seed, misma densidad y —esto importa— **el mismo
+modelo** que la corrida del 13/08: `deepseek-chat` era v4-flash en modo no
+pensante. O sea que la comparación aísla el instrumento.
+
+**Resultado: 0/5. El gate no pasa. Ronda 1 sigue bloqueada y no se creó
+`docs/gates/ronda1.gate`.**
+
+| | `gate_oraculo_ds` (13/08) | `gate4` (14/08) |
+|---|---|---|
+| supervivientes | 0/5 | 0/5 |
+| días de muerte | todos ~12 | 12, 14, 15, 15, **27** |
+| consumos | 69 | **131** |
+| comidas negativas | 28 (41%) | 41 (**31%**) |
+| **energía neta de comer** | **−86** | **+86** |
+| acciones ok | 251 | 411 |
+| **cruces de frontera** | **1** | **1** |
+| presencia en B | 6,6% | 2,4% |
+| S2 en B intacta al final | sí | **sí, 8 celdas** |
+
+Lo que dice el contraste, sin adornos: **los arreglos funcionaron en comer y no
+movieron nada en llegar a B.** El agente dejó de envenenarse —la energía neta
+de la comida pasó de −86 a +86— y el mejor sobrevivió hasta el día 27 en lugar
+del 12. Pero cruzó la frontera **una sola vez en 30 días**, exactamente igual
+que antes, y las 8 celdas de S2 en B, que valen +7 y +10, quedaron intactas
+otra vez.
+
+Eso deja un único sospechoso, y ya estaba medido antes de correr el gate: la
+frontera solo es deducible dentro del radio de visión 6. El probe da rumbo
+**3/3 donde hay una entidad de B a la vista y 0/9 donde no la hay** — un agente
+que usa la información cuando existe y no la inventa cuando no. Propuesta en
+D-032 (frontera en las reglas del oráculo).
+
+**Qué NO se cambió.** El mundo sigue intacto: densidades, efectos, barrera,
+metabolismo, ontología, radio de visión. No se tocó el probe ni la métrica
+primaria. No se bajó el umbral del gate para dejarlo pasar — 0/5 contra un
+umbral de 3/5 no admite lectura optimista. No se abrió ronda 1.
+
+Costo: 1,33 M tokens, **US$0,03**. La corrida completa de ronda 1 (24 mundos)
+extrapola a US$0,69 a precios de hoy y US$1,24 en valle desde el 16/08.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?

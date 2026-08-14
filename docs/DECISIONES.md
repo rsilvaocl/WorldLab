@@ -2,6 +2,52 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-032 · 2026-08-14 · La FRONTERA es una regla del mundo: va en las reglas del oráculo (Opus) · PROPUESTA
+- **Problema.** El oráculo sabe que S2 en B vale +7 (clara) y +10 (oscura) y no
+  puede encontrar B. Tras D-029 cada entidad visible trae su región, pero el
+  radio de visión es 6: un agente en x=4 no ve ninguna entidad de B y no tiene
+  de dónde inferir hacia qué lado queda. El probe lo mide exactamente así —
+  `deepseek-v4-flash` acierta el rumbo **3/3 donde la información está** y
+  **0/9 donde no está**, que es la conducta correcta de un agente que no
+  inventa lo que no ve.
+- **Evidencia del gate `gate_oraculo4` (30d, seed42, d=7%, v4-flash).** Los
+  arreglos de instrumento mejoraron COMER y no movieron NADA en llegar a B:
+
+  | | `gate_oraculo_ds` (13/08) | `gate4` (14/08) |
+  |---|---|---|
+  | supervivientes | 0/5 | 0/5 |
+  | días de muerte | todos ~12 | 12, 14, 15, 15, **27** |
+  | consumos | 69 | **131** |
+  | comidas negativas | 28 (41%) | 41 (**31%**) |
+  | **energía neta de comer** | **−86** | **+86** |
+  | **cruces de frontera** | **1** | **1** |
+  | presencia en B | 6,6% | 2,4% |
+  | S2 en B intacta al final | sí | **sí, 8 celdas** |
+
+  Dejó de envenenarse (−86 → +86) y la muerte se corrió del día 12 al 27 en el
+  mejor agente. Cruzó la frontera **una vez en 30 días**, igual que antes.
+- **Decisión propuesta.** `oracle_rules(cfg)` agrega una línea generada de la
+  config: *"La región B es el semiplano x ≥ {int(width*region_split)}; la
+  región A es x menor a ese valor."* Va SOLO en la condición oráculo, que es
+  la única que recibe `system_rules`.
+- **Por qué es legítimo y no un aflojamiento.** El oráculo se define como "el
+  agente que recibe las reglas del mundo" (D-007). La geometría de las
+  regiones ES una regla del mundo, tan regla como la tabla de efectos, y
+  dársela indexada por una variable que no puede localizar es una tabla
+  inutilizable — el mismo defecto de D-029, un escalón más arriba.
+  `memoria` y `sin_memoria` NO la reciben: siguen teniendo que descubrir la
+  geografía, que es lo correcto para ellas. La comparabilidad no se toca
+  porque el bloque `system_rules` es justamente lo que distingue al oráculo.
+- **Qué NO se hace.** No se amplía el radio de visión (cambia el mundo para
+  las 4 condiciones). No se mueve la frontera ni se suaviza la barrera. No se
+  toca la tabla de efectos.
+- **Criterio de lectura tras aplicarla.** Si el oráculo cruza a B y sobrevive,
+  el cuello era la localización de la frontera. Si cruza y muere igual, el
+  cuello es metabólico y ahí sí aplica la bifurcación de protocolo que propuso
+  Terra. Si NO cruza teniendo la frontera escrita, el fallo es de control de
+  política con conocimiento perfecto — y eso sería el primer hallazgo
+  cognitivo genuino de toda la serie, no un cuarto bug de instrumento.
+
 ## D-031 · 2026-08-14 · `deepseek-v4-flash` SIN razonamiento, en dos brazos (Opus) · Comandante · Aprobada
 - **Decisión.** Las tres condiciones LLM corren con **`deepseek-v4-flash` y el
   modo de razonamiento DESACTIVADO** (`thinking: {"type": "disabled"}`).
