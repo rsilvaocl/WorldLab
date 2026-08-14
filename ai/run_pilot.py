@@ -128,6 +128,38 @@ def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity
     return entities
 
 
+def world_geometry(cfg: WorldConfig) -> str:
+    """Geometría de las regiones, GENERADA de la config (D-032).
+
+    Va en la MECÁNICA base, idéntica en las 4 condiciones — no en
+    `system_rules`, que es lo que distingue al oráculo. No presta world model:
+    dice DÓNDE están las regiones, no qué vale nada en ellas. Es de la misma
+    naturaleza que `acciones_disponibles` (D-026) y que las etiquetas de región
+    de las entidades visibles (D-029), y coherente con D-012 (identidad
+    visible, propiedades ocultas).
+
+    Por qué hace falta: el gate `gate_oraculo4` mostró que los arreglos de
+    instrumento corrigieron COMER (energía neta de la comida −86 → +86) y no
+    movieron NADA en llegar a B (1 cruce de frontera en 30 días, las 8 celdas
+    de S2 en B intactas). La frontera solo era deducible dentro del radio de
+    visión, y ni la política reactiva optimizada vive B-clara (3,3% de sus
+    consumos en el piloto). Sin exposición a B-clara, B-oscura no es una
+    composición: es una adivinanza.
+
+    Lo que este cambio SÍ cambia (declarado, no disimulado): el experimento
+    deja de medir cartografía a ciegas. Es deseable si la hipótesis es la
+    composición de (símbolo, región, fase) — separa localizar el contexto de
+    aprender su efecto, que hoy están confundidos.
+    """
+    split_x = int(cfg.width * cfg.region_split)
+    return (
+        f"- El mundo mide {cfg.width}x{cfg.height}. La región A es la mitad "
+        f"OESTE (x < {split_x}) y la región B es la mitad ESTE (x >= {split_x}); "
+        f"tu campo `position` es [x, y]. Esto dice dónde están las regiones, "
+        f"no qué ocurre en ellas.\n"
+    )
+
+
 def make_agents(condition: str, model_name: str, client: LLMClient,
                 world_cfg: WorldConfig,
                 force_sleep: Optional[int] = None) -> Dict[str, Any]:
@@ -137,6 +169,7 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
     despertar e ignora el que pide el modelo. Se aplica idéntico en las 3
     condiciones LLM — nunca a una sola, o sería ventaja diferencial.
     """
+    geometry = world_geometry(world_cfg)   # D-032: idéntica en las 4
     agents: Dict[str, Any] = {}
     for i in range(5):
         eid = f"a{i}"
@@ -145,18 +178,18 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
                           system_rules=oracle_rules(world_cfg),
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name, memory=None,
-                          force_sleep=force_sleep)
+                          force_sleep=force_sleep, geometry=geometry)
         elif condition == "memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name,
                           memory=LiteralMemory(max_items=80, label="memory"),
-                          force_sleep=force_sleep)
+                          force_sleep=force_sleep, geometry=geometry)
         elif condition == "sin_memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name, memory=None,
-                          force_sleep=force_sleep)
+                          force_sleep=force_sleep, geometry=geometry)
         else:  # baseline_empirico — control de comparación, 0 tokens
             ag = EmpiricalAgent(eid, BaselineParams(eat_threshold=30.0,
                                                     build_min=4.0,
@@ -171,7 +204,7 @@ def run_world(condition: str, density: float, seed: int, days: int,
               exp_prefix: str = "piloto",
               force_sleep: Optional[int] = None) -> Dict[str, Any]:
     cfg = make_world_config(days)
-    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep)
+    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep, geometry=geometry)
     eids = sorted(agents.keys())
     entities = spawn_positions(eids, cfg, seed)
     if condition == "baseline_empirico":

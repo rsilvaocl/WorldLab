@@ -2,7 +2,7 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
-## D-032 · 2026-08-14 · La FRONTERA es una regla del mundo: va en las reglas del oráculo (Opus) · PROPUESTA
+## D-032 · 2026-08-14 · Geometría de las regiones EXPLÍCITA, común a las 4 condiciones (Opus, revisada por Terra) · Aprobada
 - **Problema.** El oráculo sabe que S2 en B vale +7 (clara) y +10 (oscura) y no
   puede encontrar B. Tras D-029 cada entidad visible trae su región, pero el
   radio de visión es 6: un agente en x=4 no ve ninguna entidad de B y no tiene
@@ -26,18 +26,42 @@ Formato: fecha · decisión · quién la tomó · estado
 
   Dejó de envenenarse (−86 → +86) y la muerte se corrió del día 12 al 27 en el
   mejor agente. Cruzó la frontera **una vez en 30 días**, igual que antes.
-- **Decisión propuesta.** `oracle_rules(cfg)` agrega una línea generada de la
-  config: *"La región B es el semiplano x ≥ {int(width*region_split)}; la
-  región A es x menor a ese valor."* Va SOLO en la condición oráculo, que es
-  la única que recibe `system_rules`.
-- **Por qué es legítimo y no un aflojamiento.** El oráculo se define como "el
-  agente que recibe las reglas del mundo" (D-007). La geometría de las
-  regiones ES una regla del mundo, tan regla como la tabla de efectos, y
-  dársela indexada por una variable que no puede localizar es una tabla
-  inutilizable — el mismo defecto de D-029, un escalón más arriba.
-  `memoria` y `sin_memoria` NO la reciben: siguen teniendo que descubrir la
-  geografía, que es lo correcto para ellas. La comparabilidad no se toca
-  porque el bloque `system_rules` es justamente lo que distingue al oráculo.
+- **Decisión (revisada tras consulta a Terra).** La geometría va en la
+  **MECÁNICA base, idéntica en las 4 condiciones** — `world_geometry(cfg)`,
+  generada de la config: *"El mundo mide 30x30. La región A es la mitad OESTE
+  (x < 15) y la región B es la mitad ESTE (x ≥ 15); tu campo `position` es
+  [x, y]."* **NO** va en `system_rules`.
+- **Por qué la primera versión estaba mal.** La redacté solo para el oráculo.
+  Eso arregla el techo y deja las condiciones experimentales rotas: un oráculo
+  que llega a B contra un `memoria`/`sin_memoria` que estructuralmente no
+  puede no es una diferencia de grado sino de tipo, y el denominador de LE
+  deja de ser comparable. Peor: el probe de composición exige haber vivido
+  B-clara para componer B-oscura, y en el piloto **ni la política reactiva
+  optimizada la vive** (165 de 4931 consumos, 3,3%). Sin exposición, B-oscura
+  no es composición: es adivinanza.
+- **Por qué es percepción legítima (criterio de Terra).** Se limita a una regla
+  espacial neutral. No presta efectos, valores ni predicciones. Separa dos
+  tareas hoy confundidas: **localizar el contexto** y **aprender/componer su
+  efecto**. Misma naturaleza que `acciones_disponibles` (D-026) y las etiquetas
+  de región de D-029, coherente con D-012.
+- **Qué cambia el experimento, declarado y no disimulado.** Deja de medir
+  cartografía y exploración a ciegas. Es deseable si la hipótesis principal es
+  la composición de (símbolo, región, fase), que es lo que el diseño afirma
+  medir. Invariante permanente (`tests/test_geometria_comun.py`): las tres
+  condiciones LLM reciben la MISMA geometría, y la diferencia exacta entre el
+  prompt del oráculo y el de las otras sigue siendo su bloque de tabla — nada
+  más.
+- **Gate de exposición (punto 2 de Terra): YA EXISTE.** `MIN_EXPOSURE = 3` en
+  `analyze_pilot.py`, con `exposure_per_cell` / `exposure_summary` (D-025):
+  excluye del score de composición a los agentes sub-expuestos y reporta
+  cobertura. No hay que construirlo, sí hay que **reportarlo siempre** junto
+  al probe, nunca el promedio solo.
+- **D-023 / D-017 no se tocan todavía** (criterio de Terra): no son
+  autofrustrantes por sí mismas — nacer en B da exposición y la expulsión
+  protege el held-out. Y la expulsión ya deja a los agentes en x≈14, **a un
+  paso** de la frontera: el problema medido no es distancia física sino que no
+  representan ni persiguen la frontera. Se revisan solo si tras la geometría
+  común sigue sin haber exposición a B-clara.
 - **Qué NO se hace.** No se amplía el radio de visión (cambia el mundo para
   las 4 condiciones). No se mueve la frontera ni se suaviza la barrera. No se
   toca la tabla de efectos.

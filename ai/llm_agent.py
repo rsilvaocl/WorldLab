@@ -39,11 +39,16 @@ class LLMAgent:
                  hunger_threshold: float = 30.0, radius: int = 6,
                  model_name: str = "", near_trigger_radius: int = 0,
                  memory: Optional[LiteralMemory] = None,
-                 force_sleep: Optional[int] = None):
+                 force_sleep: Optional[int] = None,
+                 geometry: str = ""):
         self.eid = eid
         self.client = client
         self.goal = goal
         self.system_rules = system_rules
+        # D-032: geometría de las regiones. Va en la MECÁNICA, idéntica en
+        # las 4 condiciones — nunca en system_rules, que es lo que
+        # distingue al oráculo. Dice dónde, no qué vale.
+        self.geometry = geometry
         self.think_every = think_every        # ticks entre decisiones de respaldo
         self.hunger_threshold = hunger_threshold
         self.radius = radius
@@ -284,6 +289,7 @@ class LLMAgent:
             "- drop/pickup/give funcionan solo en tu celda o casilla adyacente.\n"
             "- build construye en una casilla adyacente libre, consumiendo los materiales de su receta.\n"
             "- Solo percibes lo que está cerca (radio de visión limitado); lo que no ves, no sabes que existe.\n"
+            + self.geometry +
             "- La comunicación es SIMBÓLICA: talk emite símbolos del alfabeto (k1..k4), sin significado. "
             "Costan energía; hablar solo cuando aporte.\n"
         )
