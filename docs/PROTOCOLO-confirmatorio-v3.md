@@ -271,7 +271,22 @@ composición.
 
 ---
 
-## 9. Qué NO se hizo
+## 9. Relación con la réplica técnica ampliada (D-038)
+
+> El análisis confirmatorio pre-registrado constituye el **resultado
+> principal**. Una **réplica técnica ampliada** posterior, ejecutada con
+> persistencia append-only y un brazo sin memoria, reprodujo la dirección y
+> magnitud del efecto primario —**exactamente en los dos modelos locales**, y
+> con una diferencia de **0,0078 en `deepseek-v4-flash`**—, mantuvo la
+> limitación del contraste contra −0,10 y permitió estimar la **recuperación
+> basal** ausente en el diseño original.
+
+No se combinan estimaciones ni se presenta como sustituta. Precisión sobre qué
+fue exacto: `gemma2:9b` y `llama3.1:8b` replican al cuarto decimal; DeepSeek no,
+y la medición de repetibilidad (§ bitácora) muestra por qué — su decodificación
+no resultó repetible bajo `temperature=0`.
+
+## 10. Qué NO se hizo
 
 - No se movió ningún criterio después de ver los números.
 - No se excluyó ninguna ontología.

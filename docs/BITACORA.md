@@ -1071,11 +1071,28 @@ Con el brazo control ahora medido:
 | `gemma2:9b` | 0,966 | **0,000** |
 | `llama3.1:8b` | 0,870 | **0,182** |
 
-**La métrica de recuperación tenía una línea base que no habíamos medido.** Un
-agente sin memoria acierta un valor "vivido" por azar el 18% de las veces
-(0% en gemma). Los 78-97% con memoria están masivamente elevados **sobre su
-propio control**, en los tres. Eso refuerza la afirmación de recuperación
-mucho más de lo que podía hacerlo el número suelto.
+**La métrica de recuperación tenía una línea base que no habíamos medido.**
+Redacción de Terra:
+
+> En la réplica, la recuperación exacta de valores vividos **fue superior** con
+> memoria indexada (78,0–96,6%) que sin memoria (0–18,2%). Diferencias
+> absolutas por modelo: **+60,0 · +96,6 · +68,8 puntos porcentuales**.
+
+Se dice **"fue superior"**, no "la memoria causó": no hay contraste inferencial
+específico para recuperación. El brazo control convierte una tasa aislada en
+una comparación interpretable, que es justamente lo que el diseño original no
+permitía.
+
+**Heterogeneidad de la línea base, descriptiva.** El control de `gemma2:9b` da
+**0/384 observaciones**, el de los otros dos ~18%. Se reporta como
+`0/n`, **no** como "gemma nunca produce un valor vivido": un cero finito no
+demuestra probabilidad poblacional cero. Lo que sí muestra es que **la línea
+base depende del modelo**, y por tanto que la tasa bruta con memoria no debe
+interpretarse sin su propio control. No sostiene ninguna explicación mecánica
+—p. ej. "gemma copia más literalmente"—: eso exigiría analizar distribución de
+respuestas sin memoria, redondeo, diversidad numérica, distancia al valor
+vivido en vez de coincidencia exacta, sensibilidad a formatos equivalentes y
+una interacción modelo × brazo, con criterio predefinido.
 
 **Los nulos de `sin_memoria`: cero en los tres.** Era el vacío declarado del
 registro original. Ya no es un supuesto: es un cero medido. Todos los nulos
@@ -1084,16 +1101,31 @@ registro original. Ya no es un supuesto: es un cero medido. Todos los nulos
 **Cero reintentos** en toda la corrida: ningún resultado contaminado por fallos
 de API.
 
-### Determinismo, verificado y no solo declarado
+### CORRECCIÓN: el chequeo de duplicados NO probaba determinismo
 
-```
-2304 filas · 0 duplicados discordantes · determinístico = True
-```
+Afirmé que las 2.304 filas con 0 discordancias eran "prueba empírica del
+`temperature=0`". **Es falso, y por dos motivos** (lo detectó Terra):
 
-Al implementar el retomado de la corrida interrumpida quedó, de regalo, una
-**prueba empírica** de la afirmación `temperature=0` que el protocolo hacía y
-que hasta ahora era solo un parámetro declarado. Si un probe repetido hubiera
-dado otra respuesta, el agregado **aborta** en vez de promediar.
+1. El runner **salta** las claves ya persistidas sin volver a consultar al
+   modelo. Por eso `repetidos = 0`: el chequeo de concordancia comparó **cero
+   pares**. Prueba **integridad y reanudación**, no determinismo.
+2. Medido de verdad —re-ejecutando 10 probes por modelo y comparando contra el
+   crudo—:
+
+| modelo | re-ejecutados | idénticos | discordantes |
+|---|---|---|---|
+| `deepseek-v4-flash` | 10 | 6 | **4** |
+| `gemma2:9b` | 10 | 10 | 0 |
+| `llama3.1:8b` | 10 | 10 | 0 |
+
+**`deepseek-v4-flash` NO es determinista a `temperature=0`.** Los dos locales
+sí lo fueron en esta muestra. Eso explica el origen de la diferencia de −0,0078
+entre el confirmatorio y la réplica, y confirma la advertencia de Terra: cero
+temperatura es un parámetro, no una propiedad demostrada, menos aún en una API.
+
+Lo defendible con este dato: **repetibilidad empírica de 20/30 probes
+re-ejecutados**, con el denominador explícito y desagregado por modelo. No
+"determinismo".
 
 ### Checksums
 

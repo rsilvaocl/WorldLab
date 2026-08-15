@@ -159,10 +159,16 @@ def duplicados(filas: List[Dict[str, Any]]) -> Dict[str, Any]:
     Un JSONL append-only al que se le retoma una corrida interrumpida puede
     tener el mismo probe dos veces. Nunca se borra una fila cruda: se detecta.
 
-    Y el chequeo vale por sí mismo: con `temperature=0` los duplicados deberían
-    coincidir carácter a carácter. Si NO coinciden, eso no es un problema de
-    contabilidad — es evidencia de que la decodificación no es determinista, y
-    hay que reportarlo, no resolverlo en silencio.
+    ALCANCE, corregido (Terra, 15/08): esto NO mide determinismo. El resume
+    salta las claves ya persistidas SIN volver a consultar al modelo, así que en
+    una corrida retomada `repetidos` suele ser 0 y el chequeo compara cero
+    pares: prueba **integridad y reanudación**. Para medir repetibilidad hay que
+    RE-EJECUTAR probes y comparar contra el crudo — hecho aparte, con resultado
+    desagregado: `deepseek-v4-flash` 6/10 idénticos (NO repetible bajo
+    temperature=0), `gemma2:9b` y `llama3.1:8b` 10/10.
+
+    Lo que sí hace, y por eso se conserva: si dos filas con la misma clave
+    llegaran a discrepar, el agregado ABORTA en vez de promediar o elegir una.
     """
     vistos: Dict[tuple, Dict[str, Any]] = {}
     repetidos, discordantes = 0, []
