@@ -186,7 +186,8 @@ button.lamp:hover{filter:brightness(1.35)}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px}
 
 /* ---------- cuerpo ---------- */
-#deck{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 372px;min-height:0}
+#workspace{flex:1;min-height:0;display:flex;overflow:hidden}
+#deck{width:100%;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 372px;min-height:0}
 #port{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid #000}
 
 /* instrumento principal: el mundo */
@@ -395,6 +396,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
      viewport, la cara del instrumento desborda y el transporte se le encima. */
   html,body{height:auto}
   body{overflow:auto}
+  #workspace{display:block;overflow:visible}
   #deck{grid-template-columns:1fr;min-height:0;flex:none}
   #port{border-right:0;border-bottom:1px solid #000;flex:none}
   #worldInst{flex:none}
@@ -648,6 +650,7 @@ const $ = id => document.getElementById(id);
 
 // --- estado ---------------------------------------------------------------
 let meta = null, snaps = [], events = [], traces = [], probes = [];
+let evidenceLoaded = { traces:false, probes:false };
 let frame = 0, playing = false, rafId = null, lastT = 0, acc = 0;
 let okOnly = false;          // los fallos son datos: por defecto se ven TODOS
 let showAmounts = false;
@@ -661,8 +664,8 @@ function auditState(){
     reasons:[], needsFiles:false
   };
   const missing = [];
-  if (!traces.length) missing.push({label:'Faltan trazas', detail:'Faltan trazas: no se puede revisar qué respondió el modelo.', target:'crewInst'});
-  if (!probes.length) missing.push({label:'Falta el probe', detail:'Falta el probe: no se puede revisar la predicción sobre la celda nunca vivida.', target:'calInst'});
+  if (!evidenceLoaded.traces) missing.push({label:'Faltan trazas', detail:'Faltan trazas: no se puede revisar qué respondió el modelo.', target:'crewInst'});
+  if (!evidenceLoaded.probes) missing.push({label:'Falta el probe', detail:'Falta el probe: no se puede revisar la predicción sobre la celda nunca vivida.', target:'calInst'});
   if (missing.length) return {
     kind:'incomplete', label:'Incompleta', message:'Faltan archivos para auditar la corrida: <exp>_seed<N>_traces.jsonl y <exp>_probes.jsonl.',
     reasons:missing, needsFiles:true
@@ -775,6 +778,7 @@ function applyBundle(b){
 
     // Estado nuevo: nada del archivo anterior sobrevive.
     meta = m; snaps = sn; events = ev; traces = []; probes = [];
+    evidenceLoaded = { traces:false, probes:false };
     symIndex = new Map(); openAgent = null; frame = 0;
     snaps.sort((a,b2) => keyOf(a) - keyOf(b2));
     runName = b.run.name;
@@ -790,13 +794,19 @@ function applyBundle(b){
   if (!snaps.length) return;
 
   if (b.traces){
-    try { traces = parseLines(b.traces.text, b.traces.name).filter(r => r.type === 'trace'); }
-    catch (err){ traces = []; }
+    try {
+      traces = parseLines(b.traces.text, b.traces.name).filter(r => r.type === 'trace');
+      evidenceLoaded.traces = true;
+    }
+    catch (err){ traces = []; evidenceLoaded.traces = false; }
     traces.sort((a,b2) => keyOf(a) - keyOf(b2));
   }
   if (b.probes){
-    try { probes = parseLines(b.probes.text, b.probes.name); }
-    catch (err){ probes = []; }
+    try {
+      probes = parseLines(b.probes.text, b.probes.name);
+      evidenceLoaded.probes = true;
+    }
+    catch (err){ probes = []; evidenceLoaded.probes = false; }
   }
 
   $('boot').hidden = true;
@@ -869,16 +879,16 @@ function fillAnnun(){
   out.push(lamp(derived.barrier ? 'Barrera supuesta' : 'Barrera medida', 'amber',
     'meta no declara phase_barriers. El visor asume que la fase oscura cierra la región B. Verifíquelo contra la config de la corrida.', 'borderInst'));
 
-  out.push(lamp(traces.length ? `Trazas ${traces.length}` : 'Sin trazas',
-    traces.length ? 'green' : null,
-    traces.length ? 'Se cargó el archivo _traces: puede abrir la decisión del modelo por agente.'
-                  : 'No se cargó <corrida>_traces.jsonl. Sin él no se ve qué respondió el modelo.', 'crewInst'));
+  out.push(lamp(evidenceLoaded.traces ? `Trazas ${traces.length}` : 'Sin trazas',
+    evidenceLoaded.traces ? 'green' : null,
+    evidenceLoaded.traces ? `Se cargó el archivo _traces con ${traces.length} decisiones del modelo.`
+                          : 'No se cargó <corrida>_traces.jsonl. Sin él no se ve qué respondió el modelo.', 'crewInst'));
 
   const held = probes.filter(p => p.never_lived);
-  out.push(lamp(probes.length ? (held.length ? `Probe ${held.length}` : 'Probe sin retenida') : 'Sin probe',
-    probes.length ? (held.length ? 'green' : 'amber') : null,
-    probes.length ? 'Se cargó <experimento>_probes.jsonl: la calibración muestra predicho contra verdad.'
-                  : 'No se cargó <experimento>_probes.jsonl (ojo: ese archivo NO lleva el sufijo _seed<N>). Sin él no hay resultado del experimento.', 'calInst'));
+  out.push(lamp(evidenceLoaded.probes ? (held.length ? `Probe ${held.length}` : 'Probe sin retenida') : 'Sin probe',
+    evidenceLoaded.probes ? (held.length ? 'green' : 'amber') : null,
+    evidenceLoaded.probes ? 'Se cargó <experimento>_probes.jsonl: la calibración muestra predicho contra verdad.'
+                          : 'No se cargó <experimento>_probes.jsonl (ojo: ese archivo NO lleva el sufijo _seed<N>). Sin él no hay resultado del experimento.', 'calInst'));
 
   const under = underexposed();
   if (under.length) out.push(lamp(`Subexpuesto ×${under.length}`, 'amber',
@@ -1380,7 +1390,8 @@ function updateCanvasSummary(snapshot, phase, agents){
 }
 
 function traceBlock(eid){
-  if (!traces.length) return `<div class="trace"><span class="none">Sin archivo de trazas cargado — no se puede mostrar qué respondió el modelo.</span></div>`;
+  if (!evidenceLoaded.traces) return `<div class="trace"><span class="none">Sin archivo de trazas cargado — no se puede mostrar qué respondió el modelo.</span></div>`;
+  if (!traces.length) return `<div class="trace"><span class="none">El archivo de trazas está cargado, pero no contiene decisiones del modelo.</span></div>`;
   const k = keyOf(snaps[frame]);
   let t = null;
   for (const r of traces){ if (r.eid === eid && keyOf(r) <= k) t = r; else if (keyOf(r) > k) break; }
@@ -1591,13 +1602,13 @@ logo.onload = () => { if (snaps.length){ bgCache = new Map(); render(); } };
 
 // =============================================================================
 // ARRANQUE
-// ?file=<ruta> carga la corrida y busca sus hermanos por nombre.
+// ?file=<ruta> (o ?f=<ruta>) carga la corrida y busca sus hermanos por nombre.
 //   traces = <exp>_seed<N>_traces.jsonl   ·   probes = <exp>_probes.jsonl
 // =============================================================================
 fillAnnun();
 (async function boot(){
   const q = new URLSearchParams(location.search);
-  const f = q.get('file'); if (!f) return;
+  const f = q.get('file') || q.get('f'); if (!f) return;
   const get = async u => { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.text(); };
   let runText;
   try { runText = await get(f); }

@@ -78,3 +78,24 @@ def test_viewer_uses_the_current_png_logo():
     source = viewer_source()
     assert source.count('assets/logo.png') == 3
     assert 'assets/logo.jpg' not in source
+
+
+def test_workspace_preserves_the_scrollable_dashboard_height_contract():
+    source = viewer_source()
+    assert '#workspace{flex:1;min-height:0;display:flex;overflow:hidden}' in source
+    assert '#deck{width:100%;' in source
+    assert '#workspace{display:block;overflow:visible}' in source
+
+
+def test_query_boot_accepts_file_and_short_f_alias():
+    source = viewer_source()
+    assert "q.get('file') || q.get('f')" in source
+
+
+def test_loaded_evidence_is_distinct_from_nonempty_records():
+    source = viewer_source()
+    assert "let evidenceLoaded = { traces:false, probes:false };" in source
+    assert "evidenceLoaded.traces = true" in source
+    assert "evidenceLoaded.probes = true" in source
+    assert "if (!evidenceLoaded.traces)" in source
+    assert "if (!evidenceLoaded.probes)" in source
