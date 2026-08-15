@@ -776,6 +776,45 @@ tocar.
 
 ---
 
+## Gate de lectura sobre el banco confirmatorio: PASA (2026-08-15)
+
+Aplicado el orden completo que fijó Terra en D-035: renderer canónico en prosa
+congelado, tests de transformación fiel, banco v2 con seed **20260815
+pre-registrada** y **cero ontologías compartidas** con el v1, y recién entonces
+el gate.
+
+| banco | agregado | A-clara | A-oscura | B-clara | |
+|---|---|---|---|---|---|
+| **v2 (confirmatorio)** | **0,955** | 0,948 | **1,000** | 0,917 | **PASA** |
+| v1 (calibración) | 0,962 | 0,979 | 0,990 | 0,917 | pasa |
+
+288 preguntas, `gemma2:9b`, umbrales ≥0,75 agregado y ≥0,60 por celda.
+
+**Lo que hace válido este número y no el anterior:** el v1 es el banco donde se
+auditó el renderer, así que su 0,962 no puede avalar nada — quedó como
+calibración del instrumento por decisión de Terra. El v2 es disjunto y su seed
+se fijó antes de llamar a ningún modelo sobre él. Que el resultado replique
+sobre tablas nuevas es lo que separa "la prosa funciona" de "la prosa se ajustó
+a un banco".
+
+A-oscura pasa de **0,490** (formato JSON) a **1,000**. Con la misma
+información.
+
+**Queda desbloqueada la Fase P**, por primera vez desde que empezó el
+protocolo de composición. Corre sobre el banco v2, con el análisis
+pre-registrado: permutación pareada sobre las 32 diferencias
+`memoria_indexada − sin_memoria`, IC bootstrap remuestreando ontologías, y
+`memoria_indexada_corrupta` como control de contenido fuera del contraste
+primario. Referencia de azar del v2: **0,188** — la mejor estrategia constante,
+no 1/6.
+
+**Qué NO se cambió.** El banco v2 no se tocó tras generarlo. Los umbrales del
+gate siguen siendo los pre-registrados. `ecologia-v1` sigue congelada. El
+hallazgo de binding se reporta como calibración del instrumento, no como
+resultado cognitivo.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
