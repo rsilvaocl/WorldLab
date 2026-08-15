@@ -51,6 +51,12 @@ class LLMClient:
         # y esa es la configuración que midió 12/12 en el brazo contextual.
         self.thinking = thinking
         self.last_usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
+        # Trazabilidad por llamada (D-038): lo que la corrida original descartó.
+        # Sin esto no se puede auditar un parseo ni distinguir "el modelo dijo
+        # algo raro" de "la API falló y se reintentó".
+        self.last_raw_content: Optional[str] = None
+        self.last_attempts: int = 0
+        self.last_error: Optional[str] = None
 
         if backend == "ollama":
             self.model = model or os.environ.get("WORLDLAB_OLLAMA_MODEL", "gemma2:9b")
@@ -88,11 +94,14 @@ class LLMClient:
             method="POST",
         )
         last_err = None
+        self.last_raw_content, self.last_error, self.last_attempts = None, None, 0
         for attempt in range(self.max_retries + 1):
+            self.last_attempts = attempt + 1
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
                 content = data["choices"][0]["message"]["content"]
+                self.last_raw_content = content
                 usage = data.get("usage", {})
                 self.last_usage = {
                     "prompt_tokens": usage.get("prompt_tokens", 0),
@@ -105,6 +114,7 @@ class LLMClient:
                 last_err = f"{type(e).__name__}: {e}"
             if attempt < self.max_retries:
                 time.sleep(1.0 * (attempt + 1))
+        self.last_error = str(last_err)
         raise ModelError(f"fallo tras {self.max_retries + 1} intentos: {last_err}")
 
     @staticmethod
