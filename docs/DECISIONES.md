@@ -14,8 +14,18 @@ Formato: fecha · decisión · quién la tomó · estado
   - v1 → desarrollo y auditoría del instrumento (calibración del renderer).
   - v2 → réplica cruzada pre-especificada de Flash. Desarrollo, no confirmatorio.
   - **v3 → el estudio confirmatorio propiamente tal.**
-- **Configuración congelada:** `gemma2:9b` y `deepseek-v4-flash`; mismo
-  renderer, mismos prompts, `temperature=0`, `thinking=false`.
+- **PANEL DE TRES MODELOS, declarado ANTES de mirar el v3** (decisión del
+  Comandante, 15/08): `gemma2:9b`, `deepseek-v4-flash` y `llama3.1:8b`. Mismo
+  renderer, mismos prompts, `temperature=0`, `thinking=false`. Se fija ahora
+  porque agregar un modelo después de ver el v3 convertiría el estudio en
+  exploratorio.
+- **Precondición por modelo: cada uno debe pasar su propio gate de lectura**
+  (≥0,75 agregado, ≥0,60 por celda) antes de que sus datos de composición
+  cuenten. La capacidad de leer la memoria es del MODELO, no solo de la
+  representación, y solo se había verificado en `gemma2:9b`. Los gates de los
+  modelos nuevos se corren sobre el **banco v2** —que ya es de desarrollo— para
+  no gastar el v3 antes del confirmatorio. Un modelo que no pase se reporta como
+  fallo de accesibilidad y **no entra** al contraste de composición.
 - **Unidad de análisis: la ONTOLOGÍA.** Los agentes son réplicas técnicas, no
   n. (Con exposición determinista y `temperature=0` son réplicas exactas: σ_Δ
   salió 0,0 al intentar usarlos como unidad.)
