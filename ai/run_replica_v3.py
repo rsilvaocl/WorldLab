@@ -102,6 +102,14 @@ def correr(modelos, banco, out_dir: str, n_ont: Optional[int] = None) -> str:
     path = os.path.join(out_dir, "probes_crudos.jsonl")
     ontologias = banco if n_ont is None else banco[:n_ont]
 
+    ya = set()
+    if os.path.exists(path):
+        for l in open(path, encoding="utf-8"):
+            r = json.loads(l)
+            ya.add((r["modelo"], r["ontologia"], r["condicion"], r["agente"], r["rkind"]))
+        if ya:
+            print(f"  retomando: {len(ya)} probes ya en disco, se saltan", flush=True)
+
     with open(path, "a", encoding="utf-8") as f:      # append-only
         for model, backend, th in modelos:
             cli = LLMClient(backend=backend, model=model, temperature=0.0,
@@ -119,6 +127,8 @@ def correr(modelos, banco, out_dir: str, n_ont: Optional[int] = None) -> str:
                                       geometry=world_geometry(cfg), memory=mem)
                         exponer_agente(w, "a0", ag, seed=900 + k * 10 + i)
                         for rk in SIMBOLOS:
+                            if (model, k, cond, i, rk) in ya:
+                                continue          # ya persistido: no se repite
                             fila = {
                                 "ts": _ahora(), "modelo": model, "ontologia": k,
                                 "condicion": cond, "agente": i, "rkind": rk,
@@ -140,8 +150,54 @@ def correr(modelos, banco, out_dir: str, n_ont: Optional[int] = None) -> str:
 # ---------------------------------------------------------------------------
 # Agregados: se calculan DESDE el crudo, nunca en paralelo
 
+CLAVE = ("modelo", "ontologia", "condicion", "agente", "rkind")
+
+
+def duplicados(filas: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Detecta probes repetidos y si CONCUERDAN entre sí.
+
+    Un JSONL append-only al que se le retoma una corrida interrumpida puede
+    tener el mismo probe dos veces. Nunca se borra una fila cruda: se detecta.
+
+    Y el chequeo vale por sí mismo: con `temperature=0` los duplicados deberían
+    coincidir carácter a carácter. Si NO coinciden, eso no es un problema de
+    contabilidad — es evidencia de que la decodificación no es determinista, y
+    hay que reportarlo, no resolverlo en silencio.
+    """
+    vistos: Dict[tuple, Dict[str, Any]] = {}
+    repetidos, discordantes = 0, []
+    for f in filas:
+        k = tuple(f[c] for c in CLAVE)
+        if k in vistos:
+            repetidos += 1
+            a, b = vistos[k], f
+            if (a["predicho"], a["correcto"], a["raw_content"]) != \
+               (b["predicho"], b["correcto"], b["raw_content"]):
+                discordantes.append({"clave": list(k),
+                                     "a": a["raw_content"], "b": b["raw_content"]})
+        else:
+            vistos[k] = f
+    return {"n_filas": len(filas), "unicos": len(vistos), "repetidos": repetidos,
+            "discordantes": len(discordantes), "detalle": discordantes[:5],
+            "deterministico": not discordantes}
+
+
 def agregar_desde_crudo(path: str) -> Dict[str, Any]:
     filas = [json.loads(l) for l in open(path, encoding="utf-8")]
+    dup = duplicados(filas)
+    if dup["discordantes"]:
+        raise RuntimeError(
+            f"{dup['discordantes']} probes repetidos NO coinciden entre sí: la "
+            f"decodificación no fue determinista. Esto se reporta, no se "
+            f"promedia. Detalle: {dup['detalle'][:2]}")
+    if dup["repetidos"]:
+        # se conserva la PRIMERA ocurrencia; el crudo queda intacto en disco
+        vistos, unicas = set(), []
+        for f in filas:
+            k = tuple(f[c] for c in CLAVE)
+            if k not in vistos:
+                vistos.add(k); unicas.append(f)
+        filas = unicas
     salida: Dict[str, Any] = {}
     for model in sorted({f["modelo"] for f in filas}):
         sub = [f for f in filas if f["modelo"] == model]

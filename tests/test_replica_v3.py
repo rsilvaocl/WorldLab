@@ -64,10 +64,13 @@ def test_un_crudo_completo_pasa(tmp_path):
 
 
 def test_los_nulos_se_cuentan_en_AMBOS_brazos(tmp_path):
-    filas = ([_fila(condicion="memoria_indexada", parse_ok=False, predicho=None)] +
-             [_fila(condicion="memoria_indexada")] * 2 +
-             [_fila(condicion="sin_memoria", parse_ok=False, predicho=None)] * 2 +
-             [_fila(condicion="sin_memoria")])
+    # claves distintas (rkind/agente): son probes DIFERENTES, no duplicados
+    filas = ([_fila(condicion="memoria_indexada", rkind="S1", parse_ok=False, predicho=None)] +
+             [_fila(condicion="memoria_indexada", rkind="S2")] +
+             [_fila(condicion="memoria_indexada", rkind="S4")] +
+             [_fila(condicion="sin_memoria", rkind="S1", parse_ok=False, predicho=None)] +
+             [_fila(condicion="sin_memoria", rkind="S2", parse_ok=False, predicho=None)] +
+             [_fila(condicion="sin_memoria", rkind="S4")])
     ag = agregar_desde_crudo(_escribir(tmp_path, filas))
     comp = ag["m"]["componentes_por_condicion"]
     assert comp["memoria_indexada"]["nulos"] == 1
@@ -76,7 +79,8 @@ def test_los_nulos_se_cuentan_en_AMBOS_brazos(tmp_path):
 
 
 def test_los_reintentos_se_agregan(tmp_path):
-    filas = [_fila(intentos=3), _fila(intentos=1), _fila(condicion="sin_memoria")]
+    filas = [_fila(rkind="S1", intentos=3), _fila(rkind="S2", intentos=1),
+             _fila(condicion="sin_memoria", rkind="S1")]
     ag = agregar_desde_crudo(_escribir(tmp_path, filas))
     assert ag["m"]["componentes_por_condicion"]["memoria_indexada"]["reintentos_totales"] == 2
 
@@ -106,3 +110,36 @@ def test_el_checksum_cambia_si_cambia_un_byte(tmp_path):
     p = tmp_path / "x.jsonl"; p.write_text("a\n"); h1 = sha256(str(p))
     p.write_text("b\n")
     assert sha256(str(p)) != h1
+
+
+def test_los_duplicados_se_detectan_y_se_verifica_que_CONCUERDEN(tmp_path):
+    """Retomar una corrida interrumpida puede repetir probes. Con temperature=0
+    deberían coincidir carácter a carácter; si no, es evidencia de que la
+    decodificación no es determinista y hay que reportarlo."""
+    from ai.run_replica_v3 import duplicados
+    a = _fila(); b = _fila()                       # mismo probe, misma respuesta
+    d = duplicados([a, b])
+    assert d["repetidos"] == 1 and d["deterministico"] and d["unicos"] == 1
+
+
+def test_duplicados_DISCORDANTES_abortan_el_agregado(tmp_path):
+    """No se promedia ni se elige uno: se levanta y se reporta."""
+    import pytest
+    a = _fila(predicho=1.0, raw_content='{"e":1}')
+    b = _fila(predicho=9.0, raw_content='{"e":9}')   # el mismo probe, otra respuesta
+    d = duplicados_wrapper([a, b])
+    assert d["discordantes"] == 1 and not d["deterministico"]
+    with pytest.raises(RuntimeError, match="no fue determinista"):
+        agregar_desde_crudo(_escribir(tmp_path, [a, b]))
+
+
+def duplicados_wrapper(filas):
+    from ai.run_replica_v3 import duplicados
+    return duplicados(filas)
+
+
+def test_un_duplicado_concordante_NO_infla_el_conteo(tmp_path):
+    filas = [_fila(condicion=c, rkind=s) for c in CONDICIONES for s in ("S1","S2","S4")]
+    ag1 = agregar_desde_crudo(_escribir(tmp_path, filas))
+    ag2 = agregar_desde_crudo(_escribir(tmp_path, filas + filas))   # todo repetido
+    assert ag1["m"]["tasas"] == ag2["m"]["tasas"], "el duplicado alteró las tasas"
