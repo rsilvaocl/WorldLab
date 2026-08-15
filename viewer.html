@@ -543,7 +543,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 
   <div id="stack">
 
-    <div class="inst" id="clockInst">
+    <div class="inst" id="clockInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Reloj de corrida</h2><span class="sup" id="clockSup">—</span></div>
@@ -558,7 +558,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="energyInst">
+    <div class="inst" id="energyInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Energía</h2><span class="sup" id="aliveSup">—</span></div>
@@ -566,7 +566,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="borderInst">
+    <div class="inst" id="borderInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Frontera</h2><span class="sup" id="borderSup">—</span></div>
@@ -578,7 +578,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="expoInst">
+    <div class="inst" id="expoInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Exposición</h2><span class="sup" id="expoSup">todos</span></div>
@@ -589,7 +589,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="calInst">
+    <div class="inst" id="calInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Calibración</h2><span class="sup" id="calSup">sin probe</span></div>
@@ -597,7 +597,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="crewInst">
+    <div class="inst" id="crewInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Tripulación</h2><span class="sup" id="crewSup">—</span></div>
@@ -605,7 +605,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="tapeInst">
+    <div class="inst" id="tapeInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Registro</h2><span class="sup" id="tapeSup">—</span></div>
@@ -643,21 +643,21 @@ function auditState(){
     reasons:[], needsFiles:false
   };
   const missing = [];
-  if (!traces.length) missing.push({label:'Faltan trazas', detail:'No se cargaron las respuestas del modelo.', target:'crewInst'});
-  if (!probes.length) missing.push({label:'Falta el probe', detail:'No se cargó la predicción final.', target:'calInst'});
+  if (!traces.length) missing.push({label:'Faltan trazas', detail:'Faltan trazas: no se puede revisar qué respondió el modelo.', target:'crewInst'});
+  if (!probes.length) missing.push({label:'Falta el probe', detail:'Falta el probe: no se puede revisar la predicción sobre la celda nunca vivida.', target:'calInst'});
   if (missing.length) return {
-    kind:'incomplete', label:'Incompleta', message:'Faltan archivos para auditar la corrida.',
+    kind:'incomplete', label:'Incompleta', message:'Faltan archivos para auditar la corrida: <exp>_seed<N>_traces.jsonl y <exp>_probes.jsonl.',
     reasons:missing, needsFiles:true
   };
   const invalid = [];
-  if (!probes.some(p => p.never_lived)) invalid.push({label:'Probe inválido', detail:'No identifica la celda nunca vivida.', target:'calInst'});
-  if (underexposed().length) invalid.push({label:'Exposición insuficiente', detail:'Hay agentes subexpuestos.', target:'expoInst'});
+  if (!probes.some(p => p.never_lived)) invalid.push({label:'Probe inválido', detail:'El probe no marca una celda nunca vivida.', target:'calInst'});
+  if (underexposed().length) invalid.push({label:'Exposición insuficiente', detail:'Hay agentes sin las experiencias mínimas para interpretar su probe.', target:'expoInst'});
   if (invalid.length) return {
     kind:'invalid', label:'No interpretable', message:'La evidencia cargada tiene advertencias de integridad.',
     reasons:invalid, needsFiles:false
   };
   return {
-    kind:'ready', label:'Lista para revisar', message:'La evidencia está completa para revisión.',
+    kind:'ready', label:'Lista para revisar', message:'La corrida tiene evidencia completa para revisión; no afirma que el resultado sea positivo.',
     reasons:[], needsFiles:false
   };
 }
@@ -785,11 +785,14 @@ function applyBundle(b){
   $('bootErr').hidden = true;
   $('cv').hidden = false;
   $('transport').hidden = false;
-  const sc = $('scrub'); sc.max = snaps.length - 1; sc.value = 0;
-  expoCache = null;
-  fillRunPlate(); buildPhaseTape(); layout(); fillLegend(); goTo(0);
+  const sc = $('scrub');
+  if (b.run){
+    sc.max = snaps.length - 1; sc.value = 0;
+    expoCache = null;
+    fillRunPlate(); buildPhaseTape(); layout(); fillLegend(); goTo(0);
+  }
   // La calibración es una propiedad de la corrida completa, no del fotograma.
-  fillCal();
+  fillCal(); fillAuditSummary(); fillAnnun(); updateFrame();
 }
 
 function bootError(head, detail){
@@ -869,6 +872,28 @@ function fillAnnun(){
 
   if (!anyDerived) out.push(lamp('Corrida íntegra', 'green', 'Nada esencial está siendo inferido por el visor.'));
   $('annun').innerHTML = out.join('');
+}
+
+function fillAuditSummary(){
+  const state = auditState();
+  $('auditStatus').textContent = state.label;
+  $('auditMessage').textContent = state.message;
+  $('auditSummary').dataset.state = state.kind;
+  $('auditReasons').innerHTML = state.reasons.map(reason =>
+    `<button type="button" class="lamp" data-go="${esc(reason.target)}" title="${esc(reason.detail)}">
+      <span class="bulb"></span>${esc(reason.label)}</button>`).join('');
+  $('addEvidenceBtn').hidden = !state.needsFiles;
+}
+
+function openEvidencePicker(){
+  $('fileInput').click();
+}
+
+function scrollToInstrument(id){
+  const target = $(id);
+  if (!target) return;
+  target.scrollIntoView({ behavior:'smooth', block:'center' });
+  target.focus({ preventScroll:true });
 }
 
 // =============================================================================
@@ -1463,6 +1488,7 @@ const toggle = () => playing ? stop() : play();
 // EVENTOS
 // =============================================================================
 $('loadBtn').onclick = $('bootBtn').onclick = () => $('fileInput').click();
+$('addEvidenceBtn').onclick = openEvidencePicker;
 $('fileInput').addEventListener('change', e => { if (e.target.files.length) ingest([...e.target.files]); e.target.value = ''; });
 $('playBtn').onclick = toggle;
 $('stepB').onclick = () => { stop(); goTo(frame - 1); };
@@ -1482,10 +1508,13 @@ $('amountBtn').onclick = e => {
 };
 $('annun').addEventListener('click', ev => {
   const b = ev.target.closest('[data-go]'); if (!b) return;
-  const t = $(b.dataset.go); if (!t) return;
-  t.scrollIntoView({ behavior:'smooth', block:'center' });
+  const t = $(b.dataset.go); if (!t) return; scrollToInstrument(b.dataset.go);
   t.animate([{ outline:'2px solid #39ff9a', outlineOffset:'3px' }, { outline:'2px solid transparent', outlineOffset:'3px' }],
     { duration:900, easing:'cubic-bezier(.2,.9,.3,1)' });
+});
+$('auditReasons').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-go]');
+  if (b) scrollToInstrument(b.dataset.go);
 });
 $('crew').addEventListener('click', ev => {
   const b = ev.target.closest('.crewRow'); if (!b) return;

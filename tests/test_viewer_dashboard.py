@@ -28,3 +28,17 @@ def test_viewer_keeps_failures_visible_and_documents_keyboard_navigation():
     assert 'let okOnly = false' in source
     assert 'Mostrar solo acciones logradas' in source
     assert 'Espacio reproduce o pausa' in source
+
+
+def test_viewer_retains_the_run_when_adding_sibling_evidence():
+    source = viewer_source()
+    assert 'function openEvidencePicker()' in source
+    assert "$('addEvidenceBtn').onclick = openEvidencePicker" in source
+    assert "if (b.run)" in source
+    assert "traces = []; probes = [];" in source
+
+
+def test_viewer_does_not_equate_readiness_with_experimental_success():
+    source = viewer_source()
+    assert 'evidencia completa para revisión' in source
+    assert 'no afirma que el resultado sea positivo' in source
