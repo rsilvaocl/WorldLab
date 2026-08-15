@@ -889,6 +889,55 @@ anticipó por escrito antes de correrlo.
 
 ---
 
+## La réplica con un segundo modelo pasa los tres criterios (2026-08-15)
+
+Corrida con los criterios de D-036 **escritos y commiteados antes** (`d39472b`).
+`deepseek-v4-flash`, thinking desactivado, `temperature=0`, mismo banco v2,
+mismo renderer, mismos prompts, sin excluir ontologías.
+
+| criterio pre-registrado | umbral | gemma2:9b | deepseek-v4-flash |
+|---|---|---|---|
+| Δ(indexada − sin_memoria) | ≤ −0,10 | −0,167 | **−0,120** ✅ |
+| permutación **unilateral** | p < 0,05 | — | **p = 0,0034** ✅ |
+| repite un valor vivido | ≥ 70% | 95,3% | **73,8%** ✅ |
+| brecha fase − región | ≥ 20 pts | ~70 pts | **33,3 pts** ✅ |
+
+IC95% bootstrap sobre ontologías: **[−0,193 , −0,047]**, no cruza cero.
+
+**El control cae en el mismo lugar con los dos modelos**: `sin_memoria` = 0,188
+(gemma) y 0,177 (DeepSeek). Dos familias independientes coincidiendo en el
+control es la mejor evidencia de que el banco está bien calibrado y de que el
+efecto no viene del instrumento.
+
+**Conclusión, con el alcance que fijó Terra:** en un banco pre-registrado de
+ontologías separables, con exposición dirigida completa, memoria accesible y
+decodificación determinista, **ambos modelos usan la memoria indexada
+principalmente como señal de recuperación de una celda vivida —preferentemente
+por fase— en vez de combinar región y fase para la celda retenida**. Dado
+D-022, esa estrategia reduce la exactitud por debajo del control sin memoria.
+El patrón **no es exclusivo de gemma2:9b**.
+
+Matices que van con la afirmación, no aparte:
+- La inferencia es sobre las **32 ontologías**, no sobre los probes.
+- "Derivable" significa **derivable bajo la estructura separable que genera el
+  banco**. Al agente no se le declara esa regla, así que la tarea mide
+  **inducción de la estructura**, que es lo que se quiere medir.
+- La referencia es el control `sin_memoria`, no un azar uniforme abstracto.
+- "Por debajo del control" no es capacidad negativa general del modelo: es
+  propiedad conjunta del banco, el criterio de scoring, la estrategia de
+  recuperación y la garantía D-022. Sin D-022, copiar habría recibido crédito
+  falso por composición.
+
+Diferencia entre modelos que vale anotar: gemma repite en 95,3% de sus
+respuestas y DeepSeek en 73,8%. DeepSeek recupera menos y aun así no compone —
+su acierto (0,057) sigue muy por debajo de su propio control (0,177).
+
+**Qué NO se cambió.** Los criterios se fijaron antes y no se movieron después
+de ver el resultado. Banco intacto, renderer congelado, ninguna ontología
+excluida, `temperature=0`, misma configuración que la corrida original.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
