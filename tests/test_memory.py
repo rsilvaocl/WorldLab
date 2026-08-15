@@ -61,7 +61,9 @@ def test_memory_render_returns_snapshot():
     mem.record(make_event())
     rendered = mem.render()
     assert len(rendered) == 1
-    assert rendered[0]["action"] == "consume"
+    # D-035: el render es prosa canónica; la estructura vive en items
+    assert rendered[0].startswith("Consumi ")
+    assert mem.items[0]["action"] == "consume"
 
 
 # ---------------------------------------------------------------------------
@@ -81,9 +83,12 @@ def test_corrupt_memory_same_volume():
     corrupt = LiteralMemory.from_events(other_seed_events, max_items=60)
 
     assert len(corrupt) == len(real)                 # mismo volumen
-    assert [k for k in corrupt.render()[0]] == [k for k in real.render()[0]]  # misma estructura
-    assert corrupt.render()[0]["region"] == "B"      # hechos de otro seed
-    assert real.render()[0]["region"] == "A"
+    # D-035: misma estructura = mismo renderer canónico, no las mismas claves
+    assert corrupt.render()[0].startswith("Consumi ")
+    assert real.render()[0].startswith("Consumi ")
+    assert len(corrupt.render()) == len(real.render())
+    assert "region B" in corrupt.render()[0]         # hechos de otro seed
+    assert "region A" in real.render()[0]
 
 
 def test_llm_agent_includes_memory_in_observation():
@@ -97,7 +102,8 @@ def test_llm_agent_includes_memory_in_observation():
     action, kwargs, trace, h = agent.decide(w)
     obs = trace["observation"]
     assert "memory" in obs
-    assert obs["memory"][0]["action"] == "consume"
+    # D-035: la memoria llega al prompt en prosa canónica
+    assert obs["memory"][0].startswith("Consumi ")
 
 
 def test_llm_agent_without_memory_has_no_memory_field():

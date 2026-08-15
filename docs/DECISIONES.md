@@ -2,6 +2,57 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-035 · 2026-08-15 · Renderer canónico en prosa + banco v2 confirmatorio (Terra) · Aprobada
+- **Decisión.** La fase va SIEMPRE en prosa —"fase 0 (clara)"— y nunca como
+  entero suelto en un campo. El renderer es **canónico**: lo usan todas las
+  representaciones (literal, indexada, corrupta). Si dos brazos se comparan, la
+  diferencia tiene que ser la estructura de recuperación, nunca JSON contra
+  lenguaje natural.
+- **Evidencia** (banco de 32, misma información, único cambio el render):
+
+  | render | agregado | A-clara | A-oscura | B-clara | |
+  |---|---|---|---|---|---|
+  | JSON `"phase": 0` | 0,663 | 0,521 | 0,490 | 0,979 | NO PASA |
+  | prosa `fase 0 (clara)` | **0,962** | 0,979 | 0,990 | 0,917 | **PASA** |
+
+  A-oscura pasa de 0,490 a 0,990. No es límite del modelo.
+- **Por qué es corrección y no ajuste.** La tabla del oráculo ya escribía la
+  fase en prosa desde D-030, mientras la memoria la serializaba como entero
+  porque así viene el evento del motor. **Nadie decidió esa asimetría**, y hacía
+  que la comparación entre condiciones incluyera el formato: mantener JSON en
+  memoria y prosa en oráculo habría convertido el formato en tratamiento.
+- **La protección contra "probamos hasta que pasó" (condición de Terra).**
+  Se probaron tres representaciones y la tercera es la que pasa. Para que eso
+  sea auditoría de instrumento y no selección post hoc del resultado:
+  1. El renderer queda **congelado**.
+  2. **Test de transformación fiel**: cada evento renderizado recupera
+     exactamente (símbolo, región, fase, outcome) del evento del motor — el
+     test parsea el texto de vuelta a la tupla. Sin claves de B-oscura, sin
+     promedio, sin inferencia.
+  3. **Banco v2** de 32 ontologías con seed **20260815 pre-registrada**, fijada
+     antes de llamar a ningún modelo sobre él. Comparte **cero** ontologías con
+     el v1 (test permanente).
+  4. **El banco v1 queda como calibración del instrumento**, citado solo como
+     validación de lectura/render. NO se reutiliza para inferencia de
+     composición.
+- **Corrupción en la capa SEMÁNTICA, antes de renderizar.** Se permutan los
+  outcomes observados preservando índice, orden y volumen, y recién después se
+  aplica el renderer canónico. Corromper el texto ya renderizado introduciría
+  diferencias accidentales de estilo o longitud.
+- **Cómo se reporta el hallazgo de binding** (criterio de Terra): como
+  **calibración del instrumento**, no como resultado cognitivo principal. La
+  formulación correcta es *"la recuperación de experiencias condicionadas por
+  fase es altamente sensible a la representación de la fase: la prosa semántica
+  permite binding casi perfecto; un entero JSON crudo no"*. **NO** se afirma que
+  los modelos no puedan ligar fase — los datos muestran lo contrario. Tampoco
+  se usa como evidencia confirmatoria independiente, porque surgió de una
+  investigación de fallo y se probaron varias representaciones. Va en bitácora,
+  métodos y apéndice de auditoría.
+- **Orden vinculante antes de la ronda:** renderer congelado → tests de
+  fidelidad y no-filtración → banco v2 con seed pre-registrada → gate de
+  lectura **sobre el banco v2** → solo si pasa, Fase P sobre ese mismo banco
+  según el análisis pre-registrado.
+
 ## D-034 · 2026-08-14 · La unidad inferencial es la ONTOLOGÍA, no el mundo (Terra) · Comandante · Aprobada
 - **Problema medido.** Bajo exposición dirigida (D-033) los seeds dejaron de
   ser observaciones. La Fase E estandariza la experiencia, los efectos del

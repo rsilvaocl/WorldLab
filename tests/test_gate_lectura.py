@@ -49,9 +49,10 @@ class AgenteQueLee:
     def predict_effect(self, rkind, region, phase):
         if (region, phase) in self.fallar:
             return 99.0
-        for fila in self.mem.render():
-            if (fila["resource"], fila["region"], fila["phase"]) == (rkind, region, phase):
-                return fila["energy_gain_observado"][0]
+        # lee la capa SEMÁNTICA (filas), no el texto: el render es prosa (D-035)
+        for (rk, reg, ph), gains in self.mem.filas():
+            if (rk, reg, ph) == (rkind, region, phase):
+                return gains[0]
         return None
 
 
@@ -60,20 +61,19 @@ class AgenteQueLee:
 def test_la_indexada_agrupa_por_celda_y_NO_promedia():
     """El límite entre indexada y agregada: la aritmética la hace el agente."""
     m = _memoria()
-    filas = m.render()
+    filas = m.filas()
     assert len(filas) == 9, "3 símbolos × 3 celdas vividas"
-    for f in filas:
-        assert f["veces"] == 3
-        assert isinstance(f["energy_gain_observado"], list)
-        assert len(f["energy_gain_observado"]) == 3
-        assert "media" not in f and "promedio" not in f
+    for _clave, gains in filas:
+        assert len(gains) == 3, "conserva los tres outcomes, no su media"
+    texto = " ".join(m.render()).lower()
+    assert "media" not in texto and "promedio" not in texto
 
 
 def test_la_indexada_NO_contiene_la_celda_retenida():
     """Solo experiencias propias: el agente nunca estuvo en B-oscura."""
     m = _memoria()
-    for f in m.render():
-        assert (f["region"], f["phase"]) != ("B", 1)
+    for (_rk, reg, ph), _g in m.filas():
+        assert (reg, ph) != ("B", 1)
 
 
 def test_la_indexada_tiene_la_MISMA_informacion_que_la_literal():
@@ -88,20 +88,19 @@ def test_la_corrupta_comparte_indice_y_volumen():
     fuente = _memoria()
     corr = IndexedMemory.corrupta_desde(fuente, seed=1)
 
-    celdas = lambda m: {(f["resource"], f["region"], f["phase"]) for f in m.render()}
+    celdas = lambda m: {c for c, _ in m.filas()}
     assert celdas(corr) == celdas(fuente), "mismo índice"
-    veces = lambda m: sorted(f["veces"] for f in m.render())
+    veces = lambda m: sorted(len(g) for _, g in m.filas())
     assert veces(corr) == veces(fuente), "mismo volumen"
 
-    todos = lambda m: sorted(g for f in m.render() for g in f["energy_gain_observado"])
+    todos = lambda m: sorted(g for _, gs in m.filas() for g in gs)
     assert todos(corr) == todos(fuente), "mismo multiconjunto de outcomes"
 
 
 def test_la_corrupta_SI_rompe_la_asociacion_celda_valor():
     fuente = _memoria()
     corr = IndexedMemory.corrupta_desde(fuente, seed=3)
-    par = lambda m: {(f["resource"], f["region"], f["phase"]):
-                     tuple(f["energy_gain_observado"]) for f in m.render()}
+    par = lambda m: {c: tuple(g) for c, g in m.filas()}
     assert par(corr) != par(fuente), "la permutación no cambió nada"
 
 

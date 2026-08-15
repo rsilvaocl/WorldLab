@@ -84,8 +84,8 @@ def test_memoria_recibe_sus_recuerdos_con_region_fase_y_ganancia():
     a = _agentes()["memoria"]
     a.predict_effect("S2", "B", 1)
     t = a.client.texto()
-    for clave in ('"region": "A"', '"region": "B"', '"phase": 1',
-                  '"energy_gain": 7.0', '"resource": "S2"'):
+    # D-035: el render es prosa canónica, no JSON — la fase va en palabras
+    for clave in ("region A", "region B", "fase 1 (oscura)", "+7", "S2"):
         assert clave in t, f"falta {clave} en el prompt de memoria"
 
 
@@ -95,7 +95,7 @@ def test_sin_memoria_no_recibe_ni_tabla_ni_recuerdos():
     a.predict_effect("S2", "B", 1)
     t = a.client.texto()
     assert "Consumir 1 de S2" not in t
-    assert "energy_gain" not in t
+    assert "energia observada" not in t
     assert "PREGUNTA HIPOTÉTICA" in t
 
 
@@ -123,5 +123,5 @@ def test_la_memoria_vacia_no_ensucia_el_prompt():
                  memory=LiteralMemory(max_items=10, label="memory"))
     a.predict_effect("S2", "B", 1)
     t = a.client.texto()
-    assert "[]" in t, "una memoria vacía se muestra vacía, no se omite"
+    assert "[]" in t, "una memoria vacía se muestra vacía, no se omite"  # lista vacía
     assert "PREGUNTA HIPOTÉTICA" in t

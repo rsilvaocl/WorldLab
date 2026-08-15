@@ -130,3 +130,33 @@ def test_un_IC_que_cruza_cero_se_ve():
     difs = [0.2, -0.2, 0.1, -0.1, 0.3, -0.3, 0.0, 0.05] * 4
     ic = bootstrap_ic(difs, n_boot=4000, seed=1)
     assert ic["ic_bajo"] < 0 < ic["ic_alto"]
+
+
+# --- banco v2: el confirmatorio (D-035) ------------------------------------
+
+BANCO_V2 = Path(__file__).resolve().parent.parent / "data" / "banco" / "composicion_bank_v2.json"
+
+
+def test_el_banco_v2_existe_con_su_seed_preregistrada():
+    """Condición de Terra: el v1 pasa a ser banco de CALIBRACIÓN del
+    instrumento y la inferencia de composición corre sobre un banco nuevo con
+    seed registrada antes de llamar a ningún modelo."""
+    assert BANCO_V2.exists()
+    d = json.loads(BANCO_V2.read_text(encoding="utf-8"))
+    assert d["seed"] == 20260815
+    assert d["n"] == N_BANCO
+    assert generar_banco(n=d["n"], seed=d["seed"]) == cargar(str(BANCO_V2))
+
+
+def test_el_v2_es_DISJUNTO_del_v1():
+    """Sin esto, reutilizaríamos para inferencia las mismas tablas sobre las que
+    se auditó el renderer — que es la selección post hoc que se quiere evitar."""
+    huella = lambda banco: {tuple(sorted((s, *v) for s, v in sp.items())) for sp in banco}
+    assert not (huella(cargar(str(BANCO_V2))) & huella(cargar(str(BANCO)))), (
+        "el banco confirmatorio comparte ontologías con el de calibración")
+
+
+def test_el_v2_pasa_su_propia_validacion():
+    v = validar_banco(cargar(str(BANCO_V2)))
+    assert v["pasa"]
+    assert v["azar_constante"]["acierto"] <= MAX_AZAR_CONSTANTE
