@@ -208,6 +208,9 @@ def main() -> None:
     ap.add_argument("--smoke", action="store_true", help="2 ontologías, 1 modelo")
     ap.add_argument("--reconciliar", action="store_true",
                     help="solo verifica crudo vs agregado, sin llamar a modelos")
+    ap.add_argument("--modelos", default=None,
+                    help="lista separada por comas; por defecto los tres del "
+                         "panel. Util cuando falta la API key de alguno.")
     ap.add_argument("--out", default=SALIDA_DIR)
     args = ap.parse_args()
 
@@ -220,7 +223,18 @@ def main() -> None:
         return
 
     banco = cargar(BANCO)
-    modelos = MODELOS[:1] if args.smoke else MODELOS
+    if args.modelos:
+        pedidos = [m.strip() for m in args.modelos.split(",")]
+        modelos = [m for m in MODELOS if m[0] in pedidos]
+        faltan = set(pedidos) - {m[0] for m in modelos}
+        if faltan:
+            raise SystemExit(f"modelos fuera del panel preespecificado: {faltan}. "
+                             f"El panel es {[m[0] for m in MODELOS]} y no se "
+                             f"amplia despues de ver datos (D-037).")
+    else:
+        modelos = MODELOS
+    if args.smoke and not args.modelos:
+        modelos = modelos[:1]
     n_ont = 2 if args.smoke else None
     out = args.out + ("_smoke" if args.smoke else "")
     crudo = os.path.join(out, "probes_crudos.jsonl")
