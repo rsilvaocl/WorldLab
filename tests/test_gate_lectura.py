@@ -211,3 +211,37 @@ def test_usa_el_limite_superior_del_bootstrap_no_la_media():
 def test_sigma_necesita_al_menos_dos_seeds():
     with pytest.raises(ValueError, match="al menos 2"):
         sigma_bootstrap_p80([0.3])
+
+
+def test_las_tres_componentes_se_reportan_SEPARADAS():
+    """Terra: abstención y recuperación no son extremos de un único eje.
+    DeepSeek recupera menos Y se abstiene menos que gemma; presentarlas juntas
+    insinuaría una teoría sobre la abstención que los datos no sostienen."""
+    from ai.gate_lectura import tres_componentes
+    VIV = {"A-0": -2.0, "A-1": 1.0, "B-0": 7.0}
+    val = lambda f, c: VIV[c]
+    filas = ([{"predicho": 1.0, "correcto": False}] * 6 +      # repite A-oscura
+             [{"predicho": 7.0, "correcto": False}] * 2 +      # repite B-clara
+             [{"predicho": 99.0, "correcto": True}] * 1 +      # no repite, acierta
+             [{"predicho": None, "correcto": False}] * 1)      # se abstiene
+    r = tres_componentes(filas, val)
+    assert r["tasa_respuesta"] == 0.9
+    assert r["exactitud_condicionada"] == round(1 / 9, 3)
+    assert r["exactitud_cruda"] == 0.1
+    assert r["recuperacion_valor_vivido"] == round(8 / 9, 3)
+    assert r["sesgo_fase"] == 0.75 and r["sesgo_region"] == 0.25
+    assert r["brecha_fase_menos_region"] == 0.5
+
+
+def test_un_modelo_que_se_abstiene_mucho_no_parece_recuperar_menos():
+    """El caso que motivó separarlas: la tasa de recuperación se calcula sobre
+    las RESPUESTAS, no sobre el total, o la abstención la contaminaría."""
+    from ai.gate_lectura import tres_componentes
+    VIV = {"A-0": -2.0, "A-1": 1.0, "B-0": 7.0}
+    val = lambda f, c: VIV[c]
+    abstemio = ([{"predicho": 1.0, "correcto": False}] * 2 +
+                [{"predicho": None, "correcto": False}] * 8)
+    r = tres_componentes(abstemio, val)
+    assert r["tasa_respuesta"] == 0.2
+    assert r["recuperacion_valor_vivido"] == 1.0, (
+        "recupera en el 100% de lo que responde, aunque responda poco")

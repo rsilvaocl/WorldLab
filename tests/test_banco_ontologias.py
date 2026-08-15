@@ -177,3 +177,29 @@ def test_la_unilateral_NO_premia_un_efecto_en_la_direccion_contraria():
     from ai.banco_ontologias import permutacion_unilateral
     difs = [0.3] * 16 + [0.25] * 16          # efecto fuerte, dirección opuesta
     assert permutacion_unilateral(difs, n_perm=4000, seed=1)["p_valor"] > 0.9
+
+
+# --- banco v3: el CONFIRMATORIO (D-037) ------------------------------------
+
+BANCO_V3 = Path(__file__).resolve().parent.parent / "data" / "banco" / "composicion_bank_v3.json"
+
+
+def test_el_banco_v3_confirmatorio_tiene_64_y_seed_congelada():
+    assert BANCO_V3.exists()
+    d = json.loads(BANCO_V3.read_text(encoding="utf-8"))
+    assert d["seed"] == 20260815064 and d["n"] == 64
+    assert generar_banco(n=64, seed=d["seed"]) == cargar(str(BANCO_V3))
+
+
+def test_el_v3_es_disjunto_de_v1_y_v2():
+    """v1 = auditoría del instrumento · v2 = réplica cruzada · v3 = confirmatorio.
+    Si compartieran ontologías, el confirmatorio heredaría lo ya visto."""
+    h = lambda b: {tuple(sorted((s, *v) for s, v in sp.items())) for sp in b}
+    v3 = h(cargar(str(BANCO_V3)))
+    assert not (v3 & h(cargar(str(BANCO))))
+    assert not (v3 & h(cargar(str(BANCO_V2))))
+
+
+def test_el_v3_pasa_su_validacion_con_64():
+    v = validar_banco(cargar(str(BANCO_V3)), n=64)
+    assert v["pasa"] and v["azar_constante"]["acierto"] <= MAX_AZAR_CONSTANTE

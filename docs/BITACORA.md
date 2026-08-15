@@ -909,13 +909,20 @@ IC95% bootstrap sobre ontologías: **[−0,193 , −0,047]**, no cruza cero.
 control es la mejor evidencia de que el banco está bien calibrado y de que el
 efecto no viene del instrumento.
 
-**Conclusión, con el alcance que fijó Terra:** en un banco pre-registrado de
-ontologías separables, con exposición dirigida completa, memoria accesible y
-decodificación determinista, **ambos modelos usan la memoria indexada
-principalmente como señal de recuperación de una celda vivida —preferentemente
-por fase— en vez de combinar región y fase para la celda retenida**. Dado
-D-022, esa estrategia reduce la exactitud por debajo del control sin memoria.
-El patrón **no es exclusivo de gemma2:9b**.
+**Conclusión, con la redacción final que aprobó Terra** (afirma conducta
+medida, no arquitectura mental interna):
+
+> En dos modelos preespecificados —`gemma2:9b` y `deepseek-v4-flash`—, sobre un
+> banco preregistrado de ontologías separables y bajo decodificación
+> determinista, **la memoria indexada no mejora la exactitud en la celda
+> retenida: la reduce frente a `sin_memoria`**. Las respuestas están dominadas
+> por recuperación de valores vividos, con sesgo hacia la celda que comparte
+> fase, en vez de la combinación región × fase requerida por la estructura
+> generativa.
+
+Alcance: **"replicado en dos familias de modelos"**. NO "los LLM hacen esto" —
+para eso habría que predefinir un panel de tres o más modelos antes de mirar
+los datos.
 
 Matices que van con la afirmación, no aparte:
 - La inferencia es sobre las **32 ontologías**, no sobre los probes.

@@ -183,3 +183,42 @@ def plan_de_potencia(diferencias: Sequence[float], mde: float = MDE,
         "nota": ("la unidad es el mundo/seed; el contraste es "
                  "memoria_indexada − sin_memoria pareado por seed"),
     }
+
+
+# ---------------------------------------------------------------------------
+# Reporte de TRES COMPONENTES SEPARADAS (Terra, 15/08)
+#
+# Abstención y recuperación NO son extremos de un único eje: DeepSeek recupera
+# menos (73,8% vs 95,3%) y además se abstiene menos (2,6% vs 11%). Presentarlas
+# como un solo eje sugeriría una teoría única sobre por qué un modelo se
+# abstiene más que otro, y esa teoría no se sostiene con los datos.
+
+def tres_componentes(filas: Sequence[Dict[str, Any]],
+                     valor_por_celda: Callable[[Dict[str, Any], str], float]
+                     ) -> Dict[str, Any]:
+    """1) tasa de respuesta · 2) exactitud CONDICIONADA a respuesta ·
+    3) recuperación de valor vivido y sesgo fase−región.
+
+    `filas` necesita: predicho, correcto, y los valores vividos de su celda.
+    """
+    n = len(filas)
+    resp = [f for f in filas if f.get("predicho") is not None]
+    ok = sum(1 for f in resp if f.get("correcto"))
+    rep = [f for f in resp
+           if any(float(f["predicho"]) == valor_por_celda(f, c)
+                  for c in ("A-0", "A-1", "B-0"))]
+    por_fase = sum(1 for f in rep
+                   if float(f["predicho"]) == valor_por_celda(f, "A-1"))
+    por_region = sum(1 for f in rep
+                     if float(f["predicho"]) == valor_por_celda(f, "B-0"))
+    r = len(rep) or 1
+    return {
+        "tasa_respuesta": round(len(resp) / n, 3) if n else None,
+        "exactitud_condicionada": round(ok / len(resp), 3) if resp else None,
+        "exactitud_cruda": round(ok / n, 3) if n else None,
+        "recuperacion_valor_vivido": round(len(rep) / len(resp), 3) if resp else None,
+        "sesgo_fase": round(por_fase / r, 3),
+        "sesgo_region": round(por_region / r, 3),
+        "brecha_fase_menos_region": round((por_fase - por_region) / r, 3),
+        "n": n,
+    }

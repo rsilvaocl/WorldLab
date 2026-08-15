@@ -2,6 +2,54 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-037 · 2026-08-15 · Estudio CONFIRMATORIO: banco v3, pre-registro completo (Terra) · Aprobada
+- **Escrito y congelado ANTES de ejecutar nada sobre el banco v3.** El v2 ya
+  fue visto; cualquier parámetro elegido ahora sabiendo su resultado dejaría de
+  ser confirmatorio.
+- **Banco v3**: 64 ontologías, seed **20260815064**, congelado en
+  `data/banco/composicion_bank_v3.json`. **Disjunto de v1 y de v2** (0/64
+  compartidas con cada uno, test permanente). Azar de estrategia constante:
+  **0,203**.
+- **Roles de cada banco, fijados:**
+  - v1 → desarrollo y auditoría del instrumento (calibración del renderer).
+  - v2 → réplica cruzada pre-especificada de Flash. Desarrollo, no confirmatorio.
+  - **v3 → el estudio confirmatorio propiamente tal.**
+- **Configuración congelada:** `gemma2:9b` y `deepseek-v4-flash`; mismo
+  renderer, mismos prompts, `temperature=0`, `thinking=false`.
+- **Unidad de análisis: la ONTOLOGÍA.** Los agentes son réplicas técnicas, no
+  n. (Con exposición determinista y `temperature=0` son réplicas exactas: σ_Δ
+  salió 0,0 al intentar usarlos como unidad.)
+- **Outcome primario:** diferencia pareada por ontología
+  `memoria_indexada − sin_memoria`, con **los nulos contados como incorrectos**.
+- **Efecto confirmatorio:** Δ ≤ **−0,10**, permutación **unilateral**,
+  α = 0,05, potencia objetivo 0,90. Con 64 ontologías el diseño cubre
+  σ_Δ ≈ 0,273; el σ_Δ observado en v2 fue **0,217**, así que queda holgado.
+- **Secundarios PRE-REGISTRADOS, reportados por separado** (Terra: abstención y
+  recuperación NO son extremos de un único eje — DeepSeek recupera menos *y* se
+  abstiene menos que gemma):
+  1. **tasa de respuesta**;
+  2. **exactitud condicionada a respuesta**;
+  3. **recuperación de valor vivido** y **sesgo fase − región**.
+- **`memoria_corrupta`: análisis mecanístico secundario**, NO un segundo
+  outcome primario. La lectura vigente es *"el contenido correcto actúa como
+  lure de recuperación; al romperse la coherencia el modelo recupera menos pero
+  se abstiene más"*. Lo que **no** se sostiene es una teoría única sobre por qué
+  un modelo se abstiene más que otro.
+- **Alcance de lo que se podrá afirmar:** con dos modelos, *"replicado en dos
+  familias de modelos"*. **NO** *"los LLM hacen esto"* — para esa afirmación
+  más amplia habría que predefinir un panel de tres o más modelos ANTES de
+  mirar el v3.
+- **Redacción final aprobada** (conducta medida, no arquitectura mental):
+  > En dos modelos preespecificados —`gemma2:9b` y `deepseek-v4-flash`—, sobre
+  > un banco preregistrado de ontologías separables y bajo decodificación
+  > determinista, la memoria indexada no mejora la exactitud en la celda
+  > retenida: la reduce frente a `sin_memoria`. Las respuestas están dominadas
+  > por recuperación de valores vividos, con sesgo hacia la celda que comparte
+  > fase, en vez de la combinación región × fase requerida por la estructura
+  > generativa.
+- **No se re-corre Flash con seis agentes.** La unidad es la ontología; dos
+  réplicas técnicas bastan. La desviación queda declarada, no silenciada.
+
 ## D-036 · 2026-08-15 · Réplica con segundo modelo: criterios PRE-REGISTRADOS (Terra) · Aprobada
 - **Escrito ANTES de correr la réplica.** Ese es el punto: con la ronda de
   gemma2:9b ya vista, cualquier criterio fijado después sería elegido sabiendo
