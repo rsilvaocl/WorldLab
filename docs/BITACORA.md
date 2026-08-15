@@ -720,6 +720,12 @@ exigen ligar **también** la fase, y por eso caen a ~0,50.
 oráculo daba 6/6 en fase 0 y 0/6 en fase 1 — "liga símbolo y región, colapsa la
 fase". Reaparece con otro modelo, otra representación y otra tarea.
 
+> **Actualización 15/08:** el sesgo hacia fase observado aquí **no replicó en el
+> banco v3**, ni siquiera en `deepseek-v4-flash` (que marcaba +33,3 puntos en el
+> v2 y −0,7 en el v3). Véase "Estudio confirmatorio (banco v3)". Se conserva
+> esta entrada como registro del resultado **exploratorio sobre v2**; ya no se
+> considera un mecanismo general.
+
 **Por qué importa más allá de la memoria:** la fase es una de las dos
 dimensiones de D-014, y el probe retenido exige componer región **y** fase. Si
 la fase no se liga, un cero en B-oscura no mide fallo de composición: mide
@@ -990,14 +996,23 @@ cae. Queda:
 > En tres modelos preespecificados —`gemma2:9b`, `deepseek-v4-flash` y
 > `llama3.1:8b`—, sobre un banco preregistrado de ontologías separables y bajo
 > decodificación determinista, **la memoria indexada no mejora la exactitud en
-> la celda retenida: la reduce frente a `sin_memoria`**. Las respuestas están
-> dominadas por recuperación de valores vividos (79-97%) en vez de la
-> combinación región × fase requerida por la estructura generativa. **Cuál
-> celda se recupera varía por modelo y no es una regularidad del panel**: solo
-> `gemma2:9b` muestra sesgo hacia la celda que comparte fase.
+> la celda retenida: la reduce frente a `sin_memoria`**. **Entre las respuestas
+> no nulas**, predominan las recuperaciones de valores vividos (79-97%) en vez
+> de la combinación región × fase requerida por la estructura generativa. **La
+> celda recuperada varía por modelo y no constituye una regularidad del
+> panel**: solo `gemma2:9b` muestra sesgo hacia la celda que comparte fase.
 
-Alcance: "replicado en tres familias de modelos". El mecanismo fino de
-*qué* se recupera queda como observación por modelo, no como hallazgo del panel.
+Alcance defendible, en tres niveles (precisión de Terra):
+
+- **Efecto primario:** replicado en **tres modelos preespecificados**,
+  pertenecientes a tres familias. No se dice "tres familias" a secas sin
+  nombrar que son tres modelos concretos.
+- **Recuperación de valores vividos:** replicada en los tres.
+- **Dirección fase/región:** descriptiva y específica de cada modelo **en este
+  banco**.
+
+("Entre las respuestas no nulas" está en la redacción porque esa es la base
+sobre la que se calcula el secundario.)
 
 **Qué NO se cambió.** Ningún criterio se movió después de ver los números. El
 banco v3 se generó y congeló antes de la primera llamada. Ninguna ontología

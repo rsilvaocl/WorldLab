@@ -59,6 +59,14 @@ Formato: fecha · decisión · quién la tomó · estado
   > generativa.
 - **No se re-corre Flash con seis agentes.** La unidad es la ontología; dos
   réplicas técnicas bastan. La desviación queda declarada, no silenciada.
+- **Referencia al resultado posterior (agregada 15/08, sin editar nada de lo
+  pre-registrado):** el confirmatorio se corrió y el primario pasó en los tres
+  modelos; el secundario de sesgo fase−región **no** replicó fuera de
+  `gemma2:9b`. La hipótesis pre-especificada se conserva intacta arriba,
+  incluida la parte que después falló — reescribirla sería fabricar un
+  pre-registro que acierta siempre. Resultado en
+  `docs/BITACORA.md` ("Estudio confirmatorio (banco v3)") y protocolo
+  consolidado en `docs/PROTOCOLO-confirmatorio-v3.md`.
 
 ## D-036 · 2026-08-15 · Réplica con segundo modelo: criterios PRE-REGISTRADOS (Terra) · Aprobada
 - **Escrito ANTES de correr la réplica.** Ese es el punto: con la ronda de
