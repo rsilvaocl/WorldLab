@@ -815,6 +815,80 @@ resultado cognitivo.
 
 ---
 
+## Ronda de composición (banco v2): la memoria interfiere, y sabemos por qué (2026-08-15)
+
+Primera ronda de composición corrida con el instrumento completo. Corrida por
+Zod; verificación del mecanismo por Opus. Banco v2 (32 ontologías, seed
+pre-registrada, disjunto del de calibración), `gemma2:9b`, 576 probes por
+condición, cobertura de exposición **192/192** en las tres.
+
+### Resultado
+
+| condición | correctos | proporción | sin_respuesta |
+|---|---|---|---|
+| `memoria_indexada` | 12/576 | **0,021** | 66 (11%) |
+| `memoria_indexada_corrupta` | 49/576 | 0,085 | 223 (39%) |
+| `sin_memoria` | 108/576 | **0,188** | 0 |
+
+Contraste primario `memoria_indexada − sin_memoria`, pareado por ontología:
+**−0,167**, permutación **p = 0,0004**, IC95% bootstrap **[−0,25 , −0,09]**.
+Azar de referencia del banco: **0,188**.
+
+`sin_memoria` cae clavado en el azar, como debe un control sin información.
+`memoria_indexada` rinde **diez veces por debajo del azar**.
+
+### El matiz de la no-respuesta NO explica el efecto
+
+Zod marcó la asimetría (66 / 223 / 0 nulos) sin afirmarla. Condicionando a
+haber respondido: `memoria_indexada` **0,024**, `corrupta` 0,139,
+`sin_memoria` 0,188. El efecto **sobrevive** y sigue muy por debajo del azar.
+
+### El mecanismo, medido
+
+Rendir por debajo del azar es sistemático, no ruido. La causa:
+
+| condición | repite un valor que vivió | acierto |
+|---|---|---|
+| `memoria_indexada` | **486/510 = 95,3%** | 0,024 |
+| `corrupta` | 155/353 = 43,9% | 0,139 |
+| `sin_memoria` | **0/576 = 0%** | 0,188 |
+
+El gradiente de repetición mapea inverso sobre el acierto. Y **D-022 garantiza
+que la celda retenida cae en un nivel de magnitud distinto al de las tres
+vividas** — así que repetir un valor vivido es *necesariamente* incorrecto. De
+ahí el rendimiento bajo el azar.
+
+De qué celda copia, cuando copia:
+
+- **82,4% de A-oscura** — la que comparte **fase** con la retenida
+- 11,8% de B-clara — la que comparte **región**
+
+Y lo decisivo: **la regla separable predice B-oscura exactamente en 510/510
+casos**. La respuesta correcta era derivable de lo que tenía delante.
+
+**Conclusión: no es que no pudiera componer. Recupera por una sola clave en
+lugar de componer por dos.** Con conocimiento perfecto, accesible y verificado
+legible (gate 0,955), el agente ancla en la dimensión que comparte con la celda
+preguntada y devuelve ese valor.
+
+### Alcance, declarado
+
+Vale para `gemma2:9b`, `temperature=0`, esta familia de ontologías separables y
+este formato de probe. No se afirma que los LLM no compongan: se afirma que
+**bajo exposición dirigida, memoria accesible y respuesta verificable, este
+agente recupera en vez de componer, y hacerlo lo lleva por debajo del azar**.
+El diseño de la celda retenida (D-022) es lo que permite distinguir una cosa de
+la otra — sin ese requisito, la repetición habría pasado por acierto parcial.
+
+### Qué NO se cambió
+
+Banco v2 intacto y seed sin regenerar. Renderer congelado. `temperature=0`.
+Banco v1 sin reutilizar para inferencia. Ninguna ontología excluida. El
+resultado salió **en contra de la hipótesis** y se reporta tal cual, como se
+anticipó por escrito antes de correrlo.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
