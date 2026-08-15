@@ -9,6 +9,12 @@ documento no pretende sustituirla. Lo que aporta es evidencia prospectiva
 auditable: los commits que fijan cada decisión anteceden, con hora, a la primera
 llamada a un modelo.
 
+**Límite de esa evidencia (Terra, 15/08):** las horas locales de Git **no son
+prueba externa de anterioridad** — pueden reescribirse, y el repositorio no
+conserva el timestamp de la primera llamada a un modelo. Lo defendible es
+*"traza Git consistente con congelamiento prospectivo"*, no evidencia
+independiente equivalente a OSF o AsPredicted.
+
 ---
 
 ## 1. Cadena de custodia
@@ -30,7 +36,14 @@ reescribió. **La evidencia válida es la hora del commit**, no la del archivo.
 | artefacto | SHA-256 |
 |---|---|
 | `data/banco/composicion_bank_v3.json` | `cc8f01a22a029a2f28c6e139c06cc74f1dea3a3baba4079aeff91153ae60a055` |
-| `data/resultados/confirmatorio_bankv3.json` | `56896f7086b660cb19397227d775801e75974c3ba23c6167577bfb08a1407954` |
+| `data/resultados/confirmatorio_bankv3.json` (**agregado**) | `56896f7086b660cb19397227d775801e75974c3ba23c6167577bfb08a1407954` |
+
+**`confirmatorio_bankv3.json` NO es resultado crudo** (corrección de Terra):
+contiene proporciones por ontología y métricas derivadas, pero **no** respuestas
+por probe, errores, reintentos ni timestamps. El script descarta las filas por
+probe tras calcular las tres componentes. **No existen JSONL crudos de esta
+corrida**, así que los secundarios **no son recomputables desde disco**;
+obtenerlos exige re-correr con persistencia por probe.
 
 ### Blobs del código en `HEAD` de la corrida
 
@@ -46,28 +59,77 @@ El banco es **regenerable** desde su seed (`20260815064`) con
 `generar_banco(n=64, seed=20260815064)`; hay test permanente que lo verifica y
 que comprueba que es disjunto de v1 y v2.
 
+### BRECHA DE REPRODUCIBILIDAD, declarada (hallazgo de Terra, 15/08)
+
+La corrida **no usó `ai/run_composicion.py`**. Ese runner apunta al banco **v2**,
+ejecuta **tres** condiciones, usa permutación **bilateral** por defecto y **no
+pasa `thinking=False`** (el adaptador omite el campo cuando recibe `None`):
+ejecutarlo **no reproduce** el v3.
+
+El confirmatorio se ejecutó como **heredoc en línea**, que no quedó versionado.
+Los blobs publicados originalmente no permitían reconstruir la ejecución.
+
+**Reparación:** la transcripción literal de ese heredoc quedó en
+`ai/run_confirmatorio_v3.py`, guardada **después** de la corrida. Cierra la
+brecha de reconstrucción pero **no aporta anterioridad** — no es un artefacto
+congelado antes de los datos, y presentarlo como tal falsificaría la custodia.
+
+| blob | archivo | rol |
+|---|---|---|
+| `fcb4e71` | `ai/run_confirmatorio_v3.py` | script exacto de la corrida (versionado a posteriori) |
+| `9d4a7c4` | `ai/model_adapter.py` | cliente LLM (`thinking`, reintentos) |
+| `365b359` | `ai/run_composicion.py` | runner de Zod — **NO** es el de esta corrida |
+
+**Comando exacto ejecutado:**
+
+```bash
+set -a && . ./.env && set +a
+.venv/bin/python - <<'"'"'PY'"'"'   # contenido = ai/run_confirmatorio_v3.py
+```
+
 ---
 
-## 2. Hipótesis primaria — prueba CONJUNTA
+## 2. Criterio confirmatorio COMPUESTO (no "hipótesis primaria")
 
-Formulada como **conjunción sobre los tres modelos**, no como tres contrastes
-independientes:
+Renombrado tras la auditoría de Terra (15/08). Es un **criterio operacional
+compuesto**, no una hipótesis estadística sobre un efecto de 10 puntos:
 
-> Los **tres** modelos preespecificados satisfacen
-> Δ(`memoria_indexada` − `sin_memoria`) ≤ **−0,10**, cada uno con permutación
-> pareada **unilateral** (cola inferior) y **p < 0,05**.
+> Los **tres** modelos preespecificados satisfacen **ambas** condiciones:
+> (i) Δ(`memoria_indexada` − `sin_memoria`) **observado** ≤ −0,10, y
+> (ii) significación contra cero con permutación pareada **unilateral**
+> (cola inferior) y **p < 0,05**.
 
-Al exigir que **todos** cumplan, la prueba es de tipo intersección-unión: el
-error tipo I del conjunto está acotado por el de un contraste individual, así
-que **no requiere corrección por multiplicidad** — la conjunción es más
-conservadora que cualquier contraste suelto, no menos.
+**El nulo estadístico es H₀: Δ = 0**, no H₀: Δ ≥ −0,10. La permutación
+implementada contrasta contra cero; el −0,10 es un **umbral operacional sobre el
+efecto observado**, fijado de antemano, no un margen inferencial.
+
+**Lo que esto SÍ y NO demuestra** (diagnóstico post hoc, centrando el contraste
+en −0,10):
+
+| modelo | p vs Δ=0 | p vs Δ=−0,10 | IC95% cruza −0,10 |
+|---|---|---|---|
+| `deepseek-v4-flash` | 0,0007 | **0,3154** | **sí** |
+| `gemma2:9b` | <0,001 | 0,0051 | no |
+| `llama3.1:8b` | <0,001 | 0,0070 | no |
+
+**Conclusión defendible:** los tres reducen la exactitud y cumplen el criterio
+operacional pre-registrado. **NO está demostrado que el efecto poblacional sea
+de al menos 10 puntos en los tres** — en `deepseek-v4-flash` no lo está.
+
+Sobre multiplicidad: al exigir que **todos** cumplan, es de tipo
+intersección-unión y el error tipo I del conjunto queda acotado por el de un
+contraste individual, así que no requiere corrección adicional.
 
 - **Unidad de análisis:** la **ontología** (n = 64). Los agentes son réplicas
-  técnicas, no n: con exposición determinista y `temperature=0` son réplicas
-  exactas (verificado — σ_Δ salió 0,0 al intentar usar el mundo como unidad).
+  técnicas, no n: con exposición determinista y `temperature=0` resultaron
+  réplicas exactas (verificado — σ_Δ salió 0,0 al intentar usar el mundo como
+  unidad). Nota: `temperature=0` **no garantiza determinismo**, menos aún en
+  una API; es un parámetro, no una propiedad demostrada.
 - **Outcome:** proporción de probes correctos en la celda retenida B-oscura,
   evaluada por **nivel de magnitud** (6 niveles, D-010).
-- **Nulos:** cuentan como **incorrectos** (criterio conservador).
+- **Nulos:** cuentan como **incorrectos**. NO se describe como criterio
+  conservador: ante una hipótesis direccional de deterioro puede **amplificar**
+  el efecto esperado en vez de atenuarlo.
 - **Dirección:** declarada de antemano (se espera que la memoria **reduzca** la
   exactitud), lo que justifica la prueba unilateral.
 
@@ -117,11 +179,13 @@ Cada modelo pasó su **propio gate de lectura** antes de entrar (≥0,75 agregad
 - **Fallos de API / respuestas no parseables:** el cliente reintenta hasta 3
   veces con backoff (`max_retries=2`); agotados los intentos, la respuesta se
   registra como **nula** y cuenta como incorrecta.
-- **Nulos observados:** 36/384 (`gemma2:9b`, 9,4%), 8/384
-  (`deepseek-v4-flash`, 2,1%), 0/384 (`llama3.1:8b`). Derivados de la tasa de
-  respuesta reportada; la asimetría entre modelos es real y queda como
-  observación, no como explicación del efecto (el primario sobrevive al
-  condicionar por respuesta).
+- **Nulos observados, condición `memoria_indexada` únicamente:** 36/384
+  (`gemma2:9b`, 9,4%), 8/384 (`deepseek-v4-flash`, 2,1%), 0/384
+  (`llama3.1:8b`). Derivados de la tasa de respuesta reportada.
+  **Los nulos de `sin_memoria` NO se registraron** — el script solo persistió
+  filas por probe de `memoria_indexada`. Es un vacío del registro, no un cero.
+  La asimetría entre modelos queda como observación, no como explicación del
+  efecto: el primario sobrevive al condicionar por respuesta.
 - **Regla de detención:** el estudio corre las 64 ontologías × 3 modelos × 2
   condiciones completas. **No hay parada opcional** ni análisis intermedios que
   puedan gatillar una decisión.
@@ -152,7 +216,9 @@ No se asume normalidad: con 64 proporciones acotadas sería un supuesto gratuito
 
 ## 7. Resultado
 
-**Primario — la conjunción se cumple:**
+**Criterio compuesto — se cumple en los tres** (Δ observado ≤ −0,10 y p < 0,05
+contra cero). Recordar que el nulo es Δ = 0: no se demuestra un efecto
+poblacional de 10 puntos en los tres (ver §2).
 
 | modelo | indexada | sin_memoria | Δ | p (unilateral) | IC95% |
 |---|---|---|---|---|---|

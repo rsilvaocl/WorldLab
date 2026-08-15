@@ -955,11 +955,12 @@ excluida, `temperature=0`, misma configuración que la corrida original.
 
 Corrido con todo pre-registrado y commiteado antes: banco v3 (64 ontologías,
 seed `20260815064`, disjunto de v1 y v2), panel de tres modelos declarado en
-`f522df8`, criterio Δ ≤ −0,10 con permutación unilateral, unidad = ontología,
+`f522df8`, criterio operacional compuesto (Δ observado ≤ −0,10 **y** p < 0,05
+contra cero) con permutación unilateral, unidad = ontología,
 nulos como incorrectos. Los tres modelos habían pasado su propio gate de
 lectura (0,993 · 0,955 · 0,896).
 
-### Resultado primario: PASA en los tres
+### Criterio compuesto: se cumple en los tres
 
 | modelo | indexada | sin_memoria | **Δ** | p (unilateral) | IC95% |
 |---|---|---|---|---|---|
@@ -970,6 +971,12 @@ lectura (0,993 · 0,955 · 0,896).
 Ningún IC cruza cero. Y el control cae en el mismo lugar en las tres familias:
 **0,188 / 0,201 / 0,208** — la mejor evidencia de que el banco está calibrado y
 el efecto no viene del instrumento.
+
+**Límite del criterio (auditoría de Terra, 15/08):** el nulo estadístico es
+Δ = 0, no Δ ≥ −0,10. Centrando el contraste en −0,10, `deepseek-v4-flash` da
+p = 0,3154 y su IC95% **cruza** −0,10. Lo defendible: los tres **reducen** la
+exactitud y cumplen el criterio operacional; **no** está demostrado que el
+efecto poblacional sea de al menos 10 puntos en los tres.
 
 ### Secundarios: la recuperación se sostiene, el sesgo de fase NO
 
