@@ -232,6 +232,11 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 /* ---------- columna de instrumentos (el six-pack) ---------- */
 #stack{display:flex;flex-direction:column;gap:var(--gap);padding:var(--gap);
   overflow-y:auto;min-height:0;background:linear-gradient(180deg,#0c0f12,#090b0d)}
+#evidenceStack,#detailStack{display:flex;flex-direction:column;gap:var(--gap)}
+.stackLabel{border-bottom:1px solid var(--bezel-hi);padding:3px 2px 8px}
+.stackLabel h2{color:var(--lum);margin-bottom:3px}
+.stackLabel p{font-size:11px;color:var(--lum-3);letter-spacing:.04em}
+#detailStack{border-top:1px solid #000;padding-top:var(--gap)}
 #stack .inst .face{padding:11px}
 .instHead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
 .instHead .sup{margin-left:auto;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
@@ -543,6 +548,34 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 
   <div id="stack">
 
+    <section id="evidenceStack" aria-labelledby="evidenceTitle">
+      <div class="stackLabel"><h2 id="evidenceTitle">Validez de la evidencia</h2>
+        <p>Lo necesario para saber si el resultado final se puede interpretar.</p></div>
+
+      <div class="inst" id="expoInst" tabindex="-1">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2>Experiencias necesarias</h2><span class="sup">Exposición · <span id="expoSup">todos</span></span></div>
+          <div class="quad" id="quad"></div>
+          <p class="placard" style="margin-top:9px;white-space:normal;line-height:1.5;letter-spacing:.06em">
+            La celda rayada nunca se puede vivir. Para interpretar el probe, cada agente necesita al menos 3 consumos en las otras tres celdas. (D-025)
+          </p>
+        </div>
+      </div>
+
+      <div class="inst" id="calInst" tabindex="-1">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2>Predicción sobre la celda nunca vivida</h2><span class="sup">Probe de composición · <span id="calSup">sin probe</span></span></div>
+          <div class="cal" id="calBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="detailStack" aria-labelledby="detailTitle">
+      <div class="stackLabel"><h2 id="detailTitle">Detalle de la corrida</h2>
+        <p>Así transcurrió el mundo y qué hicieron los agentes.</p></div>
+
     <div class="inst" id="clockInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
@@ -578,25 +611,6 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="expoInst" tabindex="-1">
-      <span class="scr bl"></span><span class="scr br"></span>
-      <div class="face">
-        <div class="instHead"><h2>Exposición</h2><span class="sup" id="expoSup">todos</span></div>
-        <div class="quad" id="quad"></div>
-        <p class="placard" style="margin-top:9px;white-space:normal;line-height:1.5;letter-spacing:.06em">
-          Ticks vividos en cada cruce. La celda rayada es la que el mundo no deja vivir.
-        </p>
-      </div>
-    </div>
-
-    <div class="inst" id="calInst" tabindex="-1">
-      <span class="scr bl"></span><span class="scr br"></span>
-      <div class="face">
-        <div class="instHead"><h2>Calibración</h2><span class="sup" id="calSup">sin probe</span></div>
-        <div class="cal" id="calBody"></div>
-      </div>
-    </div>
-
     <div class="inst" id="crewInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
@@ -612,6 +626,8 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
         <div id="tapeList" role="log" aria-label="Registro de acciones"></div>
       </div>
     </div>
+
+    </section>
 
   </div>
 </div></main>

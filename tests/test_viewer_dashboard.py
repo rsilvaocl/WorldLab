@@ -42,3 +42,13 @@ def test_viewer_does_not_equate_readiness_with_experimental_success():
     source = viewer_source()
     assert 'evidencia completa para revisión' in source
     assert 'no afirma que el resultado sea positivo' in source
+
+
+def test_viewer_groups_evidence_before_run_detail():
+    source = viewer_source()
+    assert 'id="evidenceStack"' in source
+    assert 'Validez de la evidencia' in source
+    assert 'id="detailStack"' in source
+    assert 'Detalle de la corrida' in source
+    assert 'Experiencias necesarias' in source
+    assert 'Predicción sobre la celda nunca vivida' in source
