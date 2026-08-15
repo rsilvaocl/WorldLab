@@ -1,4 +1,4 @@
-"""WorldLab — ronda de composición, familia `composicion-bank-v1` (D-033 + D-034).
+"""WorldLab — ronda de composición, familia `composicion-bank-v2` (D-033 + D-034 + D-035).
 
 Protocolo (Terra, aprobado por el Comandante):
   1. Fase E — exposición DIRIGIDA (`fase_exposicion.exponer_agente`): el motor
@@ -28,7 +28,7 @@ Análisis (fijado ANTES de ver datos):
   - Contraste pareado `memoria_indexada − sin_memoria`.
   - Prueba principal: `permutacion_pareada()` sobre las 32 diferencias.
   - Intervalo: `bootstrap_ic()`, remuestreando ontologías.
-  - Azar de referencia: `azar_constante()` del banco (0.219), NO 1/6.
+  - Azar de referencia: `azar_constante()` del banco v2 (0.188), NO 1/6.
 
 Qué NO hacer: no tocar el banco congelado, no cambiar temperature, no excluir
 ontologías por rendir mal. Reportar SIEMPRE la cobertura de exposición.
@@ -59,8 +59,8 @@ from ai.world_state import Entity, WorldState
 
 CONDICIONES: Tuple[str, ...] = (
     "memoria_indexada", "memoria_indexada_corrupta", "sin_memoria")
-BANCO_PATH = Path(__file__).resolve().parent.parent / "data" / "banco" / "composicion_bank_v1.json"
-GATE_DEFAULT = "data/silver/gate_lectura_banco_memoria_indexada.json"
+BANCO_PATH = Path(__file__).resolve().parent.parent / "data" / "banco" / "composicion_bank_v2.json"
+GATE_DEFAULT = "data/silver/gate_lectura_bancoV2_indexada_prosa.json"
 GOAL = "sobrevivir y maximizar energía"
 
 
@@ -249,13 +249,13 @@ def analizar(resultados: List[Dict[str, Any]], banco) -> Dict[str, Any]:
 # CLI
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Ronda de composición (composicion-bank-v1)")
+    ap = argparse.ArgumentParser(description="Ronda de composición (composicion-bank-v2)")
     ap.add_argument("--model", default="gemma2:9b")
     ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"])
     ap.add_argument("--agents", type=int, default=6,
                     help="agentes (réplicas) por condición y ontología")
     ap.add_argument("--ontologias", default="", help="índices 0-based, p.ej. '0,1,2'")
-    ap.add_argument("--out-dir", default="data/silver/composicion_bank_v1")
+    ap.add_argument("--out-dir", default="data/silver/composicion_bank_v2")
     ap.add_argument("--prefix", default="composicion")
     ap.add_argument("--seed-base", type=int, default=20260814)
     ap.add_argument("--smoke", action="store_true",
