@@ -72,3 +72,9 @@ def test_viewer_filter_copy_describes_its_action():
     source = viewer_source()
     assert 'Mostrar solo acciones logradas' in source
     assert 'Mostrar todos los intentos' in source
+
+
+def test_viewer_uses_the_current_png_logo():
+    source = viewer_source()
+    assert source.count('assets/logo.png') == 3
+    assert 'assets/logo.jpg' not in source
