@@ -1028,6 +1028,86 @@ reinterpreta para que sobreviva.
 
 ---
 
+## Réplica técnica con persistencia completa (2026-08-15)
+
+Corrida bajo el plan de Terra: runner y esquema **congelados y commiteados
+antes** de la primera llamada (`1bfb15d`), persistencia append-only de cada
+probe en **ambos** brazos, directorio nuevo sin tocar el resultado original, y
+reconciliación automática crudo↔agregado.
+
+**Es réplica técnica, no reparación retroactiva.** Valida los resultados
+originales; no convierte en crudos unos datos que nunca se conservaron.
+
+2.304 probes · esquema completo · ambos brazos · **reconciliación exacta**.
+
+### El primario replica
+
+| modelo | Δ original | Δ réplica | diferencia |
+|---|---|---|---|
+| `deepseek-v4-flash` | −0,1172 | −0,1250 | −0,0078 |
+| `gemma2:9b` | −0,1771 | **−0,1771** | **0,0000** |
+| `llama3.1:8b` | −0,1771 | **−0,1771** | **0,0000** |
+
+Los dos locales replican **exacto**; DeepSeek difiere en 0,008 — consistente con
+que su versión de API no es fijable por digest.
+
+| modelo | indexada | sin_memoria | p vs 0 | p vs −0,10 | IC95% |
+|---|---|---|---|---|---|
+| `deepseek-v4-flash` | 0,078 | 0,203 | 0,0005 | **0,2485** | [−0,195, −0,057] |
+| `gemma2:9b` | 0,010 | 0,188 | <0,001 | 0,0051 | [−0,234, −0,120] |
+| `llama3.1:8b` | 0,031 | 0,208 | <0,001 | 0,0070 | [−0,240, −0,120] |
+
+**La limitación se mantiene:** contra −0,10, `deepseek-v4-flash` sigue sin
+alcanzar significación. La réplica confirma el efecto y confirma también su
+límite.
+
+### Lo que la corrida original NO podía sostener
+
+Con el brazo control ahora medido:
+
+| modelo | recuperación con memoria | recuperación **sin** memoria |
+|---|---|---|
+| `deepseek-v4-flash` | 0,780 | **0,180** |
+| `gemma2:9b` | 0,966 | **0,000** |
+| `llama3.1:8b` | 0,870 | **0,182** |
+
+**La métrica de recuperación tenía una línea base que no habíamos medido.** Un
+agente sin memoria acierta un valor "vivido" por azar el 18% de las veces
+(0% en gemma). Los 78-97% con memoria están masivamente elevados **sobre su
+propio control**, en los tres. Eso refuerza la afirmación de recuperación
+mucho más de lo que podía hacerlo el número suelto.
+
+**Los nulos de `sin_memoria`: cero en los tres.** Era el vacío declarado del
+registro original. Ya no es un supuesto: es un cero medido. Todos los nulos
+(7 · 36 · 0) vienen de `memoria_indexada`.
+
+**Cero reintentos** en toda la corrida: ningún resultado contaminado por fallos
+de API.
+
+### Determinismo, verificado y no solo declarado
+
+```
+2304 filas · 0 duplicados discordantes · determinístico = True
+```
+
+Al implementar el retomado de la corrida interrumpida quedó, de regalo, una
+**prueba empírica** de la afirmación `temperature=0` que el protocolo hacía y
+que hasta ahora era solo un parámetro declarado. Si un probe repetido hubiera
+dado otra respuesta, el agregado **aborta** en vez de promediar.
+
+### Checksums
+
+| artefacto | SHA-256 |
+|---|---|
+| `probes_crudos.jsonl` | `b322ea053dfed6c6a15ecfb4a83a8392fdd4be31b1d45effe804452624e26df3` |
+| `agregado.json` | `8276564976eb4fda4fc406a71db6b7c21b7dcaf56c9ca6cddcb51de7a00d187d` |
+
+**Qué NO se cambió.** El resultado original no se tocó ni se sobrescribió. No se
+borró ninguna fila cruda. No se promedió entre corridas ni se eligió la que
+guste: se reportan las dos y su diferencia.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?

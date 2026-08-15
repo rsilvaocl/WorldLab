@@ -1,0 +1,56 @@
+{
+ "gemma2:9b": {
+  "n_ontologias": 2,
+  "tasas": {
+   "memoria_indexada": [
+    0.0,
+    0.0
+   ],
+   "sin_memoria": [
+    0.0,
+    0.3333333333333333
+   ]
+  },
+  "difs": [
+   0.0,
+   -0.3333333333333333
+  ],
+  "permutacion": {
+   "diferencia_media": -0.1667,
+   "cola": "menor",
+   "p_valor": 0.4991,
+   "n_ontologias": 2
+  },
+  "ic": {
+   "ic_bajo": -0.3333,
+   "ic_alto": 0.0,
+   "nivel": 0.95
+  },
+  "componentes_por_condicion": {
+   "memoria_indexada": {
+    "tasa_respuesta": 1.0,
+    "exactitud_condicionada": 0.0,
+    "exactitud_cruda": 0.0,
+    "recuperacion_valor_vivido": 0.833,
+    "sesgo_fase": 1.0,
+    "sesgo_region": 0.0,
+    "brecha_fase_menos_region": 1.0,
+    "n": 12,
+    "nulos": 0,
+    "reintentos_totales": 0
+   },
+   "sin_memoria": {
+    "tasa_respuesta": 1.0,
+    "exactitud_condicionada": 0.167,
+    "exactitud_cruda": 0.167,
+    "recuperacion_valor_vivido": 0.0,
+    "sesgo_fase": 0.0,
+    "sesgo_region": 0.0,
+    "brecha_fase_menos_region": 0.0,
+    "n": 12,
+    "nulos": 0,
+    "reintentos_totales": 0
+   }
+  }
+ }
+}
