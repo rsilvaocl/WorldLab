@@ -197,6 +197,29 @@ def permutacion_pareada(difs: Sequence[float], n_perm: int = 20000,
             "n_ontologias": len(xs)}
 
 
+def permutacion_unilateral(difs: Sequence[float], n_perm: int = 20000,
+                           seed: int = 0, cola: str = "menor") -> Dict[str, Any]:
+    """Permutación pareada UNILATERAL, para la réplica pre-registrada (Terra).
+
+    La réplica tiene dirección declarada de antemano —se espera que la memoria
+    indexada rinda MENOS que sin_memoria— así que la prueba correcta es de una
+    cola. Usar la bilateral aquí regalaría la mitad de la potencia por no
+    aprovechar una hipótesis que ya está escrita.
+    """
+    xs = list(difs)
+    obs = sum(xs) / len(xs)
+    rng = random.Random(seed)
+    signo = -1 if cola == "menor" else 1
+    extremos = 0
+    for _ in range(n_perm):
+        m = sum(x if rng.random() < 0.5 else -x for x in xs) / len(xs)
+        if signo * m >= signo * obs - 1e-12:
+            extremos += 1
+    return {"diferencia_media": round(obs, 4), "cola": cola,
+            "p_valor": round((extremos + 1) / (n_perm + 1), 4),
+            "n_ontologias": len(xs)}
+
+
 def bootstrap_ic(difs: Sequence[float], n_boot: int = 20000, seed: int = 0,
                  nivel: float = 0.95) -> Dict[str, float]:
     """IC percentil de la diferencia media, remuestreando ONTOLOGÍAS."""

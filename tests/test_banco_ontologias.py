@@ -160,3 +160,20 @@ def test_el_v2_pasa_su_propia_validacion():
     v = validar_banco(cargar(str(BANCO_V2)))
     assert v["pasa"]
     assert v["azar_constante"]["acierto"] <= MAX_AZAR_CONSTANTE
+
+
+def test_la_unilateral_tiene_mas_potencia_cuando_la_direccion_esta_declarada():
+    """La réplica declara la dirección de antemano (D-036): la bilateral
+    regalaría la mitad de la potencia por no usar una hipótesis ya escrita."""
+    from ai.banco_ontologias import permutacion_unilateral
+    difs = [-0.15, -0.2, -0.1, -0.25, -0.05, -0.18] * 5 + [0.05, 0.0]
+    uni = permutacion_unilateral(difs, n_perm=4000, seed=1)
+    bil = permutacion_pareada(difs, n_perm=4000, seed=1)
+    assert uni["cola"] == "menor"
+    assert uni["p_valor"] <= bil["p_valor"]
+
+
+def test_la_unilateral_NO_premia_un_efecto_en_la_direccion_contraria():
+    from ai.banco_ontologias import permutacion_unilateral
+    difs = [0.3] * 16 + [0.25] * 16          # efecto fuerte, dirección opuesta
+    assert permutacion_unilateral(difs, n_perm=4000, seed=1)["p_valor"] > 0.9

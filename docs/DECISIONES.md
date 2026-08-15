@@ -2,6 +2,47 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-036 · 2026-08-15 · Réplica con segundo modelo: criterios PRE-REGISTRADOS (Terra) · Aprobada
+- **Escrito ANTES de correr la réplica.** Ese es el punto: con la ronda de
+  gemma2:9b ya vista, cualquier criterio fijado después sería elegido sabiendo
+  qué favorece.
+- **Configuración congelada:** `deepseek-v4-flash`, `thinking` desactivado,
+  `temperature=0`, **mismo** banco v2, mismo renderer, mismos prompts y mismo
+  análisis. Sin excluir ontologías y sin reabrir ningún parámetro.
+- **Éxito de réplica** (los tres, no dos de tres):
+  1. Δ(`memoria_indexada` − `sin_memoria`) **≤ −0,10**, con permutación pareada
+     **UNILATERAL** y **p < 0,05**. Unilateral porque la dirección está
+     declarada de antemano; usar la bilateral regalaría la mitad de la potencia
+     por no aprovechar una hipótesis ya escrita.
+  2. **≥ 70%** de las respuestas no nulas de `memoria_indexada` coinciden con
+     un valor vivido.
+  3. Entre esas recuperaciones, la coincidencia **por FASE** supera a la
+     coincidencia **por REGIÓN** en **≥ 20 puntos**.
+- **Qué se concluye en cada caso, también fijado antes:**
+  - Replica ⇒ el patrón no es exclusivo de gemma2:9b.
+  - No replica ⇒ el resultado de gemma2:9b **sigue siendo válido**, pero pasa a
+    ser explícitamente modelo-específico. No se reinterpreta ni se descarta.
+- **Correcciones de redacción exigidas por Terra sobre la ronda ya corrida:**
+  - La inferencia estadística es sobre las **ontologías**, no sobre los 576
+    probes. El contraste pareado por ontología es el análisis correcto.
+  - "Derivable" se formula como **"derivable bajo la estructura separable que
+    genera el banco"**, no como consecuencia lógica obligatoria de tres
+    observaciones. Al agente no se le declara la regla separable, así que la
+    tarea mide **inducción de esa estructura** — que es justamente lo que se
+    quiere medir.
+  - La referencia principal es el control **`sin_memoria` = 0,188**, no una
+    noción abstracta de azar uniforme.
+  - "Por debajo del azar" **no** se vende como capacidad negativa general del
+    modelo: es propiedad conjunta de la distribución de niveles del banco, el
+    criterio de scoring, la estrategia de recuperación y la garantía D-022.
+  - `memoria_corrupta` se describe como **lure de recuperación**: *"el contenido
+    correcto actúa como lure; al romperse la coherencia el modelo recupera menos
+    pero se abstiene más"*. NO se afirma que "el contenido verdadero daña". Queda
+    como control mecanístico secundario, sin brazo propio.
+- **D-022 no se descuenta como artefacto.** Es lo que hace visible el mecanismo:
+  sin ella, copiar una celda vivida habría recibido crédito falso por
+  composición.
+
 ## D-035 · 2026-08-15 · Renderer canónico en prosa + banco v2 confirmatorio (Terra) · Aprobada
 - **Decisión.** La fase va SIEMPRE en prosa —"fase 0 (clara)"— y nunca como
   entero suelto en un campo. El renderer es **canónico**: lo usan todas las
