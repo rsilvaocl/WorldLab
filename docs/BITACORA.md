@@ -1118,14 +1118,39 @@ Afirmé que las 2.304 filas con 0 discordancias eran "prueba empírica del
 | `gemma2:9b` | 10 | 10 | 0 |
 | `llama3.1:8b` | 10 | 10 | 0 |
 
-**`deepseek-v4-flash` NO es determinista a `temperature=0`.** Los dos locales
-sí lo fueron en esta muestra. Eso explica el origen de la diferencia de −0,0078
-entre el confirmatorio y la réplica, y confirma la advertencia de Terra: cero
-temperatura es un parámetro, no una propiedad demostrada, menos aún en una API.
+Redacción precisa (Terra):
 
-Lo defendible con este dato: **repetibilidad empírica de 20/30 probes
-re-ejecutados**, con el denominador explícito y desagregado por modelo. No
-"determinismo".
+- **Locales:** `gemma2:9b` y `llama3.1:8b`, **10/10 idénticos; no se observaron
+  discordancias**. NO se afirma que "son deterministas": una muestra sin
+  discordancias no demuestra la propiedad.
+- **`deepseek-v4-flash`:** 6/10 idénticos en la respuesta **completa**, **4
+  discordancias observadas**. Eso **refuta** el determinismo en este entorno —
+  para refutar basta un contraejemplo. Su variabilidad es una explicación
+  **compatible y suficiente** del −0,0078 entre confirmatorio y réplica, pero
+  **no demuestra que sea la causa exclusiva**: tampoco podemos asegurar que el
+  proveedor no haya cambiado el modelo internamente entre ambas corridas.
+- **Desglose que acota el impacto:** de las 4 discordancias, **3 cambian solo
+  el texto del campo `reason`** —que no se puntúa— y **1 cambia el valor
+  numérico** (ontología 4, S2: −13,0 → −4,0). Sobre las 30 comparaciones,
+  **29/30 devolvieron el mismo valor puntuado**. La inestabilidad es real pero
+  está casi toda en la justificación en prosa, no en la respuesta que entra al
+  análisis. Se reporta el desglose porque "4 discordancias" solo, sin decir
+  dónde, exagera el efecto sobre el resultado.
+
+| modelo | idéntico completo | mismo valor puntuado | solo cambia el texto |
+|---|---|---|---|
+| `deepseek-v4-flash` | 6/10 | **9/10** | 3 |
+| `gemma2:9b` | 10/10 | 10/10 | 0 |
+| `llama3.1:8b` | 10/10 | 10/10 | 0 |
+- **El n no se amplía y no se estima una tasa.** Cuatro discordancias bastan
+  para refutar determinismo; diez casos **no** bastan para estimar una "tasa de
+  inestabilidad del 40%", y no debe presentarse así. El runner tiene tests que
+  impiden que el resumen calcule porcentajes.
+
+Artefacto auditable: `data/resultados/repetibilidad/comparaciones.jsonl` — las
+30 comparaciones con clave seleccionada, ambas respuestas, ambos `raw_content`,
+timestamps y banderas de identidad. Selección congelada y reproducible
+(`random.Random(7)`, 10 por modelo).
 
 ### Checksums
 

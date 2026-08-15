@@ -166,6 +166,12 @@ puso a prueba y **no replicó**.
 inmutable; el proveedor puede cambiarlo sin aviso. Los dos locales sí quedan
 fijados por digest.
 
+**Repetibilidad medida (D-039), 10 probes re-ejecutados por modelo:**
+`gemma2:9b` y `llama3.1:8b` 10/10 idénticos, sin discordancias observadas;
+`deepseek-v4-flash` 6/10, con **4 discordancias** — su decodificación **no es
+repetible** bajo `temperature=0` en este entorno. No se estima una tasa: n=10
+refuta pero no cuantifica.
+
 Cada modelo pasó su **propio gate de lectura** antes de entrar (≥0,75 agregado,
 ≥0,60 por celda), sobre el banco v2 —de desarrollo— para no gastar el v3:
 `deepseek-v4-flash` 0,993 · `gemma2:9b` 0,955 · `llama3.1:8b` 0,896.
