@@ -945,6 +945,67 @@ excluida, `temperature=0`, misma configuración que la corrida original.
 
 ---
 
+## Estudio confirmatorio (banco v3): el efecto replica en tres modelos, el mecanismo no (2026-08-15)
+
+Corrido con todo pre-registrado y commiteado antes: banco v3 (64 ontologías,
+seed `20260815064`, disjunto de v1 y v2), panel de tres modelos declarado en
+`f522df8`, criterio Δ ≤ −0,10 con permutación unilateral, unidad = ontología,
+nulos como incorrectos. Los tres modelos habían pasado su propio gate de
+lectura (0,993 · 0,955 · 0,896).
+
+### Resultado primario: PASA en los tres
+
+| modelo | indexada | sin_memoria | **Δ** | p (unilateral) | IC95% |
+|---|---|---|---|---|---|
+| `deepseek-v4-flash` | 0,083 | 0,201 | **−0,117** | 0,0007 | [−0,185 , −0,052] |
+| `gemma2:9b` | 0,010 | 0,188 | **−0,177** | <0,001 | [−0,234 , −0,120] |
+| `llama3.1:8b` | 0,031 | 0,208 | **−0,177** | <0,001 | [−0,240 , −0,120] |
+
+Ningún IC cruza cero. Y el control cae en el mismo lugar en las tres familias:
+**0,188 / 0,201 / 0,208** — la mejor evidencia de que el banco está calibrado y
+el efecto no viene del instrumento.
+
+### Secundarios: la recuperación se sostiene, el sesgo de fase NO
+
+| modelo | tasa de respuesta | exactitud condicionada | recuperación de valor vivido | **sesgo fase − región** |
+|---|---|---|---|---|
+| `gemma2:9b` | 0,906 | 0,011 | 0,966 | **+0,768** |
+| `llama3.1:8b` | 1,000 | 0,031 | 0,870 | **−0,162** |
+| `deepseek-v4-flash` | 0,979 | 0,085 | 0,790 | **−0,007** |
+
+La recuperación de valores vividos se sostiene en los tres (79-97%). **El sesgo
+hacia la fase no.** Solo `gemma2:9b` lo tiene; `llama3.1:8b` se inclina hacia la
+región y `deepseek-v4-flash` queda en cero exacto.
+
+**Y no replicó ni dentro del mismo modelo:** `deepseek-v4-flash` marcaba +33,3
+puntos de sesgo hacia fase en el banco v2 y **−0,7** en el v3. Era propiedad del
+banco v2, no del modelo. Exactamente lo que un confirmatorio sobre tablas
+nuevas existe para detectar.
+
+### Redacción corregida
+
+La aprobada decía "con sesgo hacia la celda que comparte fase". Esa cláusula se
+cae. Queda:
+
+> En tres modelos preespecificados —`gemma2:9b`, `deepseek-v4-flash` y
+> `llama3.1:8b`—, sobre un banco preregistrado de ontologías separables y bajo
+> decodificación determinista, **la memoria indexada no mejora la exactitud en
+> la celda retenida: la reduce frente a `sin_memoria`**. Las respuestas están
+> dominadas por recuperación de valores vividos (79-97%) en vez de la
+> combinación región × fase requerida por la estructura generativa. **Cuál
+> celda se recupera varía por modelo y no es una regularidad del panel**: solo
+> `gemma2:9b` muestra sesgo hacia la celda que comparte fase.
+
+Alcance: "replicado en tres familias de modelos". El mecanismo fino de
+*qué* se recupera queda como observación por modelo, no como hallazgo del panel.
+
+**Qué NO se cambió.** Ningún criterio se movió después de ver los números. El
+banco v3 se generó y congeló antes de la primera llamada. Ninguna ontología
+excluida. La cláusula del sesgo de fase se retira porque falló, no se
+reinterpreta para que sobreviva.
+
+---
+
 ## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
