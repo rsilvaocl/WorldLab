@@ -121,6 +121,12 @@ h2{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
   box-shadow:0 1px 0 rgba(255,255,255,.045) inset, 0 4px 14px rgba(0,0,0,.5);
   flex-wrap:wrap;
 }
+#auditSummary{display:flex;align-items:flex-start;gap:14px;padding:10px 18px;
+  border-bottom:1px solid #000;background:#0d1013}
+#auditStatus{flex:none;color:var(--lum);min-width:130px}
+#auditMessage{color:var(--lum-2);max-width:66ch}
+#auditReasons{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+#addEvidenceBtn{margin-left:auto}
 .badge-wl{display:flex;align-items:center;gap:11px;flex:none}
 .badge-wl .disc{
   width:42px;height:42px;border-radius:50%;flex:none;overflow:hidden;
@@ -445,7 +451,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
   <symbol id="sym-5" viewBox="0 0 24 24"><path d="M12 2.5 22 21.5 2 21.5 Z" transform="rotate(180 12 12)"/></symbol>
 </defs></svg>
 
-<div id="rail">
+<header><div id="rail">
   <div class="badge-wl">
     <div class="disc"><img src="assets/logo.jpg" alt=""></div>
     <div>
@@ -468,9 +474,16 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
     Cargar corrida
   </button>
   <input type="file" id="fileInput" accept=".jsonl" multiple>
-</div>
+</div></header>
 
-<div id="deck">
+<section id="auditSummary" aria-labelledby="auditStatus">
+  <h2 id="auditStatus">Sin corrida</h2>
+  <p id="auditMessage">Cargue una corrida para revisar la evidencia disponible.</p>
+  <div id="auditReasons"></div>
+  <button class="sw" id="addEvidenceBtn" type="button" hidden>Agregar archivos</button>
+</section>
+
+<main id="workspace"><div id="deck">
   <div id="port">
     <div class="inst" id="worldInst">
       <span class="scr bl"></span><span class="scr br"></span>
@@ -522,7 +535,8 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
         <span class="placard readout" id="speedRead" style="width:34px">1×</span>
       </div>
 
-      <button class="sw" id="filterBtn" type="button" aria-pressed="false">Solo logradas</button>
+      <span class="placard">Espacio reproduce o pausa</span>
+      <button class="sw" id="filterBtn" type="button" aria-pressed="false">Mostrar solo acciones logradas</button>
       <button class="sw" id="amountBtn" type="button" aria-pressed="false">Cantidades</button>
     </div>
   </div>
@@ -600,7 +614,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
     </div>
 
   </div>
-</div>
+</div></main>
 
 <script>
 "use strict";
@@ -622,6 +636,31 @@ let showAmounts = false;
 let openAgent = null;
 let runName = '—';
 let derived = { phase:false, region:false, barrier:false, names:false };
+
+function auditState(){
+  if (!snaps.length) return {
+    kind:'empty', label:'Sin corrida', message:'Cargue una corrida y sus archivos de evidencia.',
+    reasons:[], needsFiles:false
+  };
+  const missing = [];
+  if (!traces.length) missing.push({label:'Faltan trazas', detail:'No se cargaron las respuestas del modelo.', target:'crewInst'});
+  if (!probes.length) missing.push({label:'Falta el probe', detail:'No se cargó la predicción final.', target:'calInst'});
+  if (missing.length) return {
+    kind:'incomplete', label:'Incompleta', message:'Faltan archivos para auditar la corrida.',
+    reasons:missing, needsFiles:true
+  };
+  const invalid = [];
+  if (!probes.some(p => p.never_lived)) invalid.push({label:'Probe inválido', detail:'No identifica la celda nunca vivida.', target:'calInst'});
+  if (underexposed().length) invalid.push({label:'Exposición insuficiente', detail:'Hay agentes subexpuestos.', target:'expoInst'});
+  if (invalid.length) return {
+    kind:'invalid', label:'No interpretable', message:'La evidencia cargada tiene advertencias de integridad.',
+    reasons:invalid, needsFiles:false
+  };
+  return {
+    kind:'ready', label:'Lista para revisar', message:'La evidencia está completa para revisión.',
+    reasons:[], needsFiles:false
+  };
+}
 
 const CH = ['#39ff9a','#ffb000','#5ac8fa','#ff6fd8','#c4f24a'];
 const chOf = i => CH[i % CH.length];
