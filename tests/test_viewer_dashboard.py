@@ -52,3 +52,23 @@ def test_viewer_groups_evidence_before_run_detail():
     assert 'Detalle de la corrida' in source
     assert 'Experiencias necesarias' in source
     assert 'Predicción sobre la celda nunca vivida' in source
+
+
+def test_viewer_has_landmarks_dynamic_canvas_summary_and_accessible_drop_state():
+    source = viewer_source()
+    for fragment in (
+        '<header',
+        '<main',
+        '<aside',
+        'id="canvasSummary"',
+        'function updateCanvasSummary(',
+        "drop.setAttribute('aria-hidden', 'false')",
+        "drop.setAttribute('aria-hidden', 'true')",
+    ):
+        assert fragment in source
+
+
+def test_viewer_filter_copy_describes_its_action():
+    source = viewer_source()
+    assert 'Mostrar solo acciones logradas' in source
+    assert 'Mostrar todos los intentos' in source
