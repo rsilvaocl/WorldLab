@@ -1,9 +1,15 @@
-.venv/
+.venv
+.env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .pytest_cache/
 data/bronze/
 data/silver/
+# data/banco y data/resultados SI se versionan: los bancos son la prueba de
+# que el pre-registro precede a los datos, y el resultado confirmatorio es lo
+# que ese pre-registro comprometia a publicar salga como salga.
 data/gold/
 .DS_Store
 .impeccable/

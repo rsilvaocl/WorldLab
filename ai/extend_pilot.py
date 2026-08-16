@@ -29,7 +29,7 @@ SEEDS = [1, 2, 3]
 DAYS = 100
 
 
-def run_extension(model_name: str = "qwen2.5:7b") -> List[Dict[str, Any]]:
+def run_extension(model_name: str = "gemma2:9b") -> List[Dict[str, Any]]:
     OUT100.mkdir(parents=True, exist_ok=True)
     client = LLMClient(backend="ollama", model=model_name)
     results = []
@@ -93,7 +93,7 @@ def compare_sigma() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    model = sys.argv[1] if len(sys.argv) > 1 else "qwen2.5:7b"
+    model = sys.argv[1] if len(sys.argv) > 1 else "gemma2:9b"
     t0 = time.time()
     run_extension(model)
     compare_sigma()

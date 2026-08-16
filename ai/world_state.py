@@ -163,6 +163,11 @@ class WorldState:
                  seed: int | None = None):
         self.config = config
         self.rng = __import__("random").Random(seed if seed is not None else config.seed)
+        # RNG independiente para el orden del menú de acciones: el orden de una
+        # lista no debe ser información. Sembrado por seed igual que self.rng pero
+        # AVANZA aparte — barajar el menú aquí no perturba spawn/clusters ni el
+        # determinismo del estado.
+        self.menu_rng = __import__("random").Random(seed if seed is not None else config.seed)
         self.entities: Dict[str, Entity] = {}
         self.agents: Dict[str, AgentState] = {}
         self.day = 1
@@ -725,6 +730,10 @@ class WorldState:
             if abs(other.x - ent.x) <= radius and abs(other.y - ent.y) <= radius:
                 info = {"eid": other.eid, "kind": other.kind,
                         "dx": other.x - ent.x, "dy": other.y - ent.y}
+                # D-029: la región de cada entidad visible es PERCEPCIÓN
+                # (identidad visible, D-012), no world model — dónde está algo
+                # no es qué pasa si lo consumís (D-020).
+                info["region"] = self.region(other.x, other.y)
                 if other.kind == "resource":
                     info["rkind"] = other.attrs.get("kind", "generic")
                 elif other.kind == "object":
@@ -756,9 +765,15 @@ class WorldState:
         ent = agent.entity
         actions: List[Dict[str, Any]] = []
 
-        # move: solo direcciones que el validador aceptaría (y alcanza la energía)
+        # move: solo direcciones que el validador aceptaría (y alcanza la energía).
+        # El orden de las direcciones se baraja con menu_rng (determinista por
+        # seed): un menú en orden fijo hace que el modelo copie el primer ítem y
+        # se confine a un solo eje (sesgo posicional detectado en el gate 0/5,
+        # 137/138 moves horizontales). Corrección de instrumento, no del mundo.
         if agent.energy >= self.config.move_energy:
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            self.menu_rng.shuffle(dirs)
+            for dx, dy in dirs:
                 ok, _ = self.can_move(eid, dx, dy)
                 if ok:
                     actions.append({"action": "move", "args": {"dx": dx, "dy": dy}})

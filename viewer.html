@@ -121,13 +121,19 @@ h2{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
   box-shadow:0 1px 0 rgba(255,255,255,.045) inset, 0 4px 14px rgba(0,0,0,.5);
   flex-wrap:wrap;
 }
+#auditSummary{display:flex;align-items:flex-start;gap:14px;padding:10px 18px;
+  border-bottom:1px solid #000;background:#0d1013}
+#auditStatus{flex:none;color:var(--lum);min-width:130px}
+#auditMessage{color:var(--lum-2);max-width:66ch}
+#auditReasons{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+#addEvidenceBtn{margin-left:auto}
 .badge-wl{display:flex;align-items:center;gap:11px;flex:none}
 .badge-wl .disc{
   width:42px;height:42px;border-radius:50%;flex:none;overflow:hidden;
   border:1px solid var(--bezel-hi);
   box-shadow:inset 0 0 0 2px #0c0f11, 0 2px 6px rgba(0,0,0,.6);
 }
-.badge-wl .disc img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.85) contrast(1.05)}
+.badge-wl .disc img{width:100%;height:100%;object-fit:contain;display:block;filter:saturate(.85) contrast(1.05)}
 .badge-wl .sub{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--lum-3);margin-top:3px}
 
 /* placa de identidad de la corrida */
@@ -180,7 +186,8 @@ button.lamp:hover{filter:brightness(1.35)}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px}
 
 /* ---------- cuerpo ---------- */
-#deck{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 372px;min-height:0}
+#workspace{flex:1;min-height:0;display:flex;overflow:hidden}
+#deck{width:100%;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 372px;min-height:0}
 #port{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid #000}
 
 /* instrumento principal: el mundo */
@@ -211,7 +218,7 @@ button.lamp:hover{filter:brightness(1.35)}
   display:flex;background:#07090b;position:relative}
 #phaseTape i{display:block;height:100%;position:relative}
 #phaseTape .cursor{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--green);
-  box-shadow:0 0 8px var(--green);pointer-events:none;transform:translateX(-1px)}
+  pointer-events:none;transform:translateX(-1px)}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:pointer}
 input[type=range]::-webkit-slider-runnable-track{height:4px;background:#1a1f24;border-radius:2px;
   box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
@@ -226,6 +233,11 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 /* ---------- columna de instrumentos (el six-pack) ---------- */
 #stack{display:flex;flex-direction:column;gap:var(--gap);padding:var(--gap);
   overflow-y:auto;min-height:0;background:linear-gradient(180deg,#0c0f12,#090b0d)}
+#evidenceStack,#detailStack{display:flex;flex-direction:column;gap:var(--gap)}
+.stackLabel{border-bottom:1px solid var(--bezel-hi);padding:3px 2px 8px}
+.stackLabel h2{color:var(--lum);margin-bottom:3px}
+.stackLabel p{font-size:11px;color:var(--lum-3);letter-spacing:.04em}
+#detailStack{border-top:1px solid #000;padding-top:var(--gap)}
 #stack .inst .face{padding:11px}
 .instHead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
 .instHead .sup{margin-left:auto;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
@@ -353,8 +365,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 #boot .inner{max-width:520px;text-align:center;display:grid;gap:18px;justify-items:center}
 #boot .disc{width:96px;height:96px;border-radius:50%;overflow:hidden;border:1px solid var(--bezel-hi);
   box-shadow:inset 0 0 0 3px #0c0f11, 0 0 30px rgba(57,255,154,.07)}
-#boot .disc img{width:100%;height:100%;object-fit:cover;filter:saturate(.8)}
-#boot h3{font-size:27px;font-weight:700;letter-spacing:-.01em;line-height:1.15;text-wrap:balance}
+#boot .disc img{width:100%;height:100%;object-fit:contain;filter:saturate(.8)}
+#boot h2{font-size:27px;font-weight:700;letter-spacing:-.01em;line-height:1.15;text-wrap:balance;
+  color:var(--lum);text-transform:none}
 #boot p{font-size:14px;color:var(--lum-2);line-height:1.65;text-wrap:pretty}
 #boot p b{color:var(--lum);font-weight:600}
 #boot .hint{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--lum-3)}
@@ -374,6 +387,96 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+/* ---------- resultado confirmatorio ---------- */
+#confirmDeck[hidden]{display:none}
+#confirmDeck{width:100%;min-height:0;overflow-y:auto;padding:var(--gap);display:grid;gap:var(--gap);
+  align-content:start;background:linear-gradient(180deg,#0b0e10,#080a0c)}
+.confirmLead{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:var(--gap)}
+.confirmFinding{padding:22px 24px;display:grid;gap:12px;align-content:center;min-height:178px}
+.confirmEyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber)}
+.confirmFinding h2{font-size:clamp(24px,3vw,42px);line-height:1.04;letter-spacing:-.025em;
+  text-transform:none;text-wrap:balance;max-width:880px}
+.confirmFinding p{font-size:14px;line-height:1.6;color:var(--lum-2);max-width:820px;text-wrap:pretty}
+.confirmFinding strong{color:var(--lum)}
+.confirmStatus{padding:18px;display:grid;gap:12px;align-content:center}
+.confirmStatus .verdict{font-size:17px;font-weight:700;line-height:1.2;color:var(--lum)}
+.confirmStatus .scope{font-size:11.5px;line-height:1.55;color:var(--lum-2)}
+.confirmGrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:var(--gap)}
+.confirmColumn{display:grid;gap:var(--gap);align-content:start}
+.confirmPanel .face{padding:16px}
+.confirmPanel .instHead{margin-bottom:13px}
+.confirmPanel .note{font-size:11px;line-height:1.5;color:var(--lum-3);margin-top:10px}
+.modelRows{display:grid;gap:9px}
+.modelResult{border:1px solid #22292e;background:#0a0d0f;padding:12px;display:grid;gap:10px}
+.modelHead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.modelHead h3{font-size:14px;letter-spacing:.035em;color:var(--lum);text-transform:none}
+.modelHead .n{margin-left:auto;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--lum-3)}
+.effectRead{display:grid;grid-template-columns:80px minmax(120px,1fr) 52px;gap:8px;align-items:center}
+.effectRead .label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--lum-3)}
+.effectRead .value{text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.effectTrack{height:10px;background:#060708;border:1px solid #20262a;position:relative;overflow:hidden}
+.effectTrack::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 1px),#1b2024 calc(20% - 1px) 20%)}
+.effectTrack .fill{display:block;height:100%;position:relative;z-index:1}
+.effectTrack .control{background:var(--reg-a)}
+.effectTrack .memory{background:var(--amber)}
+.deltaPlate{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  border-top:1px solid #1a2024;padding-top:9px}
+.deltaPlate .delta{font-size:22px;font-weight:700;color:var(--red-txt);font-variant-numeric:tabular-nums}
+.deltaPlate .interval{font-size:10.5px;line-height:1.45;color:var(--lum-2)}
+.deltaPlate .p{font-size:10px;color:var(--lum-3);letter-spacing:.06em;text-align:right}
+.recoveryRows{display:grid;gap:11px}
+.recoveryRow{display:grid;gap:7px;border-bottom:1px solid #171c20;padding-bottom:10px}
+.recoveryRow:last-child{border-bottom:0;padding-bottom:0}
+.recoveryRow .title{display:flex;gap:8px;align-items:baseline;font-size:12px;font-weight:700}
+.recoveryRow .gain{margin-left:auto;color:var(--green);font-variant-numeric:tabular-nums}
+.recoveryPair{display:grid;grid-template-columns:78px 1fr 46px;gap:7px;align-items:center;font-size:10px;color:var(--lum-3)}
+.recoveryPair .bar{height:7px;background:#060708;border:1px solid #20262a;overflow:hidden}
+.recoveryPair .bar i{display:block;height:100%}
+.recoveryPair .bar .memory{background:var(--green)}
+.recoveryPair .bar .control{background:var(--reg-a)}
+.recoveryPair .num{text-align:right;color:var(--lum-2);font-variant-numeric:tabular-nums}
+.evidenceChain{display:flex;align-items:stretch;gap:4px;overflow-x:auto;padding-bottom:3px}
+.evidenceNode{min-width:128px;flex:1;border:1px solid #263029;background:#09100c;padding:10px;display:grid;gap:4px}
+.evidenceNode[data-ok="0"]{border-color:#642018;background:#130a09}
+.evidenceNode .k{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--lum-3)}
+.evidenceNode .v{font-size:13px;font-weight:700;color:var(--green)}
+.evidenceNode[data-ok="0"] .v{color:var(--red-txt)}
+.evidenceArrow{display:grid;place-items:center;color:var(--lum-3);font-size:16px}
+.confirmGrid>.confirmColumn:last-child .evidenceChain{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.confirmGrid>.confirmColumn:last-child .evidenceNode{min-width:0}
+.confirmGrid>.confirmColumn:last-child .evidenceArrow{display:none}
+.hashList{display:grid;gap:6px;margin-top:12px}
+.hashRow{display:grid;grid-template-columns:132px 1fr auto;gap:8px;align-items:center;font-size:10.5px}
+.hashRow .file{color:var(--lum-2)}
+.hashRow code{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--lum-3);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.hashRow .match{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--green)}
+.hashRow .match.bad{color:var(--red-txt)}
+.probeTools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.probeTools label{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--lum-3)}
+#confirmProbeSelect{flex:1;min-width:240px;max-width:100%;background:#090c0e;color:var(--lum);
+  border:1px solid #30383e;border-radius:2px;padding:8px 10px;font:inherit;font-size:12px}
+.probeDetail{display:grid;gap:12px}
+.probeMeta{display:flex;gap:6px;flex-wrap:wrap}
+.probeChip{border:1px solid #293137;background:#0b0e10;padding:4px 7px;font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--lum-2)}
+.probeChip.ok{color:var(--green);border-color:var(--green-dim)}
+.probeChip.bad{color:var(--red-txt);border-color:#642018}
+.livedGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.livedCell{border:1px solid #232a30;background:#0a0d0f;padding:9px;display:grid;gap:5px;text-align:center}
+.livedCell.held{border-color:#642018;background:repeating-linear-gradient(45deg,rgba(255,59,48,.09) 0 5px,transparent 5px 10px),#120908}
+.livedCell .where{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--lum-3)}
+.livedCell .amount{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.livedCell.held .amount{color:var(--red-txt)}
+.prediction{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;text-align:center}
+.prediction .reading{border:1px solid #252d32;background:#090c0e;padding:12px;display:grid;gap:4px}
+.prediction .reading span{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--lum-3)}
+.prediction .reading strong{font-size:24px;font-variant-numeric:tabular-nums}
+.prediction .arrow{color:var(--lum-3)}
+.rawAnswer{white-space:pre-wrap;word-break:break-word;max-height:190px;overflow:auto;background:#07090b;
+  border:1px solid #20272c;padding:10px;color:var(--lum-2);font:11px/1.55 ui-monospace,"SF Mono",Menlo,monospace}
+
 /* ---------- adaptación ---------- */
 @media (max-width:1180px){
   #deck{grid-template-columns:minmax(0,1fr) 320px}
@@ -383,7 +486,10 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
      viewport, la cara del instrumento desborda y el transporte se le encima. */
   html,body{height:auto}
   body{overflow:auto}
+  #workspace{display:block;overflow:visible}
   #deck{grid-template-columns:1fr;min-height:0;flex:none}
+  #confirmDeck{overflow:visible}
+  .confirmLead,.confirmGrid{grid-template-columns:1fr}
   #port{border-right:0;border-bottom:1px solid #000;flex:none}
   #worldInst{flex:none}
   #stack{overflow:visible}
@@ -398,6 +504,15 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
   #speedWrap{order:3;width:100%}
   #speed{width:100%;flex:1}
   .quad{grid-template-columns:22px 1fr 1fr}
+  .confirmFinding{padding:18px}
+  .effectRead{grid-template-columns:70px 1fr 44px}
+  .deltaPlate{grid-template-columns:1fr auto}
+  .deltaPlate .interval{grid-column:1/-1}
+  .livedGrid{grid-template-columns:1fr 1fr}
+  .prediction{grid-template-columns:1fr}
+  .prediction .arrow{transform:rotate(90deg)}
+  .hashRow{grid-template-columns:1fr auto}
+  .hashRow code{grid-column:1/-1;grid-row:2}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms !important;animation-duration:.01ms !important}
@@ -432,7 +547,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 
 <div id="drop" aria-hidden="true"><div class="box">
   <div class="t">Suelte los archivos</div>
-  <div class="s">Corrida <code>.jsonl</code> — puede soltar también <code>_traces</code> y <code>_probes</code> a la vez</div>
+  <div class="s">Corrida <code>.jsonl</code> o resultado <code>agregado.json</code> + <code>probes_crudos.jsonl</code></div>
 </div></div>
 
 <!-- símbolos de recurso: forma antes que color -->
@@ -445,9 +560,9 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
   <symbol id="sym-5" viewBox="0 0 24 24"><path d="M12 2.5 22 21.5 2 21.5 Z" transform="rotate(180 12 12)"/></symbol>
 </defs></svg>
 
-<div id="rail">
+<header><div id="rail">
   <div class="badge-wl">
-    <div class="disc"><img src="assets/logo.jpg" alt=""></div>
+    <div class="disc"><img src="assets/logo.png" alt=""></div>
     <div>
       <h1>WorldLab</h1>
       <div class="sub">Panel de corrida</div>
@@ -455,31 +570,39 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
   </div>
 
   <div id="runPlate" role="group" aria-label="Identidad de la corrida">
-    <div class="f"><div class="k">Corrida</div><div class="v" id="pRun">—</div></div>
-    <div class="f"><div class="k">Condición</div><div class="v" id="pCond">—</div></div>
-    <div class="f"><div class="k">Mundo</div><div class="v" id="pWorld">—</div></div>
-    <div class="f"><div class="k">Semilla</div><div class="v" id="pSeed">—</div></div>
+    <div class="f"><div class="k" id="pRunK">Corrida</div><div class="v" id="pRun">—</div></div>
+    <div class="f"><div class="k" id="pCondK">Condición</div><div class="v" id="pCond">—</div></div>
+    <div class="f"><div class="k" id="pWorldK">Mundo</div><div class="v" id="pWorld">—</div></div>
+    <div class="f"><div class="k" id="pSeedK">Semilla</div><div class="v" id="pSeed">—</div></div>
   </div>
 
   <div id="annun" role="status" aria-live="polite" aria-label="Anunciadores de integridad"></div>
 
   <button class="sw primary" id="loadBtn" type="button">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M12 16l-4-4M12 16l4-4M4 20h16"/></svg>
-    Cargar corrida
+    Cargar datos
   </button>
-  <input type="file" id="fileInput" accept=".jsonl" multiple>
-</div>
+  <input type="file" id="fileInput" accept=".json,.jsonl" multiple>
+</div></header>
 
-<div id="deck">
+<section id="auditSummary" aria-labelledby="auditStatus">
+  <h2 id="auditStatus">Sin corrida</h2>
+  <p id="auditMessage">Cargue una corrida para revisar la evidencia disponible.</p>
+  <div id="auditReasons"></div>
+  <button class="sw" id="addEvidenceBtn" type="button" hidden>Agregar archivos</button>
+</section>
+
+<main id="workspace"><div id="deck">
   <div id="port">
     <div class="inst" id="worldInst">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
-        <canvas id="cv" hidden aria-label="Mapa del mundo en el instante seleccionado"></canvas>
+        <canvas id="cv" hidden aria-label="Mapa del mundo en el instante seleccionado" aria-describedby="canvasSummary"></canvas>
+        <p class="sr" id="canvasSummary" aria-live="polite"></p>
         <div id="boot">
           <div class="inner">
-            <div class="disc"><img src="assets/logo.jpg" alt=""></div>
-            <h3>Un mundo donde nadie explicó las reglas</h3>
+            <div class="disc"><img src="assets/logo.png" alt=""></div>
+            <h2>Un mundo donde nadie explicó las reglas</h2>
             <p>Cinco agentes viven en una cuadrícula. Lo que un recurso les hace depende de
               <b>dónde</b> están y <b>en qué momento del ciclo</b>. Nadie se los dijo: tienen que
               descubrirlo comiendo. Y hay una situación que el mundo <b>no les deja vivir nunca</b>;
@@ -488,7 +611,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M12 16l-4-4M12 16l4-4M4 20h16"/></svg>
               Cargar una corrida
             </button>
-            <div class="hint">o arrastre el .jsonl a esta ventana</div>
+            <div class="hint">o arrastre la corrida o los dos artefactos confirmatorios</div>
             <div class="err" id="bootErr" hidden></div>
           </div>
         </div>
@@ -522,14 +645,43 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
         <span class="placard readout" id="speedRead" style="width:34px">1×</span>
       </div>
 
-      <button class="sw" id="filterBtn" type="button" aria-pressed="false">Solo logradas</button>
+      <span class="placard">Espacio reproduce o pausa · ←/→ un momento · Mayús+←/→ diez · Inicio/Fin extremos.</span>
+      <button class="sw" id="filterBtn" type="button" aria-pressed="false">Mostrar solo acciones logradas</button>
       <button class="sw" id="amountBtn" type="button" aria-pressed="false">Cantidades</button>
     </div>
   </div>
 
-  <div id="stack">
+  <aside id="stack" aria-label="Instrumentos de auditoría">
 
-    <div class="inst" id="clockInst">
+    <section id="evidenceStack" aria-labelledby="evidenceTitle">
+      <div class="stackLabel"><h2 id="evidenceTitle">Validez de la evidencia</h2>
+        <p>Lo necesario para saber si el resultado final se puede interpretar.</p></div>
+
+      <div class="inst" id="expoInst" tabindex="-1">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2>Experiencias necesarias</h2><span class="sup">Exposición · <span id="expoSup">todos</span></span></div>
+          <div class="quad" id="quad"></div>
+          <p class="placard" style="margin-top:9px;white-space:normal;line-height:1.5;letter-spacing:.06em">
+            La celda rayada nunca se puede vivir. Para interpretar el probe, cada agente necesita al menos 3 consumos en las otras tres celdas. (D-025)
+          </p>
+        </div>
+      </div>
+
+      <div class="inst" id="calInst" tabindex="-1">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2>Predicción sobre la celda nunca vivida</h2><span class="sup">Probe de composición · <span id="calSup">sin probe</span></span></div>
+          <div class="cal" id="calBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="detailStack" aria-labelledby="detailTitle">
+      <div class="stackLabel"><h2 id="detailTitle">Detalle de la corrida</h2>
+        <p>Así transcurrió el mundo y qué hicieron los agentes.</p></div>
+
+    <div class="inst" id="clockInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Reloj de corrida</h2><span class="sup" id="clockSup">—</span></div>
@@ -544,7 +696,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="energyInst">
+    <div class="inst" id="energyInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Energía</h2><span class="sup" id="aliveSup">—</span></div>
@@ -552,7 +704,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="borderInst">
+    <div class="inst" id="borderInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Frontera</h2><span class="sup" id="borderSup">—</span></div>
@@ -564,26 +716,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="expoInst">
-      <span class="scr bl"></span><span class="scr br"></span>
-      <div class="face">
-        <div class="instHead"><h2>Exposición</h2><span class="sup" id="expoSup">todos</span></div>
-        <div class="quad" id="quad"></div>
-        <p class="placard" style="margin-top:9px;white-space:normal;line-height:1.5;letter-spacing:.06em">
-          Ticks vividos en cada cruce. La celda rayada es la que el mundo no deja vivir.
-        </p>
-      </div>
-    </div>
-
-    <div class="inst" id="calInst">
-      <span class="scr bl"></span><span class="scr br"></span>
-      <div class="face">
-        <div class="instHead"><h2>Calibración</h2><span class="sup" id="calSup">sin probe</span></div>
-        <div class="cal" id="calBody"></div>
-      </div>
-    </div>
-
-    <div class="inst" id="crewInst">
+    <div class="inst" id="crewInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Tripulación</h2><span class="sup" id="crewSup">—</span></div>
@@ -591,7 +724,7 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-    <div class="inst" id="tapeInst">
+    <div class="inst" id="tapeInst" tabindex="-1">
       <span class="scr bl"></span><span class="scr br"></span>
       <div class="face">
         <div class="instHead"><h2>Registro</h2><span class="sup" id="tapeSup">—</span></div>
@@ -599,8 +732,76 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
       </div>
     </div>
 
-  </div>
+    </section>
+
+  </aside>
 </div>
+
+<div id="confirmDeck" hidden>
+  <div class="confirmLead">
+    <section class="inst" aria-labelledby="confirmTitle">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face confirmFinding">
+        <div class="confirmEyebrow">Resultado principal · composición retenida</div>
+        <h2 id="confirmTitle">La memoria recuperó lo vivido, pero no compuso la situación nueva.</h2>
+        <p id="confirmFindingText">Cargue los dos artefactos confirmatorios para reconstruir el resultado desde las filas crudas.</p>
+      </div>
+    </section>
+    <section class="inst" aria-labelledby="confirmVerdictTitle">
+      <span class="scr bl"></span><span class="scr br"></span>
+      <div class="face confirmStatus">
+        <div class="confirmEyebrow" id="confirmVerdictTitle">Lectura del estudio</div>
+        <div class="verdict" id="confirmVerdict">Esperando evidencia</div>
+        <p class="scope" id="confirmScope">El visor separa integridad de resultado: una corrida auditable puede confirmar un efecto negativo.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="confirmGrid">
+    <div class="confirmColumn">
+      <section class="inst confirmPanel" aria-labelledby="confirmModelsTitle">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2 id="confirmModelsTitle">Efecto principal por modelo</h2><span class="sup">Exactitud · escala 0–25%</span></div>
+          <div class="modelRows" id="confirmModels"></div>
+          <p class="note">Δ = memoria indexada − sin memoria. Un valor negativo indica menor exactitud con memoria. Los intervalos y p vienen del agregado congelado; las tasas se contrastan contra el crudo.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="confirmColumn">
+      <section class="inst confirmPanel" aria-labelledby="confirmRecoveryTitle">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2 id="confirmRecoveryTitle">Recuperación de valores vividos</h2><span class="sup">Secundario descriptivo</span></div>
+          <div class="recoveryRows" id="confirmRecovery"></div>
+          <p class="note">La comparación es descriptiva: “fue superior”, no “la memoria causó”. Cada modelo se compara contra su propio control.</p>
+        </div>
+      </section>
+      <section class="inst confirmPanel" aria-labelledby="confirmAuditTitle">
+        <span class="scr bl"></span><span class="scr br"></span>
+        <div class="face">
+          <div class="instHead"><h2 id="confirmAuditTitle">Cadena de evidencia</h2><span class="sup">Crudo → conclusión</span></div>
+          <div id="confirmAudit"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="inst confirmPanel" aria-labelledby="confirmProbeTitle">
+    <span class="scr bl"></span><span class="scr br"></span>
+    <div class="face">
+      <div class="instHead"><h2 id="confirmProbeTitle">Abrir un probe</h2><span class="sup">Respuesta individual</span></div>
+      <div class="probeTools">
+        <label for="confirmProbeSelect">Probe</label>
+        <select id="confirmProbeSelect"></select>
+      </div>
+      <div class="probeDetail" id="confirmProbeDetail"></div>
+    </div>
+  </section>
+</div>
+</main>
 
 <script>
 "use strict";
@@ -614,14 +815,163 @@ input[type=range]::-moz-range-thumb{width:14px;height:22px;background:#414a51;bo
 
 const $ = id => document.getElementById(id);
 
+// CONFIRMATORIO_CORE_START
+const CONFIRM_RAW_FIELDS = [
+  'ts','modelo','ontologia','condicion','agente','rkind','region','phase','viv',
+  'predicho','real','nivel_predicho','nivel_real','correcto','raw_content',
+  'parse_ok','error','intentos'
+];
+
+function confirmArtifactKind(name){
+  const base = String(name).split('/').pop();
+  if (/^agregado\.json$/i.test(base)) return 'confirmAggregate';
+  if (/^probes_crudos\.jsonl$/i.test(base)) return 'confirmRaw';
+  if (/_traces\.jsonl$/i.test(base)) return 'traces';
+  if (/_probes\.jsonl$/i.test(base)) return 'probes';
+  return 'run';
+}
+
+function confirmClose(a, b){
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < 1e-12;
+}
+
+function buildConfirmSummary(aggregate, raw){
+  const modelNames = Object.keys(aggregate || {});
+  const rows = Array.isArray(raw) ? raw : [];
+  const conditions = new Set(rows.map(r => r.condicion));
+  const schemaComplete = rows.length > 0 && rows.every(row =>
+    CONFIRM_RAW_FIELDS.every(field => Object.prototype.hasOwnProperty.call(row, field)));
+
+  const grouped = new Map();
+  for (const row of rows){
+    const key = `${row.modelo}\u0000${row.condicion}\u0000${row.ontologia}`;
+    if (!grouped.has(key)) grouped.set(key, { correct:0, total:0 });
+    const cell = grouped.get(key);
+    cell.total += 1;
+    if (row.correcto === true) cell.correct += 1;
+  }
+
+  let reconciles = modelNames.length > 0;
+  let expectedRows = 0;
+  const models = modelNames.map(model => {
+    const saved = aggregate[model] || {};
+    const rates = saved.tasas || {};
+    for (const condition of ['memoria_indexada','sin_memoria']){
+      const expected = rates[condition];
+      if (!Array.isArray(expected)) { reconciles = false; continue; }
+      expected.forEach((value, ontology) => {
+        const cell = grouped.get(`${model}\u0000${condition}\u0000${ontology}`);
+        const actual = cell && cell.total ? cell.correct / cell.total : NaN;
+        if (!confirmClose(actual, value)) reconciles = false;
+      });
+    }
+    const comp = saved.componentes_por_condicion || {};
+    const memory = comp.memoria_indexada || {};
+    const control = comp.sin_memoria || {};
+    expectedRows += Number(memory.n || 0) + Number(control.n || 0);
+    const permutation = saved.permutacion || {};
+    const interval = saved.ic || {};
+    const modelRows = rows.filter(row => row.modelo === model).length;
+    return {
+      model,
+      nOntologies:saved.n_ontologias,
+      memoryAccuracy:memory.exactitud_cruda,
+      controlAccuracy:control.exactitud_cruda,
+      delta:permutation.diferencia_media,
+      pValue:permutation.p_valor,
+      ciLow:interval.ic_bajo,
+      ciHigh:interval.ic_alto,
+      memoryRecovery:memory.recuperacion_valor_vivido,
+      controlRecovery:control.recuperacion_valor_vivido,
+      recoveryDelta:memory.recuperacion_valor_vivido - control.recuperacion_valor_vivido,
+      nRows:modelRows
+    };
+  });
+  const bothArms = conditions.has('memoria_indexada') && conditions.has('sin_memoria') &&
+    modelNames.every(model => ['memoria_indexada','sin_memoria'].every(condition =>
+      rows.some(row => row.modelo === model && row.condicion === condition)));
+  if (rows.length !== expectedRows || rows.some(row => !modelNames.includes(row.modelo))) reconciles = false;
+  const audit = {
+    nRows:rows.length,
+    models:modelNames.length,
+    bothArms,
+    schemaComplete,
+    reconciles,
+    ready:bothArms && schemaComplete && reconciles
+  };
+  return { models, audit };
+}
+// CONFIRMATORIO_CORE_END
+
 // --- estado ---------------------------------------------------------------
 let meta = null, snaps = [], events = [], traces = [], probes = [];
+let evidenceLoaded = { traces:false, probes:false };
 let frame = 0, playing = false, rafId = null, lastT = 0, acc = 0;
 let okOnly = false;          // los fallos son datos: por defecto se ven TODOS
 let showAmounts = false;
 let openAgent = null;
 let runName = '—';
 let derived = { phase:false, region:false, barrier:false, names:false };
+let appMode = 'empty';
+let confirmAggregate = null, confirmRaw = [], confirmSummary = null;
+let confirmLoaded = { aggregate:false, raw:false };
+let confirmNames = { aggregate:'agregado.json', raw:'probes_crudos.jsonl' };
+let confirmHashes = { aggregate:null, raw:null };
+
+const CONFIRM_EXPECTED_HASHES = {
+  aggregate:'8276564976eb4fda4fc406a71db6b7c21b7dcaf56c9ca6cddcb51de7a00d187d',
+  raw:'b322ea053dfed6c6a15ecfb4a83a8392fdd4be31b1d45effe804452624e26df3'
+};
+
+function auditState(){
+  if (appMode === 'confirm') return confirmAuditState();
+  if (!snaps.length) return {
+    kind:'empty', label:'Sin corrida', message:'Cargue una corrida y sus archivos de evidencia.',
+    reasons:[], needsFiles:false
+  };
+  const missing = [];
+  if (!evidenceLoaded.traces) missing.push({label:'Faltan trazas', detail:'Faltan trazas: no se puede revisar qué respondió el modelo.', target:'crewInst'});
+  if (!evidenceLoaded.probes) missing.push({label:'Falta el probe', detail:'Falta el probe: no se puede revisar la predicción sobre la celda nunca vivida.', target:'calInst'});
+  if (missing.length) return {
+    kind:'incomplete', label:'Incompleta', message:'Faltan archivos para auditar la corrida: <exp>_seed<N>_traces.jsonl y <exp>_probes.jsonl.',
+    reasons:missing, needsFiles:true
+  };
+  const invalid = [];
+  if (!probes.some(p => p.never_lived)) invalid.push({label:'Probe inválido', detail:'El probe no marca una celda nunca vivida.', target:'calInst'});
+  if (underexposed().length) invalid.push({label:'Exposición insuficiente', detail:'Hay agentes sin las experiencias mínimas para interpretar su probe.', target:'expoInst'});
+  if (invalid.length) return {
+    kind:'invalid', label:'No interpretable', message:'La evidencia cargada tiene advertencias de integridad.',
+    reasons:invalid, needsFiles:false
+  };
+  return {
+    kind:'ready', label:'Lista para revisar', message:'La corrida tiene evidencia completa para revisión; no afirma que el resultado sea positivo.',
+    reasons:[], needsFiles:false
+  };
+}
+
+function confirmAuditState(){
+  const missing = [];
+  if (!confirmLoaded.aggregate) missing.push({label:'Falta agregado', detail:'Cargue agregado.json para obtener intervalos y contraste.', target:'confirmAudit'});
+  if (!confirmLoaded.raw) missing.push({label:'Falta crudo', detail:'Cargue probes_crudos.jsonl para reconstruir las tasas.', target:'confirmAudit'});
+  if (missing.length) return {
+    kind:'incomplete', label:'Incompleta',
+    message:'El resultado confirmatorio necesita agregado.json y probes_crudos.jsonl.',
+    reasons:missing, needsFiles:true
+  };
+  const invalid = [];
+  if (!confirmSummary.audit.schemaComplete) invalid.push({label:'Esquema incompleto', detail:'Alguna fila cruda no contiene todos los campos de auditoría.', target:'confirmAudit'});
+  if (!confirmSummary.audit.bothArms) invalid.push({label:'Falta un brazo', detail:'Deben existir memoria_indexada y sin_memoria para cada modelo.', target:'confirmAudit'});
+  if (!confirmSummary.audit.reconciles) invalid.push({label:'No reconcilia', detail:'Las tasas reconstruidas desde el crudo difieren del agregado.', target:'confirmAudit'});
+  if (invalid.length) return {
+    kind:'invalid', label:'No auditable', message:'Los artefactos están cargados, pero no sostienen el agregado publicado.',
+    reasons:invalid, needsFiles:false
+  };
+  return {
+    kind:'ready', label:'Resultado auditable',
+    message:'El agregado se reconstruye desde el crudo; esto valida la cadena de datos, no convierte el efecto en universal.',
+    reasons:[], needsFiles:false
+  };
+}
 
 const CH = ['#39ff9a','#ffb000','#5ac8fa','#ff6fd8','#c4f24a'];
 const chOf = i => CH[i % CH.length];
@@ -673,9 +1023,7 @@ const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 // CARGA
 // =============================================================================
 function classify(name){
-  if (/_traces\.jsonl$/i.test(name)) return 'traces';
-  if (/_probes\.jsonl$/i.test(name)) return 'probes';
-  return 'run';
+  return confirmArtifactKind(name);
 }
 
 function parseLines(text, name){
@@ -696,12 +1044,79 @@ function parseLines(text, name){
 }
 
 async function ingest(files){
-  const byKind = { run:null, traces:null, probes:null };
+  const byKind = { run:null, traces:null, probes:null, confirmAggregate:null, confirmRaw:null };
   for (const f of files){
     const k = classify(f.name);
-    if (!byKind[k]) byKind[k] = { name:f.name, text: await f.text() };
+    if (!byKind[k]){
+      const bytes = await f.arrayBuffer();
+      byKind[k] = {
+        name:f.name,
+        text:new TextDecoder().decode(bytes),
+        hash:await sha256Bytes(bytes)
+      };
+    }
   }
-  applyBundle(byKind);
+  const hasConfirm = byKind.confirmAggregate || byKind.confirmRaw;
+  const hasSimulation = byKind.run || byKind.traces || byKind.probes;
+  if (hasConfirm && hasSimulation){
+    return bootError('Archivos de modos distintos', 'Cargue los artefactos confirmatorios separados de una corrida de simulación.');
+  }
+  if (hasConfirm) applyConfirmBundle(byKind);
+  else applyBundle(byKind);
+}
+
+async function sha256Bytes(bytes){
+  if (!(globalThis.crypto && crypto.subtle)) return null;
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function setMode(mode){
+  appMode = mode;
+  $('deck').hidden = mode === 'confirm';
+  $('confirmDeck').hidden = mode !== 'confirm';
+  if (mode === 'simulation'){
+    $('pRunK').textContent = 'Corrida'; $('pCondK').textContent = 'Condición';
+    $('pWorldK').textContent = 'Mundo'; $('pSeedK').textContent = 'Semilla';
+  } else if (mode === 'confirm'){
+    stop();
+    $('pRunK').textContent = 'Estudio'; $('pCondK').textContent = 'Diseño';
+    $('pWorldK').textContent = 'Banco'; $('pSeedK').textContent = 'Probes';
+  }
+}
+
+function applyConfirmBundle(bundle){
+  if (appMode !== 'confirm'){
+    confirmAggregate = null; confirmRaw = []; confirmSummary = null;
+    confirmLoaded = { aggregate:false, raw:false };
+    confirmHashes = { aggregate:null, raw:null };
+  }
+  setMode('confirm');
+  try {
+    if (bundle.confirmAggregate){
+      const parsed = JSON.parse(bundle.confirmAggregate.text);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('agregado.json no contiene un objeto por modelo');
+      confirmAggregate = parsed;
+      confirmLoaded.aggregate = true;
+      confirmNames.aggregate = bundle.confirmAggregate.name;
+      confirmHashes.aggregate = bundle.confirmAggregate.hash;
+    }
+    if (bundle.confirmRaw){
+      confirmRaw = parseLines(bundle.confirmRaw.text, bundle.confirmRaw.name);
+      confirmLoaded.raw = true;
+      confirmNames.raw = bundle.confirmRaw.name;
+      confirmHashes.raw = bundle.confirmRaw.hash;
+    }
+  } catch (err){
+    confirmSummary = null;
+    $('auditStatus').textContent = 'No se pudieron leer los datos';
+    $('auditMessage').textContent = err.message;
+    $('auditSummary').dataset.state = 'invalid';
+    return;
+  }
+  confirmSummary = confirmLoaded.aggregate && confirmLoaded.raw
+    ? buildConfirmSummary(confirmAggregate, confirmRaw) : null;
+  renderConfirmatory();
 }
 
 function applyBundle(b){
@@ -717,7 +1132,9 @@ function applyBundle(b){
       'El archivo se leyó bien pero no contiene registros type="snapshot", así que no hay nada que reproducir. ¿Es un archivo _traces o _probes?');
 
     // Estado nuevo: nada del archivo anterior sobrevive.
+    setMode('simulation');
     meta = m; snaps = sn; events = ev; traces = []; probes = [];
+    evidenceLoaded = { traces:false, probes:false };
     symIndex = new Map(); openAgent = null; frame = 0;
     snaps.sort((a,b2) => keyOf(a) - keyOf(b2));
     runName = b.run.name;
@@ -733,24 +1150,33 @@ function applyBundle(b){
   if (!snaps.length) return;
 
   if (b.traces){
-    try { traces = parseLines(b.traces.text, b.traces.name).filter(r => r.type === 'trace'); }
-    catch (err){ traces = []; }
+    try {
+      traces = parseLines(b.traces.text, b.traces.name).filter(r => r.type === 'trace');
+      evidenceLoaded.traces = true;
+    }
+    catch (err){ traces = []; evidenceLoaded.traces = false; }
     traces.sort((a,b2) => keyOf(a) - keyOf(b2));
   }
   if (b.probes){
-    try { probes = parseLines(b.probes.text, b.probes.name); }
-    catch (err){ probes = []; }
+    try {
+      probes = parseLines(b.probes.text, b.probes.name);
+      evidenceLoaded.probes = true;
+    }
+    catch (err){ probes = []; evidenceLoaded.probes = false; }
   }
 
   $('boot').hidden = true;
   $('bootErr').hidden = true;
   $('cv').hidden = false;
   $('transport').hidden = false;
-  const sc = $('scrub'); sc.max = snaps.length - 1; sc.value = 0;
-  expoCache = null;
-  fillRunPlate(); buildPhaseTape(); layout(); fillLegend(); goTo(0);
+  const sc = $('scrub');
+  if (b.run){
+    sc.max = snaps.length - 1; sc.value = 0;
+    expoCache = null;
+    fillRunPlate(); buildPhaseTape(); layout(); fillLegend(); goTo(0);
+  }
   // La calibración es una propiedad de la corrida completa, no del fotograma.
-  fillCal();
+  fillCal(); fillAuditSummary(); fillAnnun(); updateFrame();
 }
 
 function bootError(head, detail){
@@ -795,6 +1221,19 @@ function lamp(label, state, title, target){
 }
 function fillAnnun(){
   const out = [];
+  if (appMode === 'confirm'){
+    out.push(lamp(confirmLoaded.aggregate ? 'Agregado' : 'Sin agregado', confirmLoaded.aggregate ? 'green' : null,
+      confirmLoaded.aggregate ? 'Se cargó el agregado estadístico congelado.' : 'Falta agregado.json.', 'confirmAudit'));
+    out.push(lamp(confirmLoaded.raw ? `Crudo ${confirmRaw.length}` : 'Sin crudo', confirmLoaded.raw ? 'green' : null,
+      confirmLoaded.raw ? `Se cargaron ${confirmRaw.length} filas crudas.` : 'Falta probes_crudos.jsonl.', 'confirmAudit'));
+    if (confirmSummary){
+      out.push(lamp(confirmSummary.audit.reconciles ? 'Reconcilia' : 'Discrepa', confirmSummary.audit.reconciles ? 'green' : 'amber',
+        confirmSummary.audit.reconciles ? 'Las tasas por ontología se reconstruyen exactamente desde el crudo.' : 'El crudo no reproduce el agregado.', 'confirmAudit'));
+      out.push(lamp(`Modelos ${confirmSummary.audit.models}`, 'green', 'Panel preespecificado cargado.', 'confirmModels'));
+    }
+    $('annun').innerHTML = out.join('');
+    return;
+  }
   if (!snaps.length){
     $('annun').innerHTML = lamp('Sin corrida', null, 'Cargue un archivo .jsonl de una corrida.');
     return;
@@ -809,20 +1248,21 @@ function fillAnnun(){
   out.push(lamp(derived.barrier ? 'Barrera supuesta' : 'Barrera medida', 'amber',
     'meta no declara phase_barriers. El visor asume que la fase oscura cierra la región B. Verifíquelo contra la config de la corrida.', 'borderInst'));
 
-  out.push(lamp(traces.length ? `Trazas ${traces.length}` : 'Sin trazas',
-    traces.length ? 'green' : null,
-    traces.length ? 'Se cargó el archivo _traces: puede abrir la decisión del modelo por agente.'
-                  : 'No se cargó <corrida>_traces.jsonl. Sin él no se ve qué respondió el modelo.', 'crewInst'));
+  out.push(lamp(evidenceLoaded.traces ? `Trazas ${traces.length}` : 'Sin trazas',
+    evidenceLoaded.traces ? 'green' : null,
+    evidenceLoaded.traces ? `Se cargó el archivo _traces con ${traces.length} decisiones del modelo.`
+                          : 'No se cargó <corrida>_traces.jsonl. Sin él no se ve qué respondió el modelo.', 'crewInst'));
 
   const held = probes.filter(p => p.never_lived);
-  out.push(lamp(probes.length ? (held.length ? `Probe ${held.length}` : 'Probe sin retenida') : 'Sin probe',
-    probes.length ? (held.length ? 'green' : 'amber') : null,
-    probes.length ? 'Se cargó <experimento>_probes.jsonl: la calibración muestra predicho contra verdad.'
-                  : 'No se cargó <experimento>_probes.jsonl (ojo: ese archivo NO lleva el sufijo _seed<N>). Sin él no hay resultado del experimento.', 'calInst'));
+  out.push(lamp(evidenceLoaded.probes ? (held.length ? `Probe ${held.length}` : 'Probe sin retenida') : 'Sin probe',
+    evidenceLoaded.probes ? (held.length ? 'green' : 'amber') : null,
+    evidenceLoaded.probes ? 'Se cargó <experimento>_probes.jsonl: la calibración muestra predicho contra verdad.'
+                          : 'No se cargó <experimento>_probes.jsonl (ojo: ese archivo NO lleva el sufijo _seed<N>). Sin él no hay resultado del experimento.', 'calInst'));
 
   const under = underexposed();
   if (under.length) out.push(lamp(`Subexpuesto ×${under.length}`, 'amber',
-    `Agentes con 0 ticks en alguna celda vivible: ${under.join(', ')}. Su probe de esa celda no es interpretable.`, 'expoInst'));
+    `Agentes con menos de ${MIN_EXPOSURE} consumos exitosos en alguna celda vivible: ${under.join(', ')}. `
+    + `Su probe retenido queda FUERA del score (D-025): no dice que no compusieron, dice que no tenían qué componer.`, 'expoInst'));
 
   if (okOnly) out.push(lamp('Filtro activo', 'amber',
     'El registro está ocultando los intentos rechazados. Un intento rechazado dice tanto del agente como uno logrado.', 'tapeInst'));
@@ -831,25 +1271,192 @@ function fillAnnun(){
   $('annun').innerHTML = out.join('');
 }
 
+function fillAuditSummary(){
+  const state = auditState();
+  $('auditStatus').textContent = state.label;
+  $('auditMessage').textContent = state.message;
+  $('auditSummary').dataset.state = state.kind;
+  $('auditReasons').innerHTML = state.reasons.map(reason =>
+    `<button type="button" class="lamp" data-go="${esc(reason.target)}" title="${esc(reason.detail)}">
+      <span class="bulb"></span>${esc(reason.label)}</button>`).join('');
+  $('addEvidenceBtn').hidden = !state.needsFiles;
+}
+
+function openEvidencePicker(){
+  $('fileInput').click();
+}
+
+function scrollToInstrument(id){
+  const target = $(id);
+  if (!target) return;
+  target.scrollIntoView({ behavior:'smooth', block:'center' });
+  target.focus({ preventScroll:true });
+}
+
 // =============================================================================
-// EXPOSICIÓN — ticks vividos por cruce (región × fase)
-// Se calcula sobre TODOS los snapshots, no solo hasta el cursor: es una
-// propiedad de la corrida completa, y de ella depende si el probe sirve.
+// RESULTADO CONFIRMATORIO — agregado congelado + filas crudas auditables
 // =============================================================================
+const fmtPct = value => Number.isFinite(value)
+  ? `${(value * 100).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})}%` : '—';
+const fmtPP = value => Number.isFinite(value)
+  ? `${value < 0 ? '−' : '+'}${Math.abs(value * 100).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})} pp` : '—';
+const fmtNumber = value => Number.isFinite(Number(value))
+  ? Number(value).toLocaleString('es-CL',{maximumFractionDigits:4}) : '—';
+const effectWidth = value => `${clamp((Number(value) || 0) / .25 * 100, 0, 100).toFixed(2)}%`;
+
+function renderConfirmatory(){
+  const models = confirmSummary ? confirmSummary.models : [];
+  $('pRun').textContent = 'composición · bank v3';
+  $('pCond').textContent = 'Réplica técnica ampliada';
+  $('pWorld').textContent = models.length ? `${models[0].nOntologies} ontologías` : '—';
+  $('pSeed').textContent = confirmLoaded.raw ? confirmRaw.length.toLocaleString('es-CL') : '—';
+  for (const id of ['pRun','pCond','pWorld','pSeed']) $(id).classList.remove('derived');
+
+  if (confirmSummary){
+    const allNegative = models.length > 0 && models.every(model => model.delta < 0);
+    $('confirmFindingText').innerHTML = allNegative
+      ? `En los <strong>${models.length} modelos preespecificados</strong>, la exactitud fue menor con memoria indexada que sin memoria. La réplica reproduce la dirección y magnitud del resultado principal.`
+      : 'Los artefactos están completos, pero el panel no comparte una única dirección del efecto.';
+    $('confirmVerdict').textContent = allNegative
+      ? `La memoria redujo la exactitud en ${models.length} de ${models.length} modelos.`
+      : 'El resultado varía entre modelos.';
+    $('confirmScope').textContent = 'El efecto describe estos tres modelos y este banco. No demuestra una propiedad universal de los LLM ni que el efecto poblacional supere diez puntos en los tres.';
+  } else {
+    $('confirmFindingText').textContent = 'Cargue agregado.json y probes_crudos.jsonl para reconstruir el resultado desde las filas crudas.';
+    $('confirmVerdict').textContent = 'Esperando ambos artefactos';
+    $('confirmScope').textContent = 'El agregado aporta la inferencia; el crudo permite comprobar que las tasas publicadas salen de los probes registrados.';
+  }
+  renderConfirmModels(models);
+  renderConfirmRecovery(models);
+  renderConfirmAudit();
+  renderConfirmProbePicker();
+  fillAuditSummary();
+  fillAnnun();
+}
+
+function renderConfirmModels(models){
+  if (!models.length){
+    $('confirmModels').innerHTML = '<p class="note">Falta el par completo de artefactos.</p>';
+    return;
+  }
+  $('confirmModels').innerHTML = models.map(model => {
+    const p = model.pValue === 0 ? '<0,0001' : (Number.isFinite(model.pValue)
+      ? model.pValue.toLocaleString('es-CL',{minimumFractionDigits:4,maximumFractionDigits:4}) : '—');
+    return `<article class="modelResult">
+      <div class="modelHead"><h3>${esc(model.model)}</h3><span class="n">n = ${esc(model.nOntologies)} ontologías · ${esc(model.nRows)} probes</span></div>
+      <div class="effectRead"><span class="label">Sin memoria</span><span class="effectTrack" role="img" aria-label="Exactitud sin memoria ${esc(fmtPct(model.controlAccuracy))}"><i class="fill control" style="width:${effectWidth(model.controlAccuracy)}"></i></span><span class="value">${esc(fmtPct(model.controlAccuracy))}</span></div>
+      <div class="effectRead"><span class="label">Indexada</span><span class="effectTrack" role="img" aria-label="Exactitud con memoria indexada ${esc(fmtPct(model.memoryAccuracy))}"><i class="fill memory" style="width:${effectWidth(model.memoryAccuracy)}"></i></span><span class="value">${esc(fmtPct(model.memoryAccuracy))}</span></div>
+      <div class="deltaPlate"><strong class="delta">${esc(fmtPP(model.delta))}</strong>
+        <span class="interval">IC95% ${esc(fmtPP(model.ciLow))} a ${esc(fmtPP(model.ciHigh))}</span>
+        <span class="p">p vs 0<br><b>${esc(p)}</b></span></div>
+    </article>`;
+  }).join('');
+}
+
+function renderConfirmRecovery(models){
+  if (!models.length){
+    $('confirmRecovery').innerHTML = '<p class="note">Falta el par completo de artefactos.</p>';
+    return;
+  }
+  $('confirmRecovery').innerHTML = models.map(model => `<div class="recoveryRow">
+    <div class="title"><span>${esc(model.model)}</span><span class="gain">${esc(fmtPP(model.recoveryDelta))}</span></div>
+    <div class="recoveryPair"><span>Indexada</span><span class="bar"><i class="memory" style="width:${clamp(model.memoryRecovery * 100,0,100)}%"></i></span><span class="num">${esc(fmtPct(model.memoryRecovery))}</span></div>
+    <div class="recoveryPair"><span>Sin memoria</span><span class="bar"><i class="control" style="width:${clamp(model.controlRecovery * 100,0,100)}%"></i></span><span class="num">${esc(fmtPct(model.controlRecovery))}</span></div>
+  </div>`).join('');
+}
+
+function evidenceNode(label, value, ok){
+  return `<div class="evidenceNode" data-ok="${ok ? 1 : 0}"><span class="k">${esc(label)}</span><span class="v">${esc(value)}</span></div>`;
+}
+
+function renderConfirmAudit(){
+  const audit = confirmSummary && confirmSummary.audit;
+  const nodes = [
+    evidenceNode('Filas crudas', confirmLoaded.raw ? confirmRaw.length.toLocaleString('es-CL') : 'faltan', confirmLoaded.raw),
+    evidenceNode('Esquema', audit ? (audit.schemaComplete ? 'completo' : 'incompleto') : 'sin comprobar', audit && audit.schemaComplete),
+    evidenceNode('Brazos', audit ? (audit.bothArms ? '2 de 2' : 'incompletos') : 'sin comprobar', audit && audit.bothArms),
+    evidenceNode('Reconciliación', audit ? (audit.reconciles ? 'exacta' : 'discrepa') : 'sin comprobar', audit && audit.reconciles),
+    evidenceNode('Lectura', audit ? (audit.ready ? 'auditable' : 'detenida') : 'incompleta', audit && audit.ready)
+  ];
+  const chain = nodes.map((node, index) => `${index ? '<span class="evidenceArrow" aria-hidden="true">→</span>' : ''}${node}`).join('');
+  const hashRows = [
+    ['aggregate', confirmNames.aggregate, confirmHashes.aggregate],
+    ['raw', confirmNames.raw, confirmHashes.raw]
+  ].filter(([, , hash]) => hash).map(([kind, name, hash]) => {
+    const matches = hash === CONFIRM_EXPECTED_HASHES[kind];
+    return `<div class="hashRow"><span class="file">${esc(name)}</span><code title="${esc(hash)}">${esc(hash)}</code><span class="match${matches ? '' : ' bad'}">${matches ? 'coincide' : 'distinto'}</span></div>`;
+  }).join('');
+  $('confirmAudit').innerHTML = `<div class="evidenceChain" aria-label="Cadena de evidencia">${chain}</div>
+    ${hashRows ? `<div class="hashList"><div class="confirmEyebrow">SHA-256 contra el registro D-038</div>${hashRows}</div>` : ''}`;
+}
+
+function renderConfirmProbePicker(){
+  const select = $('confirmProbeSelect');
+  if (!confirmLoaded.raw || !confirmRaw.length){
+    select.innerHTML = '<option>Falta probes_crudos.jsonl</option>';
+    select.disabled = true;
+    $('confirmProbeDetail').innerHTML = '<p class="note">El detalle individual vive en el archivo crudo.</p>';
+    return;
+  }
+  const previous = Number(select.value);
+  select.disabled = false;
+  select.innerHTML = confirmRaw.map((row, index) => {
+    const condition = row.condicion === 'memoria_indexada' ? 'indexada' : 'sin memoria';
+    return `<option value="${index}">${esc(row.modelo)} · ${esc(condition)} · ont ${esc(row.ontologia)} · ag ${esc(row.agente)} · ${esc(row.rkind)}</option>`;
+  }).join('');
+  select.value = Number.isInteger(previous) && previous >= 0 && previous < confirmRaw.length ? previous : 0;
+  renderConfirmProbe(confirmRaw[Number(select.value)]);
+}
+
+function renderConfirmProbe(row){
+  if (!row) return;
+  const lived = row.viv || {};
+  const cell = (where, value, held=false) => `<div class="livedCell${held ? ' held' : ''}"><span class="where">${esc(where)}</span><span class="amount">${esc(fmtNumber(value))}</span></div>`;
+  const condition = row.condicion === 'memoria_indexada' ? 'Memoria indexada' : 'Sin memoria';
+  const status = row.correcto ? 'Nivel correcto' : 'Nivel incorrecto';
+  $('confirmProbeDetail').innerHTML = `
+    <div class="probeMeta">
+      <span class="probeChip">${esc(row.modelo)}</span><span class="probeChip">${esc(condition)}</span>
+      <span class="probeChip">Ontología ${esc(row.ontologia)}</span><span class="probeChip">Agente ${esc(row.agente)}</span>
+      <span class="probeChip ${row.correcto ? 'ok' : 'bad'}">${esc(status)}</span>
+    </div>
+    <div><div class="confirmEyebrow">Valores del diseño · visibles al modelo solo en memoria indexada</div>
+      <div class="livedGrid">${cell('A · clara',lived['A-0'])}${cell('A · oscura',lived['A-1'])}${cell('B · clara',lived['B-0'])}${cell('B · oscura · retenida',row.real,true)}</div></div>
+    <div class="prediction"><div class="reading"><span>Predijo</span><strong>${esc(fmtNumber(row.predicho))}</strong><small>nivel ${esc(row.nivel_predicho)}</small></div><span class="arrow" aria-hidden="true">→</span><div class="reading"><span>Verdad</span><strong>${esc(fmtNumber(row.real))}</strong><small>nivel ${esc(row.nivel_real)}</small></div></div>
+    <div><div class="confirmEyebrow">Respuesta cruda · intento ${esc(row.intentos)}${row.parse_ok ? '' : ' · no parseable'}</div><pre class="rawAnswer">${esc(row.raw_content || row.error || '—')}</pre></div>`;
+}
+
+// =============================================================================
+// EXPOSICIÓN — CONSUMOS OK por cruce (región × fase), umbral 3 (D-025)
+// Definición idéntica a ai/analyze_pilot.py::exposure_per_cell: cuenta eventos
+// consume con outcome 'ok', leyendo region y phase del propio evento.
+//
+// Antes esto contaba TICKS VIVIDOS, y esa es otra cosa: un agente puede pasar
+// 30 ticks en A-clara consumiendo una sola vez. El visor lo habría pintado
+// expuesto mientras analyze_pilot lo excluye del score — el instrumento de
+// auditoría contradiciendo al análisis. Caso real (baseline_empirico_12_s3,
+// a3): ticks A-clara 30 / A-oscura 30 / B-clara 1, pero consumos 1 / 188 / 1.
+// =============================================================================
+const MIN_EXPOSURE = 3;   // D-025: <3 consumos en una celda vivida => sub-expuesto
 let expoCache = null;
 function exposure(){
   if (expoCache) return expoCache;
   const per = new Map();
-  for (const s of snaps){
-    const p = phaseOf(s);
-    if (p == null) continue;
-    for (const e of (s.entities || [])){
-      if (e.kind !== 'agent') continue;
-      const alive = ((s.agents && s.agents[e.eid] && s.agents[e.eid].energy) || 0) > 0;
-      if (!alive) continue;
-      if (!per.has(e.eid)) per.set(e.eid, {'A-0':0,'A-1':0,'B-0':0,'B-1':0});
-      per.get(e.eid)[`${regionOf(e.x)}-${p}`]++;
-    }
+  const cell = eid => {
+    if (!per.has(eid)) per.set(eid, {'A-0':0,'A-1':0,'B-0':0,'B-1':0});
+    return per.get(eid);
+  };
+  // todo agente que aparezca en la corrida existe en el cuadrante, aunque
+  // nunca haya consumido: 0 consumos es el dato, no la ausencia de dato.
+  for (const s of snaps)
+    for (const e of (s.entities || []))
+      if (e.kind === 'agent') cell(e.eid);
+  for (const ev of events){
+    if (ev.action !== 'consume' || ev.outcome !== 'ok') continue;
+    const d = ev.detail || {};
+    const k = `${d.region}-${d.phase}`;
+    const c = cell(ev.eid);
+    if (k in c) c[k]++;
   }
   expoCache = per;
   return per;
@@ -858,7 +1465,8 @@ function underexposed(){
   const out = [];
   for (const [eid, c] of exposure()){
     // B-1 es la celda retenida por diseño: no cuenta como subexposición.
-    if (c['A-0'] === 0 || c['A-1'] === 0 || c['B-0'] === 0) out.push(eid);
+    if (c['A-0'] < MIN_EXPOSURE || c['A-1'] < MIN_EXPOSURE || c['B-0'] < MIN_EXPOSURE)
+      out.push(eid);
   }
   return out;
 }
@@ -869,11 +1477,17 @@ function fillQuad(){
   for (const [,c] of src) for (const k in agg) agg[k] += c[k];
   $('expoSup').textContent = openAgent || (src.length ? 'todos' : '—');
 
+  // El umbral es por AGENTE (D-025); en la vista agregada se exige que cada
+  // agente del conjunto lo alcance, o la suma taparía a quien no llegó.
+  const nAg = src.length || 1;
   const cell = (k, held) => {
     const n = agg[k] || 0;
     if (held) return `<div class="cell held"><span class="n">?</span><span class="u">nunca</span></div>`;
-    return `<div class="cell" data-lit="${n > 0 ? 1 : 0}">
-      <span class="n">${n}</span><span class="u">ticks</span></div>`;
+    const ok = src.every(([, c]) => c[k] >= MIN_EXPOSURE);
+    return `<div class="cell" data-lit="${ok ? 1 : 0}" title="${
+      ok ? `todos los agentes con ≥${MIN_EXPOSURE} consumos aquí`
+         : `algún agente por debajo de ${MIN_EXPOSURE} consumos: probe no interpretable (D-025)`}">
+      <span class="n">${n}</span><span class="u">consumos${nAg > 1 ? ` · ${nAg} ag` : ''}</span></div>`;
   };
   $('quad').innerHTML = `
     <span></span>
@@ -941,7 +1555,7 @@ function fillCal(){
 // entidades. Antes eran ~1800 trazos de grilla por fotograma.
 // =============================================================================
 const cv = $('cv'), ctx = cv.getContext('2d');
-const logo = new Image(); logo.src = 'assets/logo.jpg';
+const logo = new Image(); logo.src = 'assets/logo.png';
 // La marca va grande —ocupa casi toda la cara— pero grabada, no impresa: a esta
 // opacidad se lee como serigrafía del instrumento y no compite con un solo dato.
 const LOGO_FRAC = 0.94;
@@ -1264,10 +1878,22 @@ function updateFrame(){
   updateTape();
   fillAnnun();
   $('tapeCursor').style.left = `${(frame / Math.max(1, snaps.length - 1)) * 100}%`;
+  updateCanvasSummary(s, phase, agents);
+}
+
+function updateCanvasSummary(snapshot, phase, agents){
+  const alive = agents.filter(agent => {
+    const info = (snapshot.agents && snapshot.agents[agent.eid]) || {};
+    return (info.energy || 0) > 0;
+  }).length;
+  $('canvasSummary').textContent =
+    `Día ${snapshot.day}, tick ${snapshot.tick}, fase ${phaseName(phase).toLowerCase()}. ` +
+    `${alive} de ${agents.length} agentes con energía.`;
 }
 
 function traceBlock(eid){
-  if (!traces.length) return `<div class="trace"><span class="none">Sin archivo de trazas cargado — no se puede mostrar qué respondió el modelo.</span></div>`;
+  if (!evidenceLoaded.traces) return `<div class="trace"><span class="none">Sin archivo de trazas cargado — no se puede mostrar qué respondió el modelo.</span></div>`;
+  if (!traces.length) return `<div class="trace"><span class="none">El archivo de trazas está cargado, pero no contiene decisiones del modelo.</span></div>`;
   const k = keyOf(snaps[frame]);
   let t = null;
   for (const r of traces){ if (r.eid === eid && keyOf(r) <= k) t = r; else if (keyOf(r) > k) break; }
@@ -1404,6 +2030,7 @@ const toggle = () => playing ? stop() : play();
 // EVENTOS
 // =============================================================================
 $('loadBtn').onclick = $('bootBtn').onclick = () => $('fileInput').click();
+$('addEvidenceBtn').onclick = openEvidencePicker;
 $('fileInput').addEventListener('change', e => { if (e.target.files.length) ingest([...e.target.files]); e.target.value = ''; });
 $('playBtn').onclick = toggle;
 $('stepB').onclick = () => { stop(); goTo(frame - 1); };
@@ -1413,7 +2040,7 @@ $('speed').addEventListener('input', e => { $('speedRead').textContent = `${pars
 $('filterBtn').onclick = e => {
   okOnly = !okOnly;
   e.currentTarget.setAttribute('aria-pressed', String(okOnly));
-  e.currentTarget.textContent = okOnly ? 'Solo logradas' : 'Todos los intentos';
+  e.currentTarget.textContent = okOnly ? 'Mostrar todos los intentos' : 'Mostrar solo acciones logradas';
   updateTape(); fillAnnun();
 };
 $('amountBtn').onclick = e => {
@@ -1421,12 +2048,16 @@ $('amountBtn').onclick = e => {
   e.currentTarget.setAttribute('aria-pressed', String(showAmounts));
   render();
 };
+$('confirmProbeSelect').addEventListener('change', e => renderConfirmProbe(confirmRaw[Number(e.target.value)]));
 $('annun').addEventListener('click', ev => {
   const b = ev.target.closest('[data-go]'); if (!b) return;
-  const t = $(b.dataset.go); if (!t) return;
-  t.scrollIntoView({ behavior:'smooth', block:'center' });
+  const t = $(b.dataset.go); if (!t) return; scrollToInstrument(b.dataset.go);
   t.animate([{ outline:'2px solid #39ff9a', outlineOffset:'3px' }, { outline:'2px solid transparent', outlineOffset:'3px' }],
     { duration:900, easing:'cubic-bezier(.2,.9,.3,1)' });
+});
+$('auditReasons').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-go]');
+  if (b) scrollToInstrument(b.dataset.go);
 });
 $('crew').addEventListener('click', ev => {
   const b = ev.target.closest('.crewRow'); if (!b) return;
@@ -1447,11 +2078,20 @@ document.addEventListener('keydown', ev => {
 // arrastrar y soltar: acepta la corrida y sus hermanos de una sola vez
 let dragDepth = 0;
 const drop = $('drop');
-document.addEventListener('dragenter', e => { e.preventDefault(); if (++dragDepth === 1) drop.dataset.on = '1'; });
+function setDropActive(active){
+  if (active){
+    drop.dataset.on = '1';
+    drop.setAttribute('aria-hidden', 'false');
+  } else {
+    delete drop.dataset.on;
+    drop.setAttribute('aria-hidden', 'true');
+  }
+}
+document.addEventListener('dragenter', e => { e.preventDefault(); if (++dragDepth === 1) setDropActive(true); });
 document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; delete drop.dataset.on; } });
+document.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; setDropActive(false); } });
 document.addEventListener('drop', e => {
-  e.preventDefault(); dragDepth = 0; delete drop.dataset.on;
+  e.preventDefault(); dragDepth = 0; setDropActive(false);
   const fs = [...(e.dataTransfer.files || [])];
   if (fs.length) ingest(fs);
 });
@@ -1465,14 +2105,33 @@ logo.onload = () => { if (snaps.length){ bgCache = new Map(); render(); } };
 
 // =============================================================================
 // ARRANQUE
-// ?file=<ruta> carga la corrida y busca sus hermanos por nombre.
+// ?file=<ruta> (o ?f=<ruta>) carga la corrida y busca sus hermanos por nombre.
 //   traces = <exp>_seed<N>_traces.jsonl   ·   probes = <exp>_probes.jsonl
 // =============================================================================
 fillAnnun();
 (async function boot(){
   const q = new URLSearchParams(location.search);
-  const f = q.get('file'); if (!f) return;
+  const f = q.get('file') || q.get('f'); if (!f) return;
   const get = async u => { const r = await fetch(u); if (!r.ok) throw new Error(r.status); return r.text(); };
+  const requestedKind = classify(f);
+  if (requestedKind === 'confirmAggregate' || requestedKind === 'confirmRaw'){
+    const dir = f.includes('/') ? f.slice(0, f.lastIndexOf('/') + 1) : '';
+    const aggregateUrl = q.get('aggregate') || `${dir}agregado.json`;
+    const rawUrl = q.get('raw') || `${dir}probes_crudos.jsonl`;
+    const [aggregateText, rawText] = await Promise.all([
+      get(aggregateUrl).catch(() => null), get(rawUrl).catch(() => null)
+    ]);
+    if (!aggregateText && !rawText) return bootError('No se pudieron abrir los resultados', 'No se encontró agregado.json ni probes_crudos.jsonl.');
+    const entry = async (name, text) => text ? {
+      name:name.split('/').pop(), text,
+      hash:await sha256Bytes(new TextEncoder().encode(text))
+    } : null;
+    applyConfirmBundle({
+      confirmAggregate:await entry(aggregateUrl, aggregateText),
+      confirmRaw:await entry(rawUrl, rawText)
+    });
+    return;
+  }
   let runText;
   try { runText = await get(f); }
   catch (err){ return bootError('No se pudo abrir la corrida', `${f} (${err.message}). Desde file:// el navegador bloquea fetch; sirva la carpeta o arrastre el archivo.`); }

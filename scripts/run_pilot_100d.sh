@@ -27,6 +27,6 @@ done
 
 {
   echo "=== EXTENSIÓN 100 días iniciada: $(date '+%Y-%m-%d %H:%M:%S') ==="
-  .venv/bin/python -m ai.extend_pilot qwen2.5:7b
+  .venv/bin/python -m ai.extend_pilot gemma2:9b
   echo "=== FIN extensión: $(date '+%Y-%m-%d %H:%M:%S') ==="
 } 2>&1 | tee data/silver/piloto_extension100d.log

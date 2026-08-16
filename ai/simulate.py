@@ -132,8 +132,13 @@ class Simulator:
                     if agent.energy <= self.death_energy:
                         # muerte: el agente deja de actuar (sigue en el mundo como cadáver)
                         continue
-                    # D-018: respetar el sueño elegido; solo despierta antes por emergencia
-                    if world.tick < next_think.get(aid, 0) \
+                    # D-018: respetar el sueño elegido; solo despierta antes por emergencia.
+                    # El horizonte se cuenta contra un reloj ABSOLUTO: world.tick
+                    # se reinicia a 0 cada día (world_state.py:585-588), así que
+                    # comparar contra él dejaba dormido para siempre a cualquier
+                    # agente cuyo horizonte cruzara la medianoche.
+                    t_abs = world.day * self.config.ticks_per_day + world.tick
+                    if t_abs < next_think.get(aid, 0) \
                        and agent.energy > self.wake_emergency_energy:
                         continue
                     result = self.policy(world, aid, world.tick, rng_turn)
@@ -144,7 +149,7 @@ class Simulator:
                             trace_logger.log_trace(day=world.day, tick=world.tick,
                                                    eid=aid, trace=trace)
                         if horizonte is not None:
-                            next_think[aid] = world.tick + max(1, int(horizonte))
+                            next_think[aid] = t_abs + max(1, int(horizonte))
                     elif isinstance(result, tuple) and len(result) == 3:
                         action, kwargs, trace = result
                         if trace:

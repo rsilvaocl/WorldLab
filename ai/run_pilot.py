@@ -23,7 +23,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -58,20 +58,44 @@ def make_world_config(days: int) -> WorldConfig:
     return cfg
 
 
-ORACLE_RULES = (
-    "Reglas del mundo (conocimiento de oráculo):\n"
-    "- Consumir un recurso cambia tu energía según el símbolo y el CONTEXTO "
-    "(región A/B y fase clara(0)/oscura(1)):\n"
-    "  S1: A-clara +8, A-oscura +4, B-clara -1, B-oscura -5\n"
-    "  S2: A-clara -2, A-oscura +1, B-clara +7, B-oscura +10\n"
-    "  S3: 0 en todas las celdas\n"
-    "  S4: A-clara +1, A-oscura -8, B-clara +7, B-oscura -2\n"
-    "- En fase oscura (1) la región B es inaccesible: la barrera te expulsa.\n"
-    "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
-    "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase oscura "
-    "si estás adyacente.\n"
-    "- Tu energía no puede superar 100.\n"
-)
+PHASE_NAME = {0: "clara", 1: "oscura"}
+
+
+def oracle_truth(cfg: WorldConfig) -> Dict[Tuple[str, str, int], float]:
+    """La tabla real del mundo — ÚNICA fuente: cfg.consume_effects (lo que el motor aplica).
+
+    D-030: antes había TRES copias de la tabla (ORACLE_RULES en run_pilot,
+    TRUTH en probe_observability, flat_rules en bench_oraculo) que podían
+    separarse en silencio de la ontología. Todo se deriva de acá.
+    """
+    symbols = sorted({k[0] for k in cfg.consume_effects})
+    return {(s, r, p): cfg.consume_effects[(s, r, p)]
+            for s in symbols for r in ("A", "B") for p in (0, 1)}
+
+
+def oracle_rules(cfg: WorldConfig) -> str:
+    """Reglas del mundo para el oráculo, GENERADAS del motor (cfg.consume_effects).
+
+    Formato plano (D-030): una línea por celda, sin indexación posicional.
+    Es el mismo formato que midió bench_oraculo como 'plana', ahora sin copia
+    manual: si alguien edita la ontología, el prompt del oráculo la sigue.
+    """
+    truth = oracle_truth(cfg)
+    lines = [f"- Consumir 1 de {s} en región {r} durante fase {p} "
+             f"({PHASE_NAME[p]}): {truth[(s, r, p)]:+g} de energía"
+             for s in sorted({k[0] for k in cfg.consume_effects})
+             for r in ("A", "B") for p in (0, 1)]
+    return (
+        "Reglas del mundo (conocimiento de oráculo).\n"
+        "Tabla completa de efectos. Busca la línea que coincida EXACTAMENTE "
+        "con el símbolo, la región y la fase que se te pregunten:\n"
+        + "\n".join(lines) + "\n"
+        "- En fase 1 (oscura) la región B es inaccesible: la barrera te expulsa.\n"
+        "- Los recursos se regeneran +0.5 por día hasta su carga inicial.\n"
+        "- struct_a (S3x2 + S4x1) reduce tu metabolismo a la mitad en fase "
+        "oscura si estás adyacente.\n"
+        "- Tu energía no puede superar 100.\n"
+    )
 
 
 def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity]:
@@ -104,26 +128,68 @@ def spawn_positions(eids: List[str], cfg: WorldConfig, seed: int) -> List[Entity
     return entities
 
 
+def world_geometry(cfg: WorldConfig) -> str:
+    """Geometría de las regiones, GENERADA de la config (D-032).
+
+    Va en la MECÁNICA base, idéntica en las 4 condiciones — no en
+    `system_rules`, que es lo que distingue al oráculo. No presta world model:
+    dice DÓNDE están las regiones, no qué vale nada en ellas. Es de la misma
+    naturaleza que `acciones_disponibles` (D-026) y que las etiquetas de región
+    de las entidades visibles (D-029), y coherente con D-012 (identidad
+    visible, propiedades ocultas).
+
+    Por qué hace falta: el gate `gate_oraculo4` mostró que los arreglos de
+    instrumento corrigieron COMER (energía neta de la comida −86 → +86) y no
+    movieron NADA en llegar a B (1 cruce de frontera en 30 días, las 8 celdas
+    de S2 en B intactas). La frontera solo era deducible dentro del radio de
+    visión, y ni la política reactiva optimizada vive B-clara (3,3% de sus
+    consumos en el piloto). Sin exposición a B-clara, B-oscura no es una
+    composición: es una adivinanza.
+
+    Lo que este cambio SÍ cambia (declarado, no disimulado): el experimento
+    deja de medir cartografía a ciegas. Es deseable si la hipótesis es la
+    composición de (símbolo, región, fase) — separa localizar el contexto de
+    aprender su efecto, que hoy están confundidos.
+    """
+    split_x = int(cfg.width * cfg.region_split)
+    return (
+        f"- El mundo mide {cfg.width}x{cfg.height}. La región A es la mitad "
+        f"OESTE (x < {split_x}) y la región B es la mitad ESTE (x >= {split_x}); "
+        f"tu campo `position` es [x, y]. Esto dice dónde están las regiones, "
+        f"no qué ocurre en ellas.\n"
+    )
+
+
 def make_agents(condition: str, model_name: str, client: LLMClient,
-                world_cfg: WorldConfig) -> Dict[str, Any]:
-    """Crea 5 agentes para la condición. Devuelve {eid: agente} para policy y hooks."""
+                world_cfg: WorldConfig,
+                force_sleep: Optional[int] = None) -> Dict[str, Any]:
+    """Crea 5 agentes para la condición. Devuelve {eid: agente} para policy y hooks.
+
+    force_sleep (ABLATION, None en el experimento): fija el horizonte de
+    despertar e ignora el que pide el modelo. Se aplica idéntico en las 3
+    condiciones LLM — nunca a una sola, o sería ventaja diferencial.
+    """
+    geometry = world_geometry(world_cfg)   # D-032: idéntica en las 4
     agents: Dict[str, Any] = {}
     for i in range(5):
         eid = f"a{i}"
         if condition == "oraculo":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
-                          system_rules=ORACLE_RULES,
+                          system_rules=oracle_rules(world_cfg),
                           think_every=8, hunger_threshold=30.0,
-                          model_name=model_name, memory=None)
+                          model_name=model_name, memory=None,
+                          force_sleep=force_sleep, geometry=geometry)
         elif condition == "memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
                           model_name=model_name,
-                          memory=LiteralMemory(max_items=80, label="memory"))
+                          memory=LiteralMemory(max_items=80, label="memory"),
+                          force_sleep=force_sleep, geometry=geometry)
         elif condition == "sin_memoria":
             ag = LLMAgent(eid, client, goal="sobrevivir y maximizar energía",
                           think_every=8, hunger_threshold=30.0,
-                          model_name=model_name, memory=None)
+                          model_name=model_name, memory=None,
+                          force_sleep=force_sleep, geometry=geometry)
         else:  # baseline_empirico — control de comparación, 0 tokens
             ag = EmpiricalAgent(eid, BaselineParams(eat_threshold=30.0,
                                                     build_min=4.0,
@@ -135,9 +201,12 @@ def make_agents(condition: str, model_name: str, client: LLMClient,
 
 def run_world(condition: str, density: float, seed: int, days: int,
               model_name: str, client: LLMClient, out_dir: Path,
-              exp_prefix: str = "piloto") -> Dict[str, Any]:
+              exp_prefix: str = "piloto",
+              force_sleep: Optional[int] = None) -> Dict[str, Any]:
     cfg = make_world_config(days)
-    agents = make_agents(condition, model_name, client, cfg)
+    # la geometría la arma make_agents desde cfg: no se pasa desde afuera, para
+    # que ningún llamador pueda darle una distinta a una condición (D-032)
+    agents = make_agents(condition, model_name, client, cfg, force_sleep=force_sleep)
     eids = sorted(agents.keys())
     entities = spawn_positions(eids, cfg, seed)
     if condition == "baseline_empirico":
@@ -224,7 +293,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--worlds", type=int, default=8, help="mundos (seeds) por celda")
     ap.add_argument("--days", type=int, default=30, help="días simulados por mundo")
-    ap.add_argument("--model", default="qwen2.5:7b", help="modelo Ollama/API")
+    ap.add_argument("--model", default="gemma2:9b", help="modelo Ollama/API")
+    ap.add_argument("--backend", default="ollama", choices=["ollama", "openai"],
+                    help="ollama local o API OpenAI-compatible (DeepSeek) — env: "
+                         "WORLDLAB_LLM_API_KEY, WORLDLAB_LLM_BASE_URL, WORLDLAB_LLM_MODEL")
+    ap.add_argument("--thinking", action="store_true",
+                    help="DeepSeek v4: ACTIVA el modo razonamiento, que va apagado "
+                         "por defecto (D-031). No usar en corridas: sobre el prompt "
+                         "real cuesta 58,5 s y 5076 tokens de salida por decisión "
+                         "contra 1,2 s y 30 sin razonar, y mide peor en el rumbo.")
     ap.add_argument("--density", default="all", choices=["all", "12", "7", "4"])
     ap.add_argument("--conditions", default="all", choices=["all", "sin_memoria", "memoria", "oraculo", "baseline_empirico"])
     ap.add_argument("--seeds", default="", help="lista de seeds específica, p.ej. '1,2,3' (override --worlds)")
@@ -233,6 +310,10 @@ def main() -> None:
                     help="retomar: salta mundos ya completados (checkpoint por mundo)")
     ap.add_argument("--out-dir", default="data/silver/piloto",
                     help="directorio de salida (cada corrida con params distintos va a dir propio)")
+    ap.add_argument("--force-sleep", type=int, default=None,
+                    help="ABLATION: fija sleep_ticks e ignora el que pide el modelo "
+                         "(separa 'no supo qué hacer' de 'no tuvo turnos'). "
+                         "Marca los datos como ablation_no_confirmatorio.")
     ap.add_argument("--exp-prefix", default="piloto",
                     help="prefijo de archivos de experimento (p.ej. 'ronda1' para la ronda 1)")
     args = ap.parse_args()
@@ -241,7 +322,19 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     model_name = args.model
-    client = LLMClient(backend="ollama", model=model_name)  # local $0
+    # D-031: en DeepSeek v4 el razonamiento va DESACTIVADO. Sobre el prompt
+    # real del agente, razonar cuesta 58.5 s y 5076 tokens de salida por
+    # decision contra 1.2 s y 29 sin razonar — 49x el tiempo — y no mejora
+    # nada: sin razonar mide 1.0 en los dos brazos, con razonamiento 2/3
+    # en Q3. El `deepseek-chat` de gate_oraculo_ds ERA este mismo modo.
+    if args.thinking:
+        thinking = True
+    elif args.backend == "openai":
+        thinking = False          # DeepSeek v4: razonamiento apagado por defecto
+    else:
+        thinking = None           # ollama: se respeta el default del modelo
+    client = LLMClient(backend=args.backend, model=model_name,
+                       thinking=thinking)  # ollama local $0 / DeepSeek API
 
     if args.smoke:
         densities = [0.07]
@@ -287,10 +380,14 @@ def main() -> None:
                 continue  # ya completado en una corrida previa
             t0 = time.time()
             r = run_world(condition, density, seed, days, model_name, client,
-                          out_dir, exp_prefix=args.exp_prefix)
+                          out_dir, exp_prefix=args.exp_prefix,
+                          force_sleep=args.force_sleep)
             dt = time.time() - t0
             r["elapsed_s"] = round(dt, 1)
-            r["estado"] = "desarrollo_no_confirmatorio"
+            r["estado"] = ("ablation_no_confirmatorio" if args.force_sleep
+                           else "desarrollo_no_confirmatorio")
+            if args.force_sleep:
+                r["force_sleep"] = args.force_sleep
             results.append(r)
             # CHECKPOINT: escribir el summary tras CADA mundo — si el proceso
             # muere (p.ej. el scheduler), el progreso no se pierde

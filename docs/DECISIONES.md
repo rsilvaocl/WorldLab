@@ -2,6 +2,510 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-037 · 2026-08-15 · Estudio CONFIRMATORIO: banco v3, pre-registro completo (Terra) · Aprobada
+- **Escrito y congelado ANTES de ejecutar nada sobre el banco v3.** El v2 ya
+  fue visto; cualquier parámetro elegido ahora sabiendo su resultado dejaría de
+  ser confirmatorio.
+- **Banco v3**: 64 ontologías, seed **20260815064**, congelado en
+  `data/banco/composicion_bank_v3.json`. **Disjunto de v1 y de v2** (0/64
+  compartidas con cada uno, test permanente). Azar de estrategia constante:
+  **0,203**.
+- **Roles de cada banco, fijados:**
+  - v1 → desarrollo y auditoría del instrumento (calibración del renderer).
+  - v2 → réplica cruzada pre-especificada de Flash. Desarrollo, no confirmatorio.
+  - **v3 → el estudio confirmatorio propiamente tal.**
+- **PANEL DE TRES MODELOS, declarado ANTES de mirar el v3** (decisión del
+  Comandante, 15/08): `gemma2:9b`, `deepseek-v4-flash` y `llama3.1:8b`. Mismo
+  renderer, mismos prompts, `temperature=0`, `thinking=false`. Se fija ahora
+  porque agregar un modelo después de ver el v3 convertiría el estudio en
+  exploratorio.
+- **Precondición por modelo: cada uno debe pasar su propio gate de lectura**
+  (≥0,75 agregado, ≥0,60 por celda) antes de que sus datos de composición
+  cuenten. La capacidad de leer la memoria es del MODELO, no solo de la
+  representación, y solo se había verificado en `gemma2:9b`. Los gates de los
+  modelos nuevos se corren sobre el **banco v2** —que ya es de desarrollo— para
+  no gastar el v3 antes del confirmatorio. Un modelo que no pase se reporta como
+  fallo de accesibilidad y **no entra** al contraste de composición.
+- **Unidad de análisis: la ONTOLOGÍA.** Los agentes son réplicas técnicas, no
+  n. (Con exposición determinista y `temperature=0` son réplicas exactas: σ_Δ
+  salió 0,0 al intentar usarlos como unidad.)
+- **Outcome primario:** diferencia pareada por ontología
+  `memoria_indexada − sin_memoria`, con **los nulos contados como incorrectos**.
+- **Efecto confirmatorio:** Δ ≤ **−0,10**, permutación **unilateral**,
+  α = 0,05, potencia objetivo 0,90. Con 64 ontologías el diseño cubre
+  σ_Δ ≈ 0,273; el σ_Δ observado en v2 fue **0,217**, así que queda holgado.
+- **Secundarios PRE-REGISTRADOS, reportados por separado** (Terra: abstención y
+  recuperación NO son extremos de un único eje — DeepSeek recupera menos *y* se
+  abstiene menos que gemma):
+  1. **tasa de respuesta**;
+  2. **exactitud condicionada a respuesta**;
+  3. **recuperación de valor vivido** y **sesgo fase − región**.
+- **`memoria_corrupta`: análisis mecanístico secundario**, NO un segundo
+  outcome primario. La lectura vigente es *"el contenido correcto actúa como
+  lure de recuperación; al romperse la coherencia el modelo recupera menos pero
+  se abstiene más"*. Lo que **no** se sostiene es una teoría única sobre por qué
+  un modelo se abstiene más que otro.
+- **Alcance de lo que se podrá afirmar:** con dos modelos, *"replicado en dos
+  familias de modelos"*. **NO** *"los LLM hacen esto"* — para esa afirmación
+  más amplia habría que predefinir un panel de tres o más modelos ANTES de
+  mirar el v3.
+- **Redacción final aprobada** (conducta medida, no arquitectura mental):
+  > En dos modelos preespecificados —`gemma2:9b` y `deepseek-v4-flash`—, sobre
+  > un banco preregistrado de ontologías separables y bajo decodificación
+  > determinista, la memoria indexada no mejora la exactitud en la celda
+  > retenida: la reduce frente a `sin_memoria`. Las respuestas están dominadas
+  > por recuperación de valores vividos, con sesgo hacia la celda que comparte
+  > fase, en vez de la combinación región × fase requerida por la estructura
+  > generativa.
+- **No se re-corre Flash con seis agentes.** La unidad es la ontología; dos
+  réplicas técnicas bastan. La desviación queda declarada, no silenciada.
+- **Referencia al resultado posterior (agregada 15/08, sin editar nada de lo
+  pre-registrado):** el confirmatorio se corrió y el primario pasó en los tres
+  modelos; el secundario de sesgo fase−región **no** replicó fuera de
+  `gemma2:9b`. La hipótesis pre-especificada se conserva intacta arriba,
+  incluida la parte que después falló — reescribirla sería fabricar un
+  pre-registro que acierta siempre. Resultado en
+  `docs/BITACORA.md` ("Estudio confirmatorio (banco v3)") y protocolo
+  consolidado en `docs/PROTOCOLO-confirmatorio-v3.md`.
+
+## D-036 · 2026-08-15 · Réplica con segundo modelo: criterios PRE-REGISTRADOS (Terra) · Aprobada
+- **Escrito ANTES de correr la réplica.** Ese es el punto: con la ronda de
+  gemma2:9b ya vista, cualquier criterio fijado después sería elegido sabiendo
+  qué favorece.
+- **Configuración congelada:** `deepseek-v4-flash`, `thinking` desactivado,
+  `temperature=0`, **mismo** banco v2, mismo renderer, mismos prompts y mismo
+  análisis. Sin excluir ontologías y sin reabrir ningún parámetro.
+- **Éxito de réplica** (los tres, no dos de tres):
+  1. Δ(`memoria_indexada` − `sin_memoria`) **≤ −0,10**, con permutación pareada
+     **UNILATERAL** y **p < 0,05**. Unilateral porque la dirección está
+     declarada de antemano; usar la bilateral regalaría la mitad de la potencia
+     por no aprovechar una hipótesis ya escrita.
+  2. **≥ 70%** de las respuestas no nulas de `memoria_indexada` coinciden con
+     un valor vivido.
+  3. Entre esas recuperaciones, la coincidencia **por FASE** supera a la
+     coincidencia **por REGIÓN** en **≥ 20 puntos**.
+- **Qué se concluye en cada caso, también fijado antes:**
+  - Replica ⇒ el patrón no es exclusivo de gemma2:9b.
+  - No replica ⇒ el resultado de gemma2:9b **sigue siendo válido**, pero pasa a
+    ser explícitamente modelo-específico. No se reinterpreta ni se descarta.
+- **Correcciones de redacción exigidas por Terra sobre la ronda ya corrida:**
+  - La inferencia estadística es sobre las **ontologías**, no sobre los 576
+    probes. El contraste pareado por ontología es el análisis correcto.
+  - "Derivable" se formula como **"derivable bajo la estructura separable que
+    genera el banco"**, no como consecuencia lógica obligatoria de tres
+    observaciones. Al agente no se le declara la regla separable, así que la
+    tarea mide **inducción de esa estructura** — que es justamente lo que se
+    quiere medir.
+  - La referencia principal es el control **`sin_memoria` = 0,188**, no una
+    noción abstracta de azar uniforme.
+  - "Por debajo del azar" **no** se vende como capacidad negativa general del
+    modelo: es propiedad conjunta de la distribución de niveles del banco, el
+    criterio de scoring, la estrategia de recuperación y la garantía D-022.
+  - `memoria_corrupta` se describe como **lure de recuperación**: *"el contenido
+    correcto actúa como lure; al romperse la coherencia el modelo recupera menos
+    pero se abstiene más"*. NO se afirma que "el contenido verdadero daña". Queda
+    como control mecanístico secundario, sin brazo propio.
+- **D-022 no se descuenta como artefacto.** Es lo que hace visible el mecanismo:
+  sin ella, copiar una celda vivida habría recibido crédito falso por
+  composición.
+
+## D-035 · 2026-08-15 · Renderer canónico en prosa + banco v2 confirmatorio (Terra) · Aprobada
+- **Decisión.** La fase va SIEMPRE en prosa —"fase 0 (clara)"— y nunca como
+  entero suelto en un campo. El renderer es **canónico**: lo usan todas las
+  representaciones (literal, indexada, corrupta). Si dos brazos se comparan, la
+  diferencia tiene que ser la estructura de recuperación, nunca JSON contra
+  lenguaje natural.
+- **Evidencia** (banco de 32, misma información, único cambio el render):
+
+  | render | agregado | A-clara | A-oscura | B-clara | |
+  |---|---|---|---|---|---|
+  | JSON `"phase": 0` | 0,663 | 0,521 | 0,490 | 0,979 | NO PASA |
+  | prosa `fase 0 (clara)` | **0,962** | 0,979 | 0,990 | 0,917 | **PASA** |
+
+  A-oscura pasa de 0,490 a 0,990. No es límite del modelo.
+- **Por qué es corrección y no ajuste.** La tabla del oráculo ya escribía la
+  fase en prosa desde D-030, mientras la memoria la serializaba como entero
+  porque así viene el evento del motor. **Nadie decidió esa asimetría**, y hacía
+  que la comparación entre condiciones incluyera el formato: mantener JSON en
+  memoria y prosa en oráculo habría convertido el formato en tratamiento.
+- **La protección contra "probamos hasta que pasó" (condición de Terra).**
+  Se probaron tres representaciones y la tercera es la que pasa. Para que eso
+  sea auditoría de instrumento y no selección post hoc del resultado:
+  1. El renderer queda **congelado**.
+  2. **Test de transformación fiel**: cada evento renderizado recupera
+     exactamente (símbolo, región, fase, outcome) del evento del motor — el
+     test parsea el texto de vuelta a la tupla. Sin claves de B-oscura, sin
+     promedio, sin inferencia.
+  3. **Banco v2** de 32 ontologías con seed **20260815 pre-registrada**, fijada
+     antes de llamar a ningún modelo sobre él. Comparte **cero** ontologías con
+     el v1 (test permanente).
+  4. **El banco v1 queda como calibración del instrumento**, citado solo como
+     validación de lectura/render. NO se reutiliza para inferencia de
+     composición.
+- **Corrupción en la capa SEMÁNTICA, antes de renderizar.** Se permutan los
+  outcomes observados preservando índice, orden y volumen, y recién después se
+  aplica el renderer canónico. Corromper el texto ya renderizado introduciría
+  diferencias accidentales de estilo o longitud.
+- **Cómo se reporta el hallazgo de binding** (criterio de Terra): como
+  **calibración del instrumento**, no como resultado cognitivo principal. La
+  formulación correcta es *"la recuperación de experiencias condicionadas por
+  fase es altamente sensible a la representación de la fase: la prosa semántica
+  permite binding casi perfecto; un entero JSON crudo no"*. **NO** se afirma que
+  los modelos no puedan ligar fase — los datos muestran lo contrario. Tampoco
+  se usa como evidencia confirmatoria independiente, porque surgió de una
+  investigación de fallo y se probaron varias representaciones. Va en bitácora,
+  métodos y apéndice de auditoría.
+- **Orden vinculante antes de la ronda:** renderer congelado → tests de
+  fidelidad y no-filtración → banco v2 con seed pre-registrada → gate de
+  lectura **sobre el banco v2** → solo si pasa, Fase P sobre ese mismo banco
+  según el análisis pre-registrado.
+
+## D-034 · 2026-08-14 · La unidad inferencial es la ONTOLOGÍA, no el mundo (Terra) · Comandante · Aprobada
+- **Problema medido.** Bajo exposición dirigida (D-033) los seeds dejaron de
+  ser observaciones. La Fase E estandariza la experiencia, los efectos del
+  mundo son deterministas (D-009/D-015) y con `temperature=0` el prompt y la
+  respuesta son idénticos en todo seed: **σ_Δ = 0,0 EXACTO en 8 seeds**, con
+  una sola huella de memoria en 4 seeds comprobados. No es poca varianza —
+  ocho seeds son ocho ejecuciones del mismo ítem.
+- **Por qué no valen las salidas fáciles** (criterio de Terra): repetir ítems
+  idénticos no crea ensayos independientes; los agentes tampoco son
+  respondientes independientes si reciben prompts byte-idénticos con
+  decodificación determinista; y subir `temperature` mediría ruido de
+  decoding, que puede ser sensibilidad secundaria pero no fuente principal de
+  inferencia.
+- **Decisión.** Mantener la Fase E exactamente estandarizada y hacer variar la
+  **ONTOLOGÍA**. Se evalúa sobre un banco pre-generado de 32 tablas
+  separables; cada una produce prompts, memorias y respuestas materialmente
+  distintos con la exposición igual de controlada. La unidad inferencial es la
+  ontología, no el seed ni el agente.
+- **Dos familias declaradas**, ninguna reemplaza a la otra:
+  - `ecologia-v1` — supervivencia y navegación sobre la tabla actual
+    congelada, **sin pretensión de composición poblacional**.
+  - `composicion-bank-v1` — el banco, para generalización composicional.
+- **La regla que lo hace honesto.** El banco se genera y se **congela en disco
+  ANTES de cualquier llamada a un modelo**, y el archivo va versionado
+  (`data/banco/composicion_bank_v1.json`; nótese que `data/silver` y
+  `data/gold` están en `.gitignore` y `data/banco` no, a propósito). No se
+  selecciona ni se descarta una tabla según las respuestas de nadie. Es
+  regenerable desde su seed, con test que lo verifica.
+- **Cada ontología cumple, verificado antes de la primera llamada:**
+  separabilidad, B-oscura retenida y nunca expuesta, D-022 (nivel de magnitud
+  retenido distinto del de las tres vividas), mismos símbolos y geometría, S3
+  control plano en cero.
+- **El nivel de azar de este banco NO es 1/6.** Como se puntúa por nivel de
+  magnitud, la referencia correcta es la **mejor estrategia constante**:
+  contestar siempre el mismo nivel. En este banco rinde **0,219** (tope 0,40),
+  con los niveles retenidos repartidos 11/20/12/18/21/14. Un banco donde
+  contestar siempre lo mismo funcione no mide composición, y el validador lo
+  rechaza.
+- **Inferencia.** Outcome por ontología: proporción de probes B-oscura
+  correctos. Contraste pareado `memoria_indexada − sin_memoria`. Prueba
+  principal: **permutación pareada** sobre las 32 diferencias (sin asumir
+  normalidad); IC **bootstrap remuestreando ontologías**.
+- **Precondición.** `memoria_indexada` debe pasar antes su gate de lectura. Si
+  no lo pasa, no se la compara contra corrupta ni contra `sin_memoria` como
+  composición: se reporta como fallo de accesibilidad del recuerdo.
+- **Qué NO se hace.** No se fija N con los 8 seeds del piloto degenerado. No se
+  sube `temperature` para fabricar varianza. No se toca la ontología de
+  `ecologia-v1`, que queda congelada.
+
+## D-033 · 2026-08-14 · Bifurcación de protocolo: composición bajo exposición DIRIGIDA (Terra) · Comandante · Aprobada
+- **Cambio de pregunta, declarado y no disimulado.** El protocolo de
+  composición pasa a medir **composición bajo exposición controlada**, NO
+  adquisición autónoma de exposición. Es una bifurcación explícita: sin
+  registrarla, el resultado de composición se leería como si el agente hubiera
+  descubierto las tres celdas por su cuenta.
+- **Por qué.** El gate de mundo (D-032 + `ai/gate_mundo.py`) midió que la
+  exposición a B-clara no emerge de esta ecología: 400 candidatas de tabla
+  evaluadas, mejor fracción D-025 = 0,08 contra un umbral de 0,75; 38 de 60
+  trayectorias se asientan en A y no visitan B ni una vez, con B-clara pagando
+  +10 contra +8 de A-clara; y ampliar el radio de planificación del baseline
+  (5→10→20) no lo mueve. Alcance exacto del resultado: **ninguna de las 400
+  candidatas evaluadas, bajo esta dinámica y esta familia de política**, no una
+  imposibilidad universal. Es evidencia suficiente para **congelar el tuning de
+  tabla**.
+- **Tres fases.**
+  1. **Fase E — exposición dirigida**, idéntica en las 4 condiciones. Cada
+     agente recibe experiencias REALES de consumo en A-clara, A-oscura y
+     B-clara para cada símbolo puntuado. B-oscura sigue bloqueada.
+     **Restricción crítica de Terra**: la exposición NO puede depender de que
+     el LLM elija bien. Si recibir el dato exigiera acertar `gather`/`consume`,
+     se reintroduce ruido de API y de planificación dentro de la fase que
+     existe justamente para eliminarlo. El motor GARANTIZA las experiencias y
+     registra sus outcomes.
+  2. **Fase P — probe retenido.** Forced-choice sobre B-oscura, evaluado solo
+     tras completar la exposición. Aquí vive la métrica de composición.
+  3. **Fase S — ecología autónoma**, separada y SECUNDARIA. Mantiene el mundo
+     actual con D-023/D-017 intactas; reporta supervivencia, navegación y
+     exposición espontánea, y **no condiciona** el score de composición.
+- **`sin_memoria` es el control negativo esperado** de la Fase E: recibe las
+  mismas experiencias y no puede retenerlas.
+- **Qué NO se toca.** La ontología queda congelada (la búsqueda evaluó
+  candidatas, no adoptó ninguna). D-023 y D-017 quedan intactas: no se
+  modifican hasta que exista una hipótesis específica sobre dinámica, no un
+  genérico "hagamos que B se visite más". Los umbrales del gate de mundo no se
+  bajan después de haber visto que fallan.
+- **Consecuencia sobre LE.** El baseline determinista informado no acredita
+  viabilidad robusta bajo el gate pre-registrado (0/12 seeds con 4/5), así que
+  **queda invalidado como techo/denominador de LE de supervivencia**. Es un
+  problema separado y NO bloquea el protocolo de composición. Para la parte
+  ecológica futura hará falta un planificador más fuerte, o reformular la
+  métrica como comparación entre políticas en vez de porcentaje respecto de un
+  óptimo no demostrado.
+
+## D-032 · 2026-08-14 · Geometría de las regiones EXPLÍCITA, común a las 4 condiciones (Opus, revisada por Terra) · Aprobada
+- **Problema.** El oráculo sabe que S2 en B vale +7 (clara) y +10 (oscura) y no
+  puede encontrar B. Tras D-029 cada entidad visible trae su región, pero el
+  radio de visión es 6: un agente en x=4 no ve ninguna entidad de B y no tiene
+  de dónde inferir hacia qué lado queda. El probe lo mide exactamente así —
+  `deepseek-v4-flash` acierta el rumbo **3/3 donde la información está** y
+  **0/9 donde no está**, que es la conducta correcta de un agente que no
+  inventa lo que no ve.
+- **Evidencia del gate `gate_oraculo4` (30d, seed42, d=7%, v4-flash).** Los
+  arreglos de instrumento mejoraron COMER y no movieron NADA en llegar a B:
+
+  | | `gate_oraculo_ds` (13/08) | `gate4` (14/08) |
+  |---|---|---|
+  | supervivientes | 0/5 | 0/5 |
+  | días de muerte | todos ~12 | 12, 14, 15, 15, **27** |
+  | consumos | 69 | **131** |
+  | comidas negativas | 28 (41%) | 41 (**31%**) |
+  | **energía neta de comer** | **−86** | **+86** |
+  | **cruces de frontera** | **1** | **1** |
+  | presencia en B | 6,6% | 2,4% |
+  | S2 en B intacta al final | sí | **sí, 8 celdas** |
+
+  Dejó de envenenarse (−86 → +86) y la muerte se corrió del día 12 al 27 en el
+  mejor agente. Cruzó la frontera **una vez en 30 días**, igual que antes.
+- **Decisión (revisada tras consulta a Terra).** La geometría va en la
+  **MECÁNICA base, idéntica en las 4 condiciones** — `world_geometry(cfg)`,
+  generada de la config: *"El mundo mide 30x30. La región A es la mitad OESTE
+  (x < 15) y la región B es la mitad ESTE (x ≥ 15); tu campo `position` es
+  [x, y]."* **NO** va en `system_rules`.
+- **Por qué la primera versión estaba mal.** La redacté solo para el oráculo.
+  Eso arregla el techo y deja las condiciones experimentales rotas: un oráculo
+  que llega a B contra un `memoria`/`sin_memoria` que estructuralmente no
+  puede no es una diferencia de grado sino de tipo, y el denominador de LE
+  deja de ser comparable. Peor: el probe de composición exige haber vivido
+  B-clara para componer B-oscura, y en el piloto **ni la política reactiva
+  optimizada la vive** (165 de 4931 consumos, 3,3%). Sin exposición, B-oscura
+  no es composición: es adivinanza.
+- **Por qué es percepción legítima (criterio de Terra).** Se limita a una regla
+  espacial neutral. No presta efectos, valores ni predicciones. Separa dos
+  tareas hoy confundidas: **localizar el contexto** y **aprender/componer su
+  efecto**. Misma naturaleza que `acciones_disponibles` (D-026) y las etiquetas
+  de región de D-029, coherente con D-012.
+- **Qué cambia el experimento, declarado y no disimulado.** Deja de medir
+  cartografía y exploración a ciegas. Es deseable si la hipótesis principal es
+  la composición de (símbolo, región, fase), que es lo que el diseño afirma
+  medir. Invariante permanente (`tests/test_geometria_comun.py`): las tres
+  condiciones LLM reciben la MISMA geometría, y la diferencia exacta entre el
+  prompt del oráculo y el de las otras sigue siendo su bloque de tabla — nada
+  más.
+- **Gate de exposición (punto 2 de Terra): YA EXISTE.** `MIN_EXPOSURE = 3` en
+  `analyze_pilot.py`, con `exposure_per_cell` / `exposure_summary` (D-025):
+  excluye del score de composición a los agentes sub-expuestos y reporta
+  cobertura. No hay que construirlo, sí hay que **reportarlo siempre** junto
+  al probe, nunca el promedio solo.
+- **D-023 / D-017 no se tocan todavía** (criterio de Terra): no son
+  autofrustrantes por sí mismas — nacer en B da exposición y la expulsión
+  protege el held-out. Y la expulsión ya deja a los agentes en x≈14, **a un
+  paso** de la frontera: el problema medido no es distancia física sino que no
+  representan ni persiguen la frontera. Se revisan solo si tras la geometría
+  común sigue sin haber exposición a B-clara.
+- **Qué NO se hace.** No se amplía el radio de visión (cambia el mundo para
+  las 4 condiciones). No se mueve la frontera ni se suaviza la barrera. No se
+  toca la tabla de efectos.
+- **Criterio de lectura tras aplicarla.** Si el oráculo cruza a B y sobrevive,
+  el cuello era la localización de la frontera. Si cruza y muere igual, el
+  cuello es metabólico y ahí sí aplica la bifurcación de protocolo que propuso
+  Terra. Si NO cruza teniendo la frontera escrita, el fallo es de control de
+  política con conocimiento perfecto — y eso sería el primer hallazgo
+  cognitivo genuino de toda la serie, no un cuarto bug de instrumento.
+
+## D-031 · 2026-08-14 · `deepseek-v4-flash` SIN razonamiento, en dos brazos (Opus) · Comandante · Aprobada
+- **Decisión.** Las tres condiciones LLM corren con **`deepseek-v4-flash` y el
+  modo de razonamiento DESACTIVADO** (`thinking: {"type": "disabled"}`).
+  Reemplaza la elección de `gemma2:9b` de D-030, que se hizo con un criterio
+  insuficiente. `baseline_empirico` no usa LLM (D-019) y no cambia.
+- **Por qué cae `gemma2:9b`.** El banco de D-030 mide un solo brazo. Hay DOS:
+  - **estático** — región y fase en el TEXTO de la pregunta. Es la condición
+    de `predict_effect` (D-010, métrica primaria).
+  - **contextual** — región y fase solo en la observación; el modelo tiene que
+    ligar "aquí". Es la condición del BUCLE DE ACCIÓN, donde el agente vive.
+
+  No ordenan igual, y ahí estuvo el error:
+
+  | modelo | estático | contextual Q2 | Q3 (deducible) |
+  |---|---|---|---|
+  | **deepseek-v4-flash sin razonar** | **1.0** | **1.0** | **3/3** |
+  | deepseek-v4-flash razonando | 1.0 | 1.0 | 2/3 |
+  | qwen3:4b | 1.0 | 1.0 | 0/3 |
+  | gemma2:9b | 1.0 | **0.083** | 0/3 |
+  | llama3.1:8b | 0.875 | 0.75 | 2/3 |
+  | hermes3:8b | 0.812 | 0.417 | 0/3 |
+  | qwen2.5:7b | 0.688 | 0.0 | 0/3 |
+
+  `gemma2:9b` no "maximiza": cita la etiqueta de una celda con el valor de otra
+  dos filas abajo ("región A … fase 0 (clara): +7", línea que NO existe en el
+  prompt). Confirmado en conducta: su smoke dio **0 consumos**, 20 moves, 17 de
+  ellos al oeste. El "5/5 supervivientes a 5 días" era luz verde falsa — con
+  ~100 de energía inicial y 0.3/tick todavía no necesitaban comer.
+- **Por qué el razonamiento va apagado.** Los v4 razonan por defecto. Sobre el
+  prompt real del agente (~1870 tokens) eso cuesta **58,5 s y 5076 tokens de
+  salida por decisión**, contra **1,2 s y 29 tokens** sin razonar: 49× el
+  tiempo y 175× la salida, y encima mide PEOR en Q3 (2/3 vs 3/3). El
+  `deepseek-chat` con el que se corrió `gate_oraculo_ds` era exactamente este
+  modo — la doc dice que los nombres viejos mapean a non-thinking/thinking de
+  `deepseek-v4-flash`.
+- **Costo y tiempo (medido, no estimado).** ~1,2 s/decisión ⇒ **≈3 h** de ronda 1
+  secuencial. Consumo por decisión: **1613 tok de input con cache HIT, 204 de
+  cache MISS, 30 de output** — 88,8% de tasa de acierto de caché, porque el
+  system prompt (mecánica + tabla del oráculo) es estable y domina el prompt.
+  Ronda 1 completa = 24 mundos (8 seeds × 3 condiciones LLM):
+
+  | escenario | hoy | valle (desde 16/08) | pico (desde 16/08) |
+  |---|---|---|---|
+  | mueren ~día 12 | $0.35 | **$0.64** | $1.28 |
+  | sobreviven 30 días | $0.90 | **$1.64** | $3.29 |
+
+  **CORRECCIÓN a una afirmación previa mía**: escribí que los descuentos por
+  horario habían terminado el 2025-09-05 y que el precio de v4 era plano. Era
+  cierto hasta ahora y deja de serlo: DeepSeek **reintroduce facturación
+  pico/valle el 16/08/2026 a las 16:00 UTC**, con el valle a la mitad del pico.
+  Flash pasa de $0.14/$0.0028/$0.28 (in/cache/out) a $0.22/$0.0070/$0.66 en
+  valle y $0.44/$0.014/$1.32 en pico.
+  - **Pico**: 01:00–04:00 y 06:00–10:00 UTC = **21:00–00:00 y 02:00–06:00 en
+    Chile** (UTC−4 en agosto). O sea el pico cae de noche: correr en horario
+    laboral chileno ya es valle.
+  - La palanca que más pesa sigue siendo el **cache hit**: mantener el system
+    prompt estable byte a byte. Cualquier cambio que lo rompa (p. ej. meter la
+    fecha o el seed en el system) multiplica el costo por ~5.
+- **Nombres.** `deepseek-chat` y `deepseek-reasoner` se descontinúan; el default
+  de `model_adapter` pasa a `deepseek-v4-flash`.
+- **Lo que NO resuelve.** El rumbo a B solo es deducible dentro del radio de
+  visión 6: en 9 de 12 muestras del probe no hay ninguna entidad de la otra
+  región a la vista, y ahí ningún modelo puede inferir nada. `q3_heading_acc`
+  = 1.0 sobre lo deducible y 0.25 sobre todo lo confirma. Queda ABIERTO y se
+  decide antes del gate.
+
+## D-030 · 2026-08-13 · `gemma2:9b` + tabla plana: el oráculo tiene que poder leer su oráculo (Opus) · Comandante · Aprobada · **SUPERSEDIDA por D-031 en la elección de modelo**
+- Vigente: la tabla plana generada del motor y el criterio de las dos
+  dimensiones. Caduca: `gemma2:9b` como modelo (ver D-031).
+- **Decisión.** Las tres condiciones LLM (`sin_memoria`, `memoria`, `oraculo`)
+  pasan de `qwen2.5:7b` a **`gemma2:9b`**, y la tabla del oráculo pasa al
+  formato plano (16 líneas, un hecho por celda). `baseline_empirico` no usa
+  LLM (D-019) y queda igual. Las dos mitades van juntas: `gemma2:9b` con la
+  tabla ACTUAL da 0.812, con la plana da 1.0.
+- **Por qué se reabre el Paso 2 del handoff, que yo mismo había cerrado.**
+  El cierre anterior ("no cambies de modelo, rompe la comparabilidad") era un
+  argumento sobre competencia de SUPERVIVENCIA y sigue en pie para eso. Este
+  es otro: un modelo que no liga una de las dos dimensiones experimentales no
+  produce medición interpretable en NINGUNA condición. Y la comparabilidad se
+  preserva intacta si el cambio va a las tres condiciones LLM a la vez —
+  la restricción es entre condiciones dentro de la ronda, no entre rondas.
+- **Evidencia** (`ai/bench_oraculo.py`, 16 celdas = 4 símbolos × 2 regiones ×
+  2 fases, calentamiento excluido). Azar de referencia para `level_acc`:
+  **0.375** (estrategia trivial "contestar siempre el nivel modal"; 0.167
+  uniforme). Con tabla plana:
+
+  | modelo | nivel | región A/B | fase 0/1 | B-oscura | s/decisión |
+  |---|---|---|---|---|---|
+  | **gemma2:9b** | **1.0** | 1.0 / 1.0 | 1.0 / 1.0 | **1.0** | 7.17 |
+  | llama3.1:8b | 0.875 | .88 / .88 | 1.0 / .75 | 0.75 | 3.22 |
+  | hermes3:8b | 0.812 | .63 / 1.0 | .88 / .75 | 1.0 | 3.15 |
+  | qwen2.5:7b (actual) | 0.688 | .63 / .75 | .88 / .50 | 0.75 | 3.27 |
+
+  `gemma2:9b` es el único con 1.0 en las dos dimensiones Y en la celda
+  retenida, estable en 3 pasadas (48 llamadas). Con la tabla ACTUAL,
+  `qwen2.5:7b` marca 0.50 contra un azar de 0.375: **el oráculo vigente está
+  en la estrategia trivial**, y `granite3.3:8b` cae exactamente en el azar.
+- **Por qué importa más allá del brazo oráculo.** La fase es una de las dos
+  dimensiones de D-014 y el probe de composición (D-005/D-010) pregunta por
+  B-oscura, que exige componer región Y fase. Con `qwen2.5:7b` un 0% en
+  B-oscura no es interpretable: no se distingue "no compuso" de "no puede
+  indexar por fase". Eso contamina la métrica primaria en las cuatro
+  condiciones, no solo en el techo.
+- **La tabla plana NO agrega información**: los mismos 16 hechos de
+  ORACLE_RULES, una línea por celda, sin indexación posicional. Es
+  legibilidad, de la misma clase que el barajado del menú (D-029). Test
+  permanente (`test_la_tabla_plana_no_agrega_informacion`) que falla si algún
+  día se le cuela un hecho que ORACLE_RULES no tiene — si eso pasara dejaría
+  de ser comparable y pasaría a ser intervención sobre el experimento.
+- **Costo.** 7.17 s/decisión contra 3.27 del actual (medido con el prompt de
+  producción, ~1870 tokens, carga en frío excluida). Ronda 1: **16,7 h** si
+  los agentes mueren hacia el día 12 como hasta ahora, **43 h** como cota alta
+  si sobreviven los 30 días. Contra las ~70 h que ya tomó el piloto y con la
+  infra recurrente construida, es asumible. `gemma2:9b` ocupa 5,4 GB y entra
+  holgado en los 16 GB del M2.
+- **Plan B declarado: `hermes3:8b`** (3.15 s/decisión, mismo costo que hoy).
+  Nivel 0.812 — peor promedio que llama3.1:8b — pero **12/12 en B-oscura**,
+  donde llama falla 3/12. Si hay que aceptar un techo con fugas, conviene que
+  las fugas queden lejos de la celda que mide la métrica primaria. Invocarlo
+  obliga a declarar en la bitácora que el techo tiene error propio.
+  Restituir: `OLLAMA_HOST=127.0.0.1:11434 ollama pull hermes3:8b`.
+- **Descartado y por qué.** `gemma4-qat:12b-64k`: 1.0 pero 26.79 s/decisión
+  (62-160 h de ronda) — inviable, y mi cifra previa de 23.2 s estaba inflada
+  por incluir la carga en frío. `granite3.3:8b`: en el azar. `qwen3:8b`:
+  9/12 inconsistente. `qwen2.5:7b-instruct-q8_0`: 0.562, la cuantización no
+  era la causa. `hermes3:8b` con tabla actual: 0.312, **bajo el azar** — su
+  especialización en tool-calling/JSON es ortogonal al fallo, que es de
+  indexación y no de formato de salida (los cuatro modelos entregan 0 JSON
+  malformados sobre el prompt real).
+- **Lo que esta decisión NO resuelve.** El hueco de `visible_to` (D-029) sigue
+  abierto: `gemma2:9b` sabe la tabla y sigue sin poder ver dónde queda B. Son
+  huecos independientes y los dos se cierran ANTES de gastar el gate.
+
+## D-029 · 2026-08-13 · La región es OBSERVABLE solo bajo los pies: tercer bug de instrumento (Opus) · Comandante · Aprobada
+- **Hallazgo.** El oráculo recibe la tabla indexada por (símbolo, REGIÓN, fase),
+  pero su observación reporta `region` SOLO de la celda donde está parado.
+  Las entidades visibles (`visible_to`, radio 6) traen `dx, dy, rkind` y NINGUNA
+  etiqueta de región. La frontera (`x >= int(width*region_split)`) no aparece en
+  ninguna parte del prompt ni de la observación. Y el oráculo corre con
+  `memory=None` (run_pilot.py:123): cada decisión es una llamada sin estado.
+  **Consecuencia formal: desde una sola observación no existe función que lleve
+  de `position` a "B queda al este".** El agente no puede deducir el rumbo aunque
+  sepa la tabla de memoria. No es que no use el conocimiento — es que el
+  conocimiento está indexado por una variable que no puede localizar.
+- **Evidencia (corrida `gate_oraculo_ds`, deepseek-chat, seed42).**
+  3 de 5 agentes NACEN en B (a2 x=18, a3 x=21, a4 x=23; D-023 funcionando).
+  En la primera fase oscura (día 1, tick 12) la barrera los expulsa a x=13-14
+  (D-017 funcionando). **Nunca vuelven**: 1 solo cruce de frontera en toda la
+  corrida (a2, día 2, x=14→15, reexpulsado). Tras la expulsión derivan hacia el
+  oeste hasta congelarse (a3: 21→14→13→12→11→10; a4: 23→13→12→11→10).
+  Direcciones de move: (0,-1)×44, (0,1)×34, (-1,0)×13, **(1,0)×5** — se alejan de
+  B 2.6× más de lo que se acercan, estando a UN paso. Los 69 consumos: 100% en A.
+  El "4/61 snapshots en B" de Terra no es "no cruza a B": es "fue expulsado de B
+  y no tiene con qué volver".
+- **Reinterpretación.** La lectura de Terra ("posee la tabla pero no la usa para
+  controlar su política") NO está sostenida por estos datos. La cadena
+  tabla→elegir B→navegar no falla en el eslabón cognitivo: falla porque el
+  eslabón de navegación pide información ausente de la observación. Es la misma
+  clase de defecto que el reloj y que el orden fijo del menú — el tercero.
+- **Decisión.** Ronda 1 sigue bloqueada. NO se rediseña el protocolo, NO se
+  suaviza el mundo y NO se cambia de modelo hasta cerrar la observabilidad:
+  1. Correr `ai/probe_observability.py` sobre las trazas reales (replay de
+     observaciones vividas, 3 preguntas sin estado: región actual / valor aquí /
+     rumbo a B). Firma esperada si el diagnóstico es correcto: Q1 y Q2 altas,
+     Q3 en el azar (0.25).
+  2. Si se confirma, exponer la región como PERCEPCIÓN (no como world model):
+     etiquetar con su región cada entidad visible en `visible_to`. Es coherente
+     con D-012 (identidad visible, propiedades ocultas) y con D-020 (no se
+     presta ningún efecto: dónde estás no es qué pasa si comes). Aplicado
+     idéntico en las 4 condiciones. Re-correr el gate.
+  3. Recién con el gate re-corrido sobre instrumento limpio se decide si la
+     supervivencia a 30 días es un prerrequisito legítimo del probe de
+     composición (los dos gates de Terra quedan en espera, no descartados).
+- **Paso 2 del handoff (qué es el oráculo) queda CERRADO sin cambiar de modelo.**
+  El oráculo sigue siendo `qwen2.5:7b`: cambiarlo rompe la comparabilidad entre
+  condiciones, que es lo único que el diseño mide. `DeterministicAgent` se corre
+  en paralelo como techo informado no-LLM (D-019), nunca como "el oráculo".
+  `qwen3:4b` ya fue descartado empíricamente (13/08).
+- **Secundario a verificar.** `can_move` (world_state.py:337) no valida
+  |dx|+|dy| ≤ 1 mientras el system prompt afirma "pasos de UNA casilla": el
+  motor aceptó 2 saltos multi-celda ((1,-2) y (-3,-5)) fuera del menú. Impacto
+  medido bajo (2/98 moves), pero el contrato dice una cosa y el motor otra.
+
 ## D-028 · 2026-08-13 · El visor distingue lo medido de lo derivado · Comandante · Aprobada
 - `viewer.html` deja de ser reproductor y pasa a panel de instrumentos: anunciadores
   en verde (medido por el motor) vs ámbar (derivado por el visor: fase inferida,

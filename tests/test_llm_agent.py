@@ -163,6 +163,56 @@ def test_llm_agent_prompt_no_miente_sobre_metabolismo():
     assert "1..24" in captured["user"]
 
 
+def test_prompt_lee_el_metabolismo_de_la_config_no_lo_inventa():
+    """El costo por tick debe salir de world.config, no de un literal.
+
+    El fix anterior dejó '0.5' escrito a mano mientras run_pilot corría el
+    mundo a energy_per_tick=0.3: el prompt sobreestimaba el costo de dormir
+    en 67%. Mismo defecto que D-020 (número inventado en el prompt)."""
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 1})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1, hunger_threshold=100)
+    cfg = WorldConfig(width=10, height=10, days=2, ticks_per_day=6,
+                      energy_per_tick=0.3)
+    world = WorldState(cfg, [Entity(eid="a0", kind="agent", x=1, y=1)], seed=1)
+    captured = {}
+
+    def fake_chat(messages):
+        captured["user"] = messages[-1]["content"]
+        return {"action": "rest", "args": {}, "sleep_ticks": 1}
+
+    client.chat_json = fake_chat
+    agent.decide(world)
+    assert "0.3 de energía por tick" in captured["user"]
+    assert "0.5 de energía por tick" not in captured["user"]
+
+
+def test_force_sleep_ignora_el_horizonte_del_modelo_y_lo_deja_registrado():
+    """ABLATION: con force_sleep el horizonte lo fija el experimentador.
+
+    Sirve para separar 'no supo qué hacer' de 'no tuvo turnos': con
+    sleep_ticks=24 el agente dispone de 60 decisiones en 30 días y necesita
+    ~83 acciones solo para cubrir el metabolismo. Lo que el modelo pidió debe
+    quedar en el trace: sin ese dato la corrida no es auditable."""
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 24})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1,
+                     hunger_threshold=100, force_sleep=1)
+    world = make_world()
+    _action, _kwargs, trace, horizonte = agent.decide(world)
+    assert horizonte == 1                      # manda el ablation
+    assert trace["sleep_forced"] == 1          # queda marcado
+    assert trace["sleep_ticks_modelo"] == 24   # se conserva lo que pidió el modelo
+
+
+def test_sin_force_sleep_el_trace_no_se_marca_como_ablation():
+    """El experimento normal no debe quedar etiquetado como ablation."""
+    client = FakeClient(response={"action": "rest", "args": {}, "sleep_ticks": 12})
+    agent = LLMAgent("a0", client, goal="sobrevivir", think_every=1,
+                     hunger_threshold=100)
+    _a, _k, trace, horizonte = agent.decide(make_world())
+    assert horizonte == 12
+    assert "sleep_forced" not in trace
+
+
 # ---------------------------------------------------------------------------
 # Simulador con política LLM
 # ---------------------------------------------------------------------------

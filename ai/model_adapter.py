@@ -33,20 +33,37 @@ class LLMClient:
     def __init__(self, backend: str = "ollama", model: Optional[str] = None,
                  base_url: Optional[str] = None, api_key: Optional[str] = None,
                  temperature: float = 0.7, timeout: float = 60.0,
-                 max_retries: int = 2, max_tokens: Optional[int] = None):
+                 max_retries: int = 2, max_tokens: Optional[int] = None,
+                 thinking: Optional[bool] = None):
         self.backend = backend
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
         self.max_tokens = max_tokens
+        # Modo de razonamiento (DeepSeek v4). None = default del proveedor.
+        # False envía {"thinking": {"type": "disabled"}}.
+        #
+        # Por qué importa: los v4 razonan por defecto. Sobre el prompt real del
+        # agente (~1870 tokens) eso da 4376 tokens de salida y 52 s por
+        # decisión — 30x el costo y el tiempo. El `deepseek-chat` con el que se
+        # corrió gate_oraculo_ds ERA v4-flash en modo NO pensante (la doc lo
+        # dice: los nombres viejos mapean a non-thinking/thinking de v4-flash),
+        # y esa es la configuración que midió 12/12 en el brazo contextual.
+        self.thinking = thinking
         self.last_usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
+        # Trazabilidad por llamada (D-038): lo que la corrida original descartó.
+        # Sin esto no se puede auditar un parseo ni distinguir "el modelo dijo
+        # algo raro" de "la API falló y se reintentó".
+        self.last_raw_content: Optional[str] = None
+        self.last_attempts: int = 0
+        self.last_error: Optional[str] = None
 
         if backend == "ollama":
-            self.model = model or os.environ.get("WORLDLAB_OLLAMA_MODEL", "qwen3:8b")
+            self.model = model or os.environ.get("WORLDLAB_OLLAMA_MODEL", "gemma2:9b")
             self.base_url = base_url or "http://localhost:11434/v1"
             self.api_key = api_key or "ollama"
         elif backend == "openai":
-            self.model = model or os.environ.get("WORLDLAB_LLM_MODEL", "deepseek-chat")
+            self.model = model or os.environ.get("WORLDLAB_LLM_MODEL", "deepseek-v4-flash")
             self.base_url = base_url or os.environ.get("WORLDLAB_LLM_BASE_URL",
                                                        "https://api.deepseek.com/v1")
             self.api_key = api_key or os.environ.get("WORLDLAB_LLM_API_KEY", "")
@@ -66,6 +83,8 @@ class LLMClient:
         }
         if self.max_tokens:
             payload["max_tokens"] = self.max_tokens
+        if self.thinking is not None:
+            payload["thinking"] = {"type": "enabled" if self.thinking else "disabled"}
         body = json.dumps(payload).encode()
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
@@ -75,11 +94,14 @@ class LLMClient:
             method="POST",
         )
         last_err = None
+        self.last_raw_content, self.last_error, self.last_attempts = None, None, 0
         for attempt in range(self.max_retries + 1):
+            self.last_attempts = attempt + 1
             try:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     data = json.loads(resp.read().decode())
                 content = data["choices"][0]["message"]["content"]
+                self.last_raw_content = content
                 usage = data.get("usage", {})
                 self.last_usage = {
                     "prompt_tokens": usage.get("prompt_tokens", 0),
@@ -92,7 +114,24 @@ class LLMClient:
                 last_err = f"{type(e).__name__}: {e}"
             if attempt < self.max_retries:
                 time.sleep(1.0 * (attempt + 1))
+        self.last_error = str(last_err)
         raise ModelError(f"fallo tras {self.max_retries + 1} intentos: {last_err}")
+
+    @staticmethod
+    def _plus_signed_numbers(text: str) -> str:
+        """Repara `+N` en posición de VALOR: JSON no admite el signo + delante
+        de un número, pero nosotros se lo pedimos explícitamente al modelo
+        ("da el número con signo", predict_effect / probes). Un modelo que
+        OBEDECE la instrucción produce `{"energy_change": +1}` — JSON inválido
+        — y su respuesta, posiblemente correcta, se registraba como
+        `predicted_energy_change: null`, indistinguible de "no contestó".
+
+        Solo se toca el `+` que sigue inmediatamente a `:`, `[` o `,` (posición
+        de valor). Un `+` dentro de una cadena ("sube +1 de energía") no
+        califica: el carácter previo es una letra o una comilla, no un
+        delimitador.
+        """
+        return re.sub(r"([:\[,])(\s*)\+(?=\d)", r"\1\2", text)
 
     @staticmethod
     def _extract_json(content: str) -> Dict[str, Any]:
@@ -101,12 +140,15 @@ class LLMClient:
         # quitar fences de markdown
         content = re.sub(r"^```(?:json)?\s*", "", content)
         content = re.sub(r"\s*```$", "", content)
-        try:
-            obj = json.loads(content)
-            if isinstance(obj, dict):
-                return obj
-        except json.JSONDecodeError:
-            pass
+        # el signo + explícito solo se repara si el parseo limpio falla
+        for candidate in (content, LLMClient._plus_signed_numbers(content)):
+            try:
+                obj = json.loads(candidate)
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError:
+                continue
+        content = LLMClient._plus_signed_numbers(content)
         # buscar el primer {...} balanceado
         start = content.find("{")
         if start == -1:

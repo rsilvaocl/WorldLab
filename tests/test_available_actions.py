@@ -181,3 +181,55 @@ def test_acciones_disponibles_no_revelan_efectos():
     assert "energy_gain" not in obs_str
     assert "consume_effects" not in obs_str
     assert "+8" not in obs_str
+
+
+def _mundo_agente_en(ax, ay, rx, ry, amount=10.0, seed=1):
+    """Mundo mínimo con un agente en (ax,ay) y un recurso en (rx,ry)."""
+    cfg = WorldConfig(width=12, height=12, days=2, ticks_per_day=6)
+    cfg.energy_per_unit["S1"] = 8.0
+    w = WorldState(cfg, [Entity(eid="a0", kind="agent", x=ax, y=ay)], seed=seed)
+    w._place(Entity(eid="e_res", kind="resource", x=rx, y=ry,
+                    attrs={"kind": "S1", "amount": amount}))
+    return w
+
+
+def test_gather_disponible_exactamente_cuando_el_motor_lo_acepta():
+    """Paso 0 del handoff gate-oráculo: available_actions no debe ser más
+    estrecho que world.gather() en adyacencia. Con el agente en cada celda a
+    distancia Manhattan <= 2 del recurso, gather aparece en el menú si y solo
+    si el motor lo aceptaría (distancia <= 1)."""
+    rx, ry = 5, 5
+    for dx in range(-2, 3):
+        for dy in range(-2, 3):
+            if abs(dx) + abs(dy) > 2:
+                continue
+            w = _mundo_agente_en(rx + dx, ry + dy, rx, ry)
+            disponible = any(a["args"].get("target_eid") == "e_res"
+                             for a in acts_of(w.available_actions("a0"), "gather"))
+            motor_acepta = w.gather("a0", "e_res").outcome == "ok"
+            assert disponible == motor_acepta, (
+                f"divergencia en offset ({dx},{dy}): menú={disponible}, motor={motor_acepta}")
+
+
+def test_menu_move_barajado_reproducible_misma_seed():
+    """Misma seed => mismo orden de direcciones de move (menu_rng determinista)."""
+    w1 = _mundo_agente_en(5, 5, 1, 1, seed=1)
+    w2 = _mundo_agente_en(5, 5, 1, 1, seed=1)
+    d1 = [(a["args"]["dx"], a["args"]["dy"])
+          for a in acts_of(w1.available_actions("a0"), "move")]
+    d2 = [(a["args"]["dx"], a["args"]["dy"])
+          for a in acts_of(w2.available_actions("a0"), "move")]
+    assert len(d1) == 4          # las 4 direcciones libres, solo que barajadas
+    assert d1 == d2              # y reproducibles con la misma seed
+
+
+def test_menu_move_barajado_cambia_entre_seeds():
+    """El orden del menú cambia entre seeds: el orden de una lista no debe ser
+    información (corrección de instrumento del sesgo posicional)."""
+    def ordenes_por_seed(seed):
+        w = _mundo_agente_en(5, 5, 1, 1, seed=seed)
+        return tuple((a["args"]["dx"], a["args"]["dy"])
+                     for a in acts_of(w.available_actions("a0"), "move"))
+    ordenes = {ordenes_por_seed(s) for s in range(1, 9)}
+    # 8 seeds, 4! = 24 permutaciones: esperamos más de un orden distinto.
+    assert len(ordenes) > 1
