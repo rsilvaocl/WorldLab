@@ -2,6 +2,21 @@
 
 Formato: fecha · decisión · quién la tomó · estado
 
+## D-028 · 2026-08-13 · El visor distingue lo medido de lo derivado · Comandante · Aprobada
+- `viewer.html` deja de ser reproductor y pasa a panel de instrumentos: anunciadores
+  en verde (medido por el motor) vs ámbar (derivado por el visor: fase inferida,
+  barrera supuesta, sin probe, sin trazas, sub-expuesto, filtro activo).
+- Motivo: el visor anterior permitía una conclusión falsa — escondía los intentos
+  rechazados por defecto (`okOnly` arrancaba en true) y presentaba la frontera
+  cerrada como hecho medido. Un revisor podía leer una corrida sana donde había
+  91-96% de rechazos. Ahora los fallos se ven por defecto y filtrar enciende lámpara.
+- Abre lo que existía en disco sin superficie: `<exp>_seed<N>_traces.jsonl`
+  (decisión del modelo) y `<exp>_probes.jsonl` (resultado del experimento; OJO:
+  probes NO lleva sufijo `_seed<N>`). Cuadrante 2x2 región × fase con la celda
+  retenida rayada, y el exit probe como calibración (predicho vs verdad del motor).
+- El visor NO entra al experimento: es instrumento de auditoría, coherente con
+  D-001 (alias legibles solo en el visor, nunca en el prompt).
+
 ## D-022 · 2026-08-13 · Requisito de discriminación de niveles en el probe (Opus, spec v1.1) · Aprobada
 - La celda retenida debe caer en un nivel de magnitud DISTINTO al de las tres vividas.
 - La primera tabla fallaba en 3 de 4 símbolos: S1 empataba con B-clara; S3 y S4

@@ -27,19 +27,52 @@ Objetivo: **banco de pruebas para distinguir comportamiento emergente de comport
 .venv/bin/python -m pytest tests/ -v
 ```
 
-## Ver el acuario (visor)
+## Ver una corrida (visor)
+
+`viewer.html` es un **panel de instrumentos**, no un reproductor: antes de que
+nada se mueva dice si la corrida es confiable. Un archivo, cero dependencias,
+cero red — abre igual desde `file://` que servido.
 
 ```bash
-# 1. generar una demo (o usar la ya generada en data/bronze/)
+# 1. generar una demo (o usar una de data/bronze/ o data/silver/piloto/)
 .venv/bin/python -m ai.run_demo 15 1
 
-# 2. abrir el visor
+# 2. arrastrar el .jsonl al navegador
 open viewer.html
 
-# 3. arrastrar el archivo data/bronze/demo_d15_s1_seed1.jsonl dentro del navegador
-# (o Cargar .jsonl). Play ▶, scrubber temporal, velocidad ajustable,
-# panel de agentes (energía + inventario) y log de eventos.
+# 3. o servir la carpeta y enlazar la corrida directamente
+python3 -m http.server 8787
+# http://localhost:8787/viewer.html?file=data/silver/piloto/piloto_baseline_empirico_12_s1_seed1.jsonl
 ```
+
+Una corrida vive en **tres archivos**. El visor los lee todos: arrástrelos
+juntos, o con `?file=` los busca por nombre.
+
+| archivo | qué aporta |
+|---|---|
+| `<exp>_seed<N>.jsonl` | el mundo, los agentes y los eventos |
+| `<exp>_seed<N>_traces.jsonl` | qué vio y qué respondió el modelo, por tick |
+| `<exp>_probes.jsonl` | el exit probe — **ojo: sin el sufijo `_seed<N>`** |
+
+Lo que el panel responde de un vistazo:
+
+- **Anunciadores** (arriba a la derecha) — verde = medido por el motor,
+  ámbar = derivado por el visor. Avisan si falta el probe, si faltan trazas, si
+  hay agentes subexpuestos o si un filtro está ocultando datos. Son botones:
+  llevan al instrumento que los explica.
+- **Exposición** — ticks vividos en cada cruce región × fase. Si una celda base
+  marca 0, el probe de ese agente no es interpretable, y lo dice.
+- **Calibración** — el exit probe: aguja blanca = lo que el agente predijo,
+  índice ámbar = la verdad del motor. Azar ≈ 17%.
+- **Tripulación** — clic en un agente abre su decisión: observación, acción
+  propuesta y respuesta cruda del modelo.
+
+Teclado: espacio reproduce, ←/→ un momento (con Shift, diez), Inicio/Fin a los
+extremos.
+
+Los cuatro símbolos se distinguen por **forma** además de color, y los nombres
+legibles (`comida`, `agua`…) se marcan como *alias solo del visor*: el modelo
+nunca los ve.
 
 ## Agentes LLM (fase 2)
 

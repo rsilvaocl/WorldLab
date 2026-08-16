@@ -130,7 +130,31 @@ qwen2.5:7b para escribir JSON.
 
 ---
 
-## Ronda 1 — *pendiente*
+## Instrumentación — visor reconstruido (2026-08-13)
+
+Antes de gastar la ronda 1 se rehízo `viewer.html` (D-028). No es cosmética: el visor
+anterior escondía los intentos rechazados por defecto y presentaba como medido lo que
+él mismo derivaba (fase, barrera). Con esa superficie, la corrida del piloto —91-96%
+de rechazos— se leía como sana. Además, el resultado del experimento (`_probes.jsonl`)
+y la decisión del modelo (`_traces.jsonl`) existían en disco sin que nada los abriera.
+
+Ahora: fallos visibles por defecto, anunciadores verde (medido) vs ámbar (derivado),
+cuadrante 2x2 de exposición región × fase con la retenida rayada, y el exit probe como
+calibración predicho-vs-motor. El instrumento que va a auditar la ronda 1 ya no puede
+producir la conclusión falsa.
+
+---
+
+## Ronda 1 — *pendiente (BLOQUEADA)*
 
 **Pregunta:** ¿sobreviven y cruzan?
 **Configuración prevista:** 30 días, densidad única 7%, con D-022 a D-026 aplicados.
+32 mundos (8 seeds × 4 condiciones), directorio propio `data/silver/ronda1`.
+
+**Bloqueo vigente:** el smoke test 30d del oráculo falló 0/5 — el techo informado no
+cruza a B teniendo la tabla completa en el prompt (ver §3 de
+`docs/WORLDLAB-avance-para-opus.md`). Con el techo colapsado, LE no tiene denominador.
+Se lanza cuando exista decisión sobre ese punto.
+
+**Infra lista:** `scripts/worldlab_ronda1_recurrente.sh`, agendable cada 2 h; idempotente
+(guard anti-doble-instancia + `--resume` por checkpoint de mundo).
