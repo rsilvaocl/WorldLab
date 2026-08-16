@@ -1,108 +1,147 @@
 # WorldLab
 
-Laboratorio experimental de agentes autónomos en un mundo 2D controlado.
-Objetivo: **banco de pruebas para distinguir comportamiento emergente de comportamiento inducido** en agentes de IA.
+> **Estado: experimento finalizado y archivado (15 de agosto de 2026).**
+>
+> WorldLab no demostró que los agentes sean “menos inteligentes”. En este
+> experimento concreto, tres modelos recuperaron información disponible, pero
+> tuvieron menor exactitud al intentar combinarla que sus respectivos controles
+> sin memoria. El patrón se replicó, pero su mecanismo no quedó demostrado y los
+> resultados no permiten generalizar a la inteligencia de los agentes.
 
-## Estado
+## Qué terminó siendo el experimento
 
-- **Fase 0 (en curso):** motor Python headless — estado del mundo, invariantes, validación de acciones, determinismo por hash. *Sin ontología todavía (diseño: Opus).*
-- **Fases siguientes:** baseline determinista → visor HTML → agente LLM → piloto → pre-registro → corrida confirmatoria.
+WorldLab comenzó como un laboratorio de agentes autónomos en un mundo 2D. El
+objetivo original era observar si agentes con distintas memorias sobrevivían,
+cruzaban regiones y componían regularidades aprendidas durante su experiencia.
 
-## Documentos
+Esa ronda completa, llamada **Ronda 1, no se ejecutó**. Los gates previos
+encontraron errores de contrato, lectura y observabilidad que hacían que sus
+resultados no fueran interpretables. El proyecto terminó con un estudio más
+estrecho y controlado: un probe numérico para medir si un modelo podía combinar
+correctamente dos dimensiones vividas —región y fase— usando memoria indexada.
 
-- `docs/WORLDLAB-revision-para-opus5.md` — consolidación de todas las rondas de revisión (ChatGPT, Zod, Claude, Opus 5) + protocolo v0.1 borrador.
+La pregunta que efectivamente se midió fue:
 
-## Reglas de oro (concepto v0.1 §5)
+> Cuando el valor correcto depende de combinar región y fase, ¿cambia la
+> exactitud del modelo al recibir una memoria indexada de experiencias previas,
+> comparado con responder sin memoria?
 
-- El LLM **propone** acciones; el World Engine **valida** y solo entonces ejecuta.
-- La realidad del mundo es autoritativa; la percepción del agente es un subconjunto.
-- Determinismo: misma seed + mismas acciones ⇒ mismo hash de estado.
+No se midió inteligencia general, autonomía ni supervivencia efectiva de los
+agentes.
 
-## Desarrollo
+## Qué ocurrió
+
+El estudio confirmatorio utilizó un banco congelado de 64 ontologías y tres
+modelos preespecificados. La réplica técnica volvió a ejecutar ambos brazos y
+persistió los **2.304 probes crudos**.
+
+Resultado de la réplica (`memoria_indexada − sin_memoria`):
+
+| modelo | con memoria indexada | sin memoria | diferencia |
+|---|---:|---:|---:|
+| `deepseek-v4-flash` | 0,078 | 0,203 | **−0,125** |
+| `gemma2:9b` | 0,010 | 0,188 | **−0,177** |
+| `llama3.1:8b` | 0,031 | 0,208 | **−0,177** |
+
+En los tres modelos, la exactitud observada fue menor en el brazo con memoria
+indexada. El contraste contra una diferencia de cero fue significativo en los
+tres. La réplica reprodujo exactamente la diferencia de los dos modelos
+locales; DeepSeek cambió en 0,008.
+
+Al mismo tiempo, la coincidencia exacta con algún valor vivido fue mayor con
+memoria:
+
+| modelo | recuperación con memoria | recuperación sin memoria |
+|---|---:|---:|
+| `deepseek-v4-flash` | 78,0% | 18,0% |
+| `gemma2:9b` | 96,6% | 0,0% (`0/384`) |
+| `llama3.1:8b` | 87,0% | 18,2% |
+
+Esto describe lo ocurrido: los modelos tendieron a devolver números presentes
+en la memoria, pero no el número resultante de combinar correctamente región y
+fase. La comparación de recuperación es descriptiva; no se preregistró un
+contraste inferencial específico que permita convertirla en una afirmación
+causal.
+
+## Qué permite sostener la evidencia
+
+- Bajo este banco, estos prompts y estos tres modelos, el brazo con memoria
+  indexada tuvo menor exactitud que su respectivo control sin memoria.
+- El efecto primario negativo reapareció en una segunda ejecución técnica:
+  fue exacto en `gemma2:9b` y `llama3.1:8b`, y difirió 0,008 en
+  `deepseek-v4-flash`.
+- En el brazo con memoria aparecieron más valores vividos en las respuestas,
+  pero esa recuperación observada no se tradujo en seleccionar la combinación
+  correcta.
+- DeepSeek no fue determinista en este entorno: 4 de 10 respuestas completas
+  reejecutadas cambiaron. Solo una de esas diez cambió el valor puntuado.
+
+## Qué no se demostró
+
+- Que los agentes o los modelos sean poco inteligentes en términos generales.
+- Que la memoria perjudique el razonamiento en otros problemas, formatos o
+  modelos.
+- Qué mecanismo produjo la menor exactitud. La hipótesis de un sesgo general
+  hacia la fase **no replicó** y fue descartada.
+- Que el efecto poblacional sea de al menos 10 puntos en los tres modelos. El
+  contraste contra `−0,10` no fue significativo para DeepSeek.
+- Que los modelos locales sean deterministas. En 10 reejecuciones por modelo no
+  se observaron discordancias, pero esa muestra no demuestra determinismo.
+- Que los agentes puedan sobrevivir, cruzar y componer dentro del mundo 2D. La
+  Ronda 1 que debía responder eso quedó bloqueada y nunca se corrió.
+
+## Por qué se cerró aquí
+
+Los gates cumplieron su función: impidieron interpretar como cognición varios
+fallos del instrumento. Durante el desarrollo se detectaron, entre otros,
+acciones mal formuladas, memoria que el probe no recibía y una región no
+observable a distancia. El visor hizo visible que corridas con 91–96% de
+acciones rechazadas podían parecer sanas.
+
+Después de corregir esos problemas fue posible ejecutar y replicar el estudio
+numérico descrito arriba, pero ese estudio ya no respondía por completo la
+pregunta original sobre agentes autónomos dentro del mundo. No se desbloqueó ni
+se gastó la Ronda 1. El repositorio se conserva como registro auditable de lo
+que se construyó, falló, corrigió y finalmente se observó.
+
+## Auditar el resultado
+
+El visor carga el agregado confirmatorio y los probes crudos, comprueba el
+esquema, los dos brazos, la reconciliación y los checksums, y permite inspeccionar
+cada respuesta:
 
 ```bash
-# venv (Python 3.12 de Homebrew)
-/opt/homebrew/bin/python3.12 -m venv .venv
-.venv/bin/pip install pytest
-.venv/bin/python -m pytest tests/ -v
+.venv/bin/python -m http.server 8791
+open 'http://localhost:8791/viewer.html?file=data/resultados/replica_v3/agregado.json'
 ```
 
-## Ver una corrida (visor)
+Artefactos principales:
 
-`viewer.html` es un **panel de instrumentos**, no un reproductor: antes de que
-nada se mueva dice si la corrida es confiable. Un archivo, cero dependencias,
-cero red — abre igual desde `file://` que servido.
+- [`viewer.html`](viewer.html) — dashboard auditable del resultado.
+- [`agregado.json`](data/resultados/replica_v3/agregado.json) — métricas de la
+  réplica técnica.
+- [`probes_crudos.jsonl`](data/resultados/replica_v3/probes_crudos.jsonl) —
+  2.304 probes persistidos, sin promediar entre corridas.
+- [`comparaciones.jsonl`](data/resultados/repetibilidad/comparaciones.jsonl) —
+  30 reejecuciones usadas para evaluar repetibilidad.
+- [`PROTOCOLO-confirmatorio-v3.md`](docs/PROTOCOLO-confirmatorio-v3.md) — diseño
+  confirmatorio congelado.
+- [`BITACORA.md`](docs/BITACORA.md) — historial completo, incluidos errores,
+  correcciones y límites.
+
+Checksums oficiales de la réplica:
+
+```text
+probes_crudos.jsonl  b322ea053dfed6c6a15ecfb4a83a8392fdd4be31b1d45effe804452624e26df3
+agregado.json        8276564976eb4fda4fc406a71db6b7c21b7dcaf56c9ca6cddcb51de7a00d187d
+```
+
+## Verificación local
+
+Requiere Python 3.12 y `pytest`:
 
 ```bash
-# 1. generar una demo (o usar una de data/bronze/ o data/silver/piloto/)
-.venv/bin/python -m ai.run_demo 15 1
-
-# 2. arrastrar el .jsonl al navegador
-open viewer.html
-
-# 3. o servir la carpeta y enlazar la corrida directamente
-python3 -m http.server 8787
-# http://localhost:8787/viewer.html?file=data/silver/piloto/piloto_baseline_empirico_12_s1_seed1.jsonl
+.venv/bin/python -m pytest -q
 ```
 
-Una corrida vive en **tres archivos**. El visor los lee todos: arrástrelos
-juntos, o con `?file=` los busca por nombre.
-
-| archivo | qué aporta |
-|---|---|
-| `<exp>_seed<N>.jsonl` | el mundo, los agentes y los eventos |
-| `<exp>_seed<N>_traces.jsonl` | qué vio y qué respondió el modelo, por tick |
-| `<exp>_probes.jsonl` | el exit probe — **ojo: sin el sufijo `_seed<N>`** |
-
-Lo que el panel responde de un vistazo:
-
-- **Anunciadores** (arriba a la derecha) — verde = medido por el motor,
-  ámbar = derivado por el visor. Avisan si falta el probe, si faltan trazas, si
-  hay agentes subexpuestos o si un filtro está ocultando datos. Son botones:
-  llevan al instrumento que los explica.
-- **Exposición** — ticks vividos en cada cruce región × fase. Si una celda base
-  marca 0, el probe de ese agente no es interpretable, y lo dice.
-- **Calibración** — el exit probe: aguja blanca = lo que el agente predijo,
-  índice ámbar = la verdad del motor. Azar ≈ 17%.
-- **Tripulación** — clic en un agente abre su decisión: observación, acción
-  propuesta y respuesta cruda del modelo.
-
-Teclado: espacio reproduce, ←/→ un momento (con Shift, diez), Inicio/Fin a los
-extremos.
-
-Los cuatro símbolos se distinguen por **forma** además de color, y los nombres
-legibles (`comida`, `agua`…) se marcan como *alias solo del visor*: el modelo
-nunca los ve.
-
-## Agentes LLM (fase 2)
-
-```bash
-# demo con 5 agentes LLM (qwen2.5:7b local vía Ollama)
-.venv/bin/python -c "
-import sys; sys.path.insert(0,'.')
-from ai.world_state import WorldConfig, Entity
-from ai.model_adapter import LLMClient
-from ai.llm_agent import LLMAgent
-from ai.simulate import Simulator, make_llm_policy
-cfg = WorldConfig(width=30, height=30, days=6, ticks_per_day=24, energy_per_tick=0.3)
-cfg.energy_per_unit['food']=8.0; cfg.energy_per_unit['water']=5.0
-client = LLMClient(backend='ollama', model='qwen2.5:7b', max_tokens=120)
-goal='Sobrevive. Si tienes hambre, busca comida. Explora y recolecta recursos.'
-agents={f'a{i}': LLMAgent(f'a{i}', client, goal=goal, think_every=24, hunger_threshold=35.0) for i in range(5)}
-policy=make_llm_policy(agents)
-sim=Simulator(cfg, policy, 'data/bronze', 'llm_demo', log_interval=12, resource_density=0.10,
-              resource_kinds=['food','wood','stone','water'])
-res=sim.run([Entity(eid=f'a{i}',kind='agent',x=5+i*3,y=5) for i in range(5)], seed=1)
-print(res.to_dict())
-"
-```
-
-El archivo resultante (`data/bronze/llm_demo_seed1.jsonl`) se ve en `viewer.html` como la demo determinista.
-Los agentes LLM usan `qwen2.5:7b` (local, gratuito) o cualquier modelo vía `WORLDLAB_LLM_*` env vars (backend `openai`).
-
-### Modelos y costo medido (local, M2 16GB)
-| Modelo | tok/s | Decisión de agente | Uso |
-|---|---|---|---|
-| qwen2.5:7b | ~35 | ~1.5s (max_tokens 120) | **Recomendado para agentes** — JSON directo |
-| qwen3:8b | ~31 | 19-38s (razona demasiado) | NO para agentes en v0.1 |
-| DeepSeek API | API | ~1-2s | Alternativa remota (configurable) |
+La última verificación del cierre ejecutó **322 tests** correctamente.
